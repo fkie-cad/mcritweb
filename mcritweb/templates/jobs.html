@@ -1,0 +1,75 @@
+{% from 'table/pagination_widget.html' import pagination_widget %}
+{% from 'table/table.html' import job_table %}
+{% from 'table/job_row.html' import job_row_std_js %}
+{% from 'table/tabs.html' import add_tab, finalize_tabs %}
+
+{% extends 'base.html' %}
+{% block title%}
+Jobs
+{% endblock %}
+{% block style %}
+
+{{ job_row_std_js() }}
+<script>$(document).ready(function () {
+  $('#job-table').DataTable({
+    autoWidth: false,
+    deferRender: false,
+    processing: false,
+    scrollX: false,
+    scrollY: false,
+    searching: false,
+    serverSide: false,
+    stateSave: false,
+    paging: false,
+    info: false
+  }
+  );
+});</script>
+
+{% endblock %} 
+
+{% block content %}
+<h1>Overview of jobs</h1>
+{% if query %}
+  <p>Results for "{{ query }}"</p>
+{% endif %}
+  <form style="width:100%" method="POST" required>
+    <input type="text" class="form-control shadow-none" name="Search"id="Search" placeholder="Search" autofocus autocomplete="on">
+    <input type='submit' hidden>
+  </form>
+
+
+{% set tabs = [] %}
+
+{% call add_tab(tabs, title="1vsN", id="vsN", default=True) %}
+  {{ job_table(vsN) }}
+  {% if p_n and vsN %}
+    {{ pagination_widget(p_n, active="vsN") }}
+  {% endif %}
+{% endcall %}
+
+{% call add_tab(tabs, title="1vs1", id="vs1") %}
+  {{ job_table(vs1) }}
+  {% if p_1 and vs1 %}
+    {{ pagination_widget(p_1, active="vs1") }}
+  {% endif %}
+{% endcall %}
+
+{% call add_tab(tabs, title="Cross", id="cross") %}
+  {{ job_table(cross) }}
+  {% if p_c and cross %}
+    {{ pagination_widget(p_c, active="cross") }}
+  {% endif %}
+{% endcall %}
+
+{% call add_tab(tabs, title="Others", id="others") %}
+  {{ job_table(others) }}
+  {% if p_o and others %}
+    {{ pagination_widget(p_o, active="others") }}
+  {% endif %}
+{% endcall %}
+
+{{ finalize_tabs(tabs, active) }}
+
+
+{% endblock %}

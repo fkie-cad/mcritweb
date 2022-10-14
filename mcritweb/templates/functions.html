@@ -1,0 +1,25 @@
+{% from 'table/table.html' import function_table %}
+{% from 'table/function_row.html' import function_row_std_js %}
+{% from 'table/pagination_widget.html' import pagination_widget %}
+
+{% extends 'base.html' %}
+
+{% block title%}
+Functions
+{% endblock %}
+
+{% block style %}
+{{ function_row_std_js() }}
+{% endblock %}
+
+{% block content %}
+<h1>Overview of Functions</h1>
+  <form style="width:100%" method="GET" required action="#">
+    <input type="text" class="form-control shadow-none" name="query" value="{{ query or '' }}" id="query" placeholder="Search" autofocus autocomplete="on">
+    <input type='submit' hidden>
+  </form>
+{{ function_table(functions, sort_pagination=pagination) }}
+{% if functions %}
+{{ pagination_widget(pagination) }}
+{% endif %}
+{% endblock %}

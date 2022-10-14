@@ -1,0 +1,12 @@
+requests
+Flask
+werkzeug
+flask_dropzone
+click
+Pillow
+numpy
+scipy
+fastcluster
+networkx
+mcrit>=0.14.2
+levenshtein

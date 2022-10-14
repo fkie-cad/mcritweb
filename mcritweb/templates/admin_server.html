@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title%}
+Server settings
+{% endblock %}
+{% block content %}
+<h1>Server Management</h1>
+
+<h3>Server Parameters:</h3>
+
+<table>
+    <tr>
+        <th>Parameter</th>
+        <th>Value</th>
+    </tr>
+    <tr>
+        <td>Server UUID:</td>
+        <td>{{ server_uuid }}</td>
+    </tr>
+    <tr>
+        <td>Registration Token: </td>
+        <td>{{ registration_token }}&nbsp;<i class="fa-regular fa-copy" onclick="copyRegistrationUrl()"></i></td>
+    </tr>
+    <tr>
+        <td>Operation Mode: </td>
+        <td>{{ operation_mode }}</td>
+    </tr>
+    <tr>
+        <td>DB MCRIT Web Version: </td>
+        <td>{{ db_version }}</td>
+    </tr>
+    <tr>
+        <td>Running MCRIT Web Version: </td>
+        <td>{{ running_version }}</td>
+    </tr>
+    <tr>
+        <td>Running MCRIT Backend Version: </td>
+        <td>{{ mcrit_version }}</td>
+    </tr>
+</table>
+
+<h3>Change Backend Server:</h3>
+
+<form action = "{{ url_for('admin.change_server') }}" method='post'>
+    <div class="form-group">
+        <label for="server">mcrit-server</label>
+        <input type="url" name='mcrit_server_url' class="form-control" id="mcrit_server_url" aria-describedby="Enter a URL for a MCRIT server" value={{ current_url }} required>
+    </div>
+    <button type="submit" class="btn btn-primary">Confirm change</button>
+</form>
+
+<h3>Reset server:</h3>
+<p>Warning: This will fully reset the backend including its database as well as cached data in the frontend.</p>
+
+<form action = "{{ url_for('admin.reset_server') }}" method='post'>
+    <div class="form-group">
+        <label for="server">Type "RESET" to confirm the action.</label>
+        <input type="text" name='reset_server' class="form-control" id="reset_server" aria-describedby="Enter confirmation string" value="" placeholder="RESET" pattern="^RESET$" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Reset Server</button>
+</form>
+
+<script>
+    function copyRegistrationUrl() {
+      var js_token = "{{ registration_token }}";
+      var_register_url = "{{ url_for('authentication.register', _external=True) }}";
+      // Copy the text inside the text field
+      navigator.clipboard.writeText(var_register_url + "?token=" + js_token);
+      // Alert the copied text
+      alert("Copied Registration URL!");
+    }
+    </script>
+
+{% endblock %}

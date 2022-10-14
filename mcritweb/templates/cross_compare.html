@@ -1,0 +1,171 @@
+{% from 'table/compare_nav.html' import compare_nav %}
+{% from 'table/pagination_widget.html' import pagination_widget, pagination_js, set_pagination_params %}
+{% from 'table/sample_row.html' import sample_header %}
+
+{% extends 'base.html' %}
+{% block title%}
+Compare
+{% endblock %}
+{% block style %}
+<script>
+  var selected = {{ cached | safe }};
+  console.log(selected)
+  $(document).ready(function(){
+    $("tr.parent").click(function(){
+      if(this.style.backgroundColor != "yellowgreen")
+      {
+        if(selected.indexOf($(this).children("th.id").text()) == -1){
+        this.style.backgroundColor = "rgb(240, 240, 240)";
+        selected.push($(this).children("th.id").text());
+        }
+        else{
+          this.style.backgroundColor = "white";
+          pos = selected.indexOf($(this).children("th.id").text());
+          console.log(pos);
+          if(pos == 0){
+            selected.shift();
+          }
+          else{
+            selected.splice(pos, 1);
+          }
+        }
+      }
+
+    });
+
+    $('#cross_search_form').submit(function(eventObj) {
+      eventObj.preventDefault();
+      eventObj.stopPropagation();
+      base_url = window.location.href;
+      args = fetchState();
+      args.cache = null;
+      args["query"] = $("#Search").val();
+      args["_anchor"] = "Search"
+      null_keys = {{ pagination.params_list|safe }};
+      for(var i = 0, size = null_keys.length; i < size ; i++){
+        args[null_keys[i]] = null;
+      }
+      // overwrites base_link with args and forwards to the resulting url
+      pagination_js_helper(base_url, args);
+      return true;
+    });
+
+  });
+
+  function setSelected() {
+    var params = fetchState();
+    params.samples = {{selected_ids|safe}}.join(",")+","+params.cache;
+    params.cache = null;
+    pagination_js_helper(window.location.href, params);
+  }
+  function deleteSample(element) {
+    var del = $(element).parent().parent().children("th.id").text();
+    var params = fetchState();
+    params.samples = {{ selected_ids |safe }}.filter(function(e) { return e.toString() !== del }).join(",");
+    pagination_js_helper(window.location.href, params);
+  }
+  function createJob() {
+    var params = fetchState();
+    var samples_string = {{selected_ids|safe}}.join(",")+","+params.cache;
+    window.location.href="/analyze/start_cross_compare?samples="+samples_string+"&rematch="+params.rematch;
+  }
+  function fetchState() {
+    var string = selected.join(',');
+    var checkedValue = $("#force_rematch").is(":checked");
+    return {
+      "rematch": checkedValue,
+      "cache": string
+    };
+  }
+</script>
+
+{{ pagination_js() }}
+
+{% endblock %}
+{% block content %}
+
+
+{{ compare_nav("cross") }}
+<h1>Cross Compare</h1>
+<div>
+  <table class="table table-hover">
+    <thead class="thead-light">
+      <tr>
+        <th scope="col"><i class="fa-solid fa-virus" title="Sample ID"></th>
+        <th scope="col">SHA256</th>
+        <th scope="col">Family</th>
+        <th scope="col">Version</th>
+        <th scope="col">Filename</th>
+        <th scope="col">Bitness</th>
+        <th scope="col">Functions</th>
+        <th scope="col"></th>
+      </tr>
+    </thead>
+    {% if selected_samples %}
+    <tbody>
+      {% for sample in selected_samples %}
+      <tr>
+        <th align="right" valign="middle" scope="row" class="id">{{ "%d"|format(sample.sample_id) }}</th>
+        <td align="right" valign="middle" class="font-monospace">{{ sample.getShortSha256() }}</td>
+        <td valign="middle">{{ sample.family }}</td>
+        <td valign="middle">{{ sample.version }}</td>
+        <td valign="middle">{{ sample.getShortFilename() }}</td>
+        <td align="right" valign="middle">{{ "%d"|format(sample.bitness) }}</td>
+        <td align="right" valign="middle">{{ "%d"|format(sample.statistics['num_functions']) }}</td>
+        <td valign="middle"><a style="color: black;" onclick="deleteSample(this)"><i class="fa-solid fa-xmark"></i></a></td>
+
+      </tr>
+      {% endfor %}
+    </tbody>
+    {% endif %}
+  </table>
+  {% if not selected_ids %}
+  <center>
+  <h4>Selected samples will show here</h4>
+  </center>
+  {% else %}
+  {{ pagination_widget(pagination_selected, _js_argument_provider="fetchState") }}
+  {% endif %}
+  <br>
+  <form style="width:100%" id="cross_search_form">
+      <input type="text" class="form-control shadow-none" name="query" value="{{ query }}" id="Search" placeholder="Search" autofocus autocomplete="on">
+      <input type='submit' hidden>
+  </form>
+
+  {% if samples %}
+  {{ set_pagination_params(pagination, _anchor="Search", _js_argument_provider="fetchState") }}
+  <table class="table table-hover">
+      <thead class="thead-light">
+        {{ sample_header(show_analyze=False, sort_pagination=pagination) }}
+      </thead>
+      <tbody>
+        {% for sample in samples %}
+        <tr {% if sample.sample_id in selected_ids %} style="background-color: yellowgreen;"{% endif %}{% if sample.sample_id in cached %} style="background-color: rgb(240, 240, 240);"{% endif %}class="parent">
+          <th align="right" valign="middle" scope="row" class="id">{{ "%d"|format(sample.sample_id) }}</th>
+          <td align="right" valign="middle" class="font-monospace">{{ sample.getShortSha256() }}</td>
+          <td valign="middle">{{ sample.family }}</td>
+          <td valign="middle">{{ sample.version }}</td>
+          <td valign="middle">{{ sample.getShortFilename() }}</td>
+          <td align="right" valign="middle">{{ "%d"|format(sample.bitness) }}</td>
+          <td align="right" valign="middle">{{ "%d"|format(sample.statistics['num_functions']) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {{ pagination_widget(pagination) }}
+    <center>
+      <input class="form-check-input shadow-none" type="checkbox" value="" id="force_rematch" {% if is_forcing_rematch %}checked{% else %}{% endif %}>
+      <label class="form-check-label" for="flexCheckChecked">
+        Force rematch
+      </label>
+      <br>
+      <button type="button"  onclick="setSelected()" id="button2" class="btn btn-outline-primary">Add</button>
+      {% if selected_ids %}
+      <button type="button"  onclick="createJob()" id="button2" class="btn btn-primary">Compare</button>
+      {% endif %}
+  </center>
+  {% else %}
+  <center><a href='{{ url_for("data.submit") }}' style="color: #0d6efd; text-decoration: underline;" >No samples available. Click here to upload your first sample</a></center>
+{% endif %}
+</div>
+{% endblock %}

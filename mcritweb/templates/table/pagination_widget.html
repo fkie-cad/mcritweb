@@ -1,0 +1,178 @@
+{# note: pagination widgets support _anchor argument#}
+
+{########## js helper for js pagination ###########}
+
+{% macro pagination_js() %}
+  <script>
+    function pagination_js_helper(base_url, kwargs) {
+      var url = new URL(base_url, document.location);
+      for (const key in kwargs) {
+        if (key != "_anchor"){
+          var value = kwargs[key];
+          url.searchParams.delete(key);
+          if (value !== null){
+            url.searchParams.set(key, value);
+          }
+        }
+      }
+      if ("_anchor" in kwargs){
+        url.hash = kwargs["_anchor"];
+      }
+      var result = url.toString();
+      window.location.href=result;
+    }
+  </script>
+{% endmacro %}
+
+{########### unified pagination widget: behaves like std or cursor pagination widget #############}
+
+{% macro pagination_widget(pagination) %}
+  {% if pagination.__class__.__name__ == "Pagination" %}
+    {{ std_pagination_widget(pagination, **kwargs) }}
+  {% elif pagination.__class__.__name__ == "CursorPagination" %}
+    {{ cursor_pagination_widget(pagination, **kwargs) }}
+  {% else %}
+    invalid pagination
+  {% endif %}
+{% endmacro %}
+
+{########### store some extra params ############}
+{%- macro set_pagination_params(pagination) -%}
+{{ pagination.__setattr__("_extra_pagination_params", kwargs) |silent }}
+{%- endmacro -%}
+
+{########### std pagination widget ############}
+
+{% macro std_pagination_widget(pagination) %}
+
+  {%- macro _get_href_or_onclick(page, _js_argument_provider=none) -%}
+    {% if _js_argument_provider is not none %}
+      onclick="pagination_js_helper('{{ pagination.get_link(page, **kwargs)}}', {{ _js_argument_provider }}() )"
+    {% else %}
+      href="{{ pagination.get_link(page, **kwargs) }}"
+    {% endif %}
+  {%- endmacro -%}
+
+  <ul class="pagination justify-content-center">
+    <li class="page-item {% if pagination.page_index == 0 %}disabled{% endif %}">
+      <a class="page-link" {{ _get_href_or_onclick(1, **kwargs) }}><i class="fa-solid fa-angles-left"></i></a>
+    </li>
+    <li class="page-item {% if pagination.page_index == 0 %}disabled{% endif %}">
+      <a class="page-link" {{ _get_href_or_onclick(pagination.page - 1, **kwargs) }}><i class="fa-solid fa-angle-left"></i></a>
+    </li>
+    {% for item in pagination.pages %}
+      <li class="page-item {% if loop.index == pagination.page_index + 1 %}active{% endif %}"><a class="page-link" {{ _get_href_or_onclick(item, **kwargs) }}>{{ item }}</a></li>
+    {% endfor %}
+    <li class="page-item {% if pagination.pages[pagination.page_index] == pagination.max_page %}disabled{% endif %}">
+      <a class="page-link" {{ _get_href_or_onclick(pagination.page + 1, **kwargs) }}><i class="fa-solid fa-angle-right "></i></a>
+    </li>
+    <li class="page-item {% if pagination.pages[pagination.page_index] == pagination.max_page %}disabled{% endif %}">
+      <a class="page-link" {{ _get_href_or_onclick(pagination.max_page, **kwargs) }}><i class="fa-solid fa-angles-right "></i></a>
+    </li>
+  </ul>
+{% endmacro %}
+
+
+{####### search cursor pagination + generation of sortable table headers ########}
+
+{% macro cursor_pagination_widget(pagination) %}
+  {%- macro _get_href_or_onclick(page, _js_argument_provider=none) -%}
+    {% if _js_argument_provider is not none %}
+      onclick="pagination_js_helper('{{ pagination.get_link(page, **kwargs).replace("'", "\\'") }}', {{ _js_argument_provider }}() )"
+    {% else %}
+      href="{{ pagination.get_link(page, **kwargs) }}"
+    {% endif %}
+  {%- endmacro -%}
+  {% set params = dict() %}
+  {{ params.update(pagination|getattr("_extra_pagination_params", {}))|silent }}
+  {{ params.update(**kwargs)|silent }}
+  <ul class="pagination justify-content-center">
+    <li class="page-item {% if not pagination.hasBackward %}disabled{% endif %}">
+      <a class="page-link" {{ _get_href_or_onclick('first', **params) }}><i class="fa-solid fa-angles-left"></i></a>
+    </li>
+    <li class="page-item {% if not pagination.hasBackward %}disabled{% endif %}">
+      <a class="page-link" {{ _get_href_or_onclick('backward', **params) }}><i class="fa-solid fa-angle-left"></i></a>
+    </li>
+    {% if pagination.hasBackward %}
+      <li class="page-item"><a class="page-link" {{ _get_href_or_onclick('backward', **params) }}>{{ pagination.page-1 }}</a></li>
+    {% endif %}
+    <li class="page-item active"><a class="page-link" {{ _get_href_or_onclick('current', **params) }}>{{ pagination.page }}</a></li>
+    {% if pagination.hasForward %}
+      <li class="page-item"><a class="page-link" {{ _get_href_or_onclick('forward', **params) }}>{{ pagination.page+1 }}</a></li>
+    {% endif %}
+    <li class="page-item {% if not pagination.hasForward %}disabled{% endif %}">
+      <a class="page-link" {{ _get_href_or_onclick('forward', **params) }}><i class="fa-solid fa-angle-right "></i></a>
+    </li>
+    <li class="page-item disabled">
+      <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" title="Last page not supported for search.&#013;Please reverse sort order instead.">
+        <a class="page-link"><i class="fa-solid fa-angles-right"></i></a>
+      </span>
+    </li>
+  </ul>
+{% endmacro %}
+
+{%- macro cursor_pagination_sort_symbol(pagination, sort_by) -%}
+  {% if not pagination is none %}
+    {% if pagination.sort_by is none %}
+      {# we do not know the search order #}
+      <i class="fa fa-sort"></i>
+    {% else %}
+      {% if pagination.sort_by == sort_by %}
+        {# we are considering the column that is sorted by #}
+        {% if pagination.is_ascending %}
+          <i class="fa fa-sort-up"></i>
+        {% else %}
+          <i class="fa fa-sort-down"></i>
+        {% endif %}
+      {% else %}
+        {# a column not used for sort right now #}
+        <i class="fa fa-sort"></i>
+      {% endif %}
+    {% endif %}
+  {% endif %}
+{%- endmacro -%}
+
+{%- macro cursor_pagination_sort_link(pagination, sort_by) -%}
+  {% if not pagination is none %}
+    {% if pagination.sort_by is none %}
+      {# we do not know the search order #}
+      {{ pagination.get_sort_link(sort_by, True, **kwargs) }}
+    {% else %}
+      {% if pagination.sort_by == sort_by %}
+        {# we are considering the column that is sorted by #}
+        {% if pagination.is_ascending %}
+          {{ pagination.get_sort_link(sort_by, False, **kwargs) }}
+        {% else %}
+          {{ pagination.get_sort_link(sort_by, True, **kwargs) }}
+        {% endif %}
+      {% else %}
+        {# a column not used for sort right now #}
+        {{ pagination.get_sort_link(sort_by, True, **kwargs) }}
+      {% endif %}
+    {% endif %}
+  {% endif %}
+{%- endmacro -%}
+
+{%- macro sortable_header_col(pagination, sort_by, align='left', caller='') -%}
+
+  {%- macro _get_onclick(_js_argument_provider=none) -%}
+    {% if _js_argument_provider is not none %}
+      pagination_js_helper('{{ cursor_pagination_sort_link(pagination, sort_by, **kwargs).strip().replace("'", "\\'") }}', {{ _js_argument_provider }}() )
+    {% else %}
+      window.location.href='{{ cursor_pagination_sort_link(pagination, sort_by, **kwargs).strip().replace("'", "\\'") }}'
+    {% endif %}
+  {%- endmacro -%}
+
+  {% set params = {} %}
+  {{ params.update(pagination|getattr("_extra_pagination_params", {}))|silent }}
+  <th style="text-align:{{align}};" scope="col" {% if pagination is not none %}class="pointer"{% endif %} onclick="{{ _get_onclick(**params).strip() }}">
+    <span>
+      {{ caller() }}
+    </span>
+    &nbsp;
+    <span style="float: right;">
+      {{ cursor_pagination_sort_symbol(pagination, sort_by) }}
+    </span>
+  </th>
+{%- endmacro -%}
+

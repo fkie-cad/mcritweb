@@ -1,0 +1,66 @@
+{% from 'table/pagination_widget.html' import sortable_header_col %}
+{% from 'table/links.html' import format_pichash, format_offset, format_family_name, format_family_id, format_sample_id, format_function_id %}
+
+{% macro family_row_std_js() %}
+<script>
+  $(document).ready(function(){
+    $("tr.family-row").click(function(e){
+      console.log(e.target.name)
+      if(e.target.name === 'malpedia') {
+        e.stopPropagation();
+      }
+      else{
+        var family_id = $(this).children("th.id").text();
+        if (family_id === ''){
+          throw Error("Assertion failed")
+        }
+        window.location.href="{{ url_for('explore.families') }}"+ "/" + family_id;  
+      }
+    });
+  });
+</script>
+{% endmacro %}
+
+
+{% macro family_header(sort_pagination=None) %}
+  {# accept but discard additional kwargs #}
+  {% if False %}{{ kwargs }}{% endif %} 
+  <tr>
+    {% call sortable_header_col(sort_pagination, "family_id") %}
+      <i class="fa-solid fa-bug" title="Family ID"></i>
+    {% endcall %}
+    {% call sortable_header_col(sort_pagination, "family_name") %}
+      Family
+    {% endcall %}
+    {% call sortable_header_col(sort_pagination, "num_samples", align="right") %}
+      Samples
+    {% endcall %}
+    {% call sortable_header_col(sort_pagination, "num_functions", align="right") %}
+      Functions
+    {% endcall %}
+    {% call sortable_header_col(sort_pagination, "num_library_samples", align="center") %}
+      Library
+    {% endcall %}
+    <th scope="col"></th>
+  </tr>
+{% endmacro %}  
+  
+{% macro family_row(family, show_export=False) %}
+  <tr class="family-row parent_{{ kwargs['parent'] }}" >
+    <th align="right" valign="middle" class="id" scope="row">{{ "%d"|format(family.family_id) }}</th>
+    <td valign="middle" >{{ format_family_name(family.family_name, None) }}<a name="malpedia" href="https://malpedia.caad.fkie.fraunhofer.de/details/{{ family.family }}" target="_blank"><i class="fa-solid fa-external-link-alt "></i></a></td>
+    <!-- <td valign="middle" >{{ family.family or "Unnamed"}} <a name="malpedia" href="https://malpedia.caad.fkie.fraunhofer.de/details/{{ family.family }}" target="_blank"> <img src="{{ url_for('static', filename='malpedia_small.png') }}" width="25" height="25" > </a></td> -->
+    <td align="right" valign="middle">{{ "%d"|format(family.num_samples) }}</td>
+    <td align="right" valign="middle">{{ "%d"|format(family.num_functions) }}</td>
+    <td align="center" valign="middle"><i {% if family.is_library %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
+    <td align="center" valign="middle">
+      <a class="btn btn-outline-dark btn-sm" name="compare" href="{{ url_for('analyze.compare', query=family.family_name, rematch='true') }}" role="button" target="_self"><i class="fa-solid fa-flask"></i></a>
+      <a class="btn btn-outline-dark btn-sm" name="family_blocks" href="{{ url_for('analyze.blocks_family', family_id=family.family_id) }}" role="button" target="_self"><i class="fa-solid fa-cubes-stacked"></i></a>
+      {% if show_export %}
+        <a class="btn btn-outline-dark btn-sm" href="{{ url_for('data.specific_export', type='family', item_id=family.family_id) }}" role="button" target="_self"><i class="fa-solid fa-file-export"></i></a>
+      {% endif %}
+    </td>
+  </tr>
+{% endmacro %}  
+
+

@@ -1,0 +1,109 @@
+{% from 'table/links.html' import format_pichash, format_offset, format_family_name, format_family_id, format_sample_id, format_function_id %}
+{% extends 'base.html' %}
+{% block style %}
+<!-- 
+<script src="{{ url_for('static', filename='trace_CFG/lib/jquery-3.1.1.min.js') }}"></script>
+<script src="{{ url_for('static', filename='trace_CFG/lib/split.js') }}"></script>
+-->
+<script src="{{ url_for('static', filename='trace_CFG/lib/d3.min.js') }}"></script>
+<script src="{{ url_for('static', filename='trace_CFG/lib/graphlib.min.js') }}"></script>
+<script src="{{ url_for('static', filename='trace_CFG/lib/graphlib-dot.min.js') }}"></script>
+<script src="{{ url_for('static', filename='trace_CFG/lib/dagre-d3.min.js') }}"></script>
+<script src="{{ url_for('static', filename='trace_CFG/lib/convexhull.js') }}"></script>
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='trace_CFG/cfg_style.css') }}">
+
+{% endblock %}
+
+{% set function_id = entry.function_id %}
+
+{% block title%}
+Function: {{ function_id }}
+{% endblock %}
+{% block content %}
+
+<div class="container">
+<span><h1>Function: {{ function_id }}</h1></span>
+<span style="float:right"><a href="#function_xcfg">go to cfg</a></span>
+    {% if entry is not none %}
+      <table class="table table-sm table-borderless" style="width:50%;">
+      {% set entry_dict = entry.toDict() %}
+      {% set keys_to_names = dict(
+          architecture = "Architecture",
+          binweight = "Binweight",
+          family_id = "Family ID",
+          sample_id = "Sample ID",
+          function_id = "Function ID",
+          function_name = "Function Name",
+          num_blocks = "Num Blocks",
+          num_instructions = "Num Instructions",
+          offset = "Offset",
+          pichash = "PicHash",
+      ) %}
+      {% set formatters = dict(
+          offset = format_offset,
+          pichash = format_pichash,
+          family_id = format_family_id,
+          sample_id = format_sample_id,
+          function_id = format_function_id,
+      ) %}
+      {% for key, name in keys_to_names.items() %}
+        <tr>
+            <th valign="middle">{{ name }}</td>
+            {% if key in formatters %}
+            <td valign="middle">{{ formatters[key](entry_dict[key]) }}
+              {% if key == "pichash" %}
+                (
+                {{ pichash_match_summary["families"] }} <i class="fa-solid fa-bug" title="Families matched"> </i>, 
+                {{ pichash_match_summary["samples"] }} <i class="fa-solid fa-virus" title="Samples matched"> </i>,
+                {{ pichash_match_summary["functions"] }} <i class="fa-solid fa-project-diagram" title="Functions matched"> </i>
+                )
+              {% endif %}
+            </td>
+            {% else %}
+              <td valign="middle">{{ entry_dict[key] }}</td>
+            {% endif %}
+        </tr>
+      {% endfor %}
+    </table>
+
+    <script type="text/javascript">
+    window.onload = function() {
+        var js_function_id = {{ function_id }};
+        loadWithDotGraphAndFunctionId(js_function_id)
+    };
+    </script>
+    {% endif %}
+
+    <div id="xcfg_top" style="height: 90px;">
+        <span><h3 id="function_xcfg">Function CFG</h3></span>
+        <span style="float:right"><a href="#top">go to top</a></span>
+        <input style=" margin: 3px;" type="button" id="showCycles" value="Show Cycles"/>
+        <input style=" margin: 3px;" type="button" id="showLoops" value="Show Loops"/>
+        <label style=" margin:3px; background-color:#fdd0a2; padding:1px"><input style=" margin: 3px;" type="checkbox" id="loopBgFill" value="loopBgFill" checked>Show Loop Boundaries</label>
+        <!-- <label style=" margin:3px; padding: 3px;"><input style=" margin: 3px;" type="checkbox" id="enableNodeDrag" value="enableNodeDrag">Enable Node Dragging</label> -->
+        <label style=" margin:3px; padding: 3px;"><input style=" margin: 3px;" type="checkbox" id="enableTooltip" value="enableTooltip">Enable Tooltip</label>
+    </div>
+    <div id="xcfg_container">
+        <div id="xcfg_left">
+            <div id="tooltip" class="hidden">
+            <p><span id="value"></span></p>
+            </div>
+            <div id="loading" class="hidden" style="margin-left: 20px; margin-top:400px; font-size: x-large; color:#3f51b5 ; ">
+            Loading. Please Wait!
+            </div>
+            <svg id="graphContainer">
+            <g/>
+            </svg>
+        </div>
+        <div id="xcfg_text_right">
+            <pre id="text_code"></pre>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='trace_CFG/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='trace_CFG/fnManip.js') }}"></script>
+    <script src="{{ url_for('static', filename='trace_CFG/loopCollapser.js') }}"></script>
+    <script src="{{ url_for('static', filename='trace_CFG/loopify_dagre.js') }}"></script>
+    <!-- 
+    -->
+</div>
+{% endblock %}

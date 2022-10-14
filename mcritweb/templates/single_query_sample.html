@@ -1,0 +1,66 @@
+{% from 'table/table.html' import function_table, job_table %}
+{% from 'table/function_row.html' import function_row_std_js %}
+{% from 'table/pagination_widget.html' import pagination_widget %}
+{% from 'table/job_row.html' import job_row_std_js %}
+{% extends 'base.html' %}
+{% block title%}
+Sample: {{ entry.sample_id }}
+{% endblock %}
+
+{% block style %}
+{{ function_row_std_js() }}
+{{ job_row_std_js() }}
+{% endblock %}
+
+{% block content %}
+
+<h1>Sample: {{ entry.sample_id }}</h1>
+<p>This sample was uploaded for a query and is not part of the database.</p>
+<div class="accordion accordion-flush mb-3" id="accordionFlushExample">
+  <div class="accordion-item">
+    <h2 class="accordion-header" id="flush-headingOne">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#flush-collapseOne" aria-expanded="false" aria-controls="flush-collapseOne">
+        Metadata
+      </button>
+    </h2>
+    <div id="flush-collapseOne" class="accordion-collapse collapse" aria-labelledby="flush-headingOne" data-bs-parent="#accordionFlushExample">
+      <table class="table table-sm table-borderless" style="width:50%;">
+        {% for key in entry.toDict() %}
+          {% if loop.index <= 12 %}
+            <tr>
+              <th valign="middle">{{ key.replace('_', ' ')|capitalize_all }}</td>
+              <td valign="middle">{% if key == 'family' %}<a href='{{ url_for("explore.family_by_id",family_id=entry.toDict()['family_id']) }}' >{{ entry.toDict()[key] }}</a>{% else %}{{ entry.toDict()[key] }}{% endif %}</td>
+            </tr>
+          {% endif %}
+        {% endfor %}
+        <tr>
+          <th valign="middle">Timestamp</td>
+          <td valign="middle">{{ entry.timestamp }}</td>
+        </tr>
+        <tr>
+          <th valign="middle">Version</td>
+          <td valign="middle">{{ entry.version }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+  <div class="accordion-item">
+    <h2 class="accordion-header" id="flush-headingTwo"style="margin:0">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#flush-collapseTwo" aria-expanded="false" aria-controls="flush-collapseTwo">
+        Statistics
+      </button>
+    </h2>
+    <div id="flush-collapseTwo" class="accordion-collapse collapse" aria-labelledby="flush-headingTwo" data-bs-parent="#accordionFlushExample">
+      <table class="table table-sm table-borderless" style="width:50%;">
+        {% for key in entry.statistics%}
+        <tr>
+          <th valign="middle">{{ key.replace('_', ' ')|capitalize_all  }}</td>
+          <td valign="middle">{{ entry.statistics[key] }}</td>
+        </tr>
+        {% endfor %}
+
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

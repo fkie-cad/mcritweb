@@ -1,0 +1,26 @@
+{% from 'table/table.html' import sample_table %}
+{% from 'table/sample_row.html' import sample_row_std_js %}
+{% from 'table/pagination_widget.html' import pagination_widget %}
+{% extends 'base.html' %}
+{% block title%}
+Samples
+{% endblock %}
+{% block style %}
+
+{{ sample_row_std_js() }}
+{% endblock %}
+
+{% block content %}
+
+  <form style="width:100%" method="GET" required action="#">
+    <input type="text" class="form-control shadow-none" name="query" value="{{ query or '' }}" id="query" placeholder="Search" autofocus autocomplete="on">
+    <input type='submit' hidden>
+  </form>
+
+<h1>Overview of Samples</h1>
+
+{{ sample_table(samples, show_export=True, sort_pagination=pagination) }}
+{% if samples %}
+{{ pagination_widget(pagination) }}
+{% endif %}
+{% endblock %}

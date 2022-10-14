@@ -1,0 +1,65 @@
+{% from 'table/pagination_widget.html' import sortable_header_col %}
+{% from 'table/links.html' import format_pichash, format_offset, format_family_name, format_family_id, format_sample_id, format_function_id %}
+
+{% macro function_row_std_js() %}
+<script>
+  $(document).ready(function(){
+    $("tr.function-row").click(function(){
+      var function_id = $(this).children("th.function-id").text();
+      window.location.href="{{ url_for('explore.functions') }}"+ "/" + function_id;
+    });
+  });
+</script>
+{% endmacro %}
+
+
+{% macro function_header(for_sample_view=False, sort_pagination=None) %}
+  <tr>
+    {% call sortable_header_col(sort_pagination, "function_id") %}
+      <i class="fa-solid fa-project-diagram " title="Function ID"></i>
+    {% endcall %}
+    {% if not for_sample_view %}
+      {% call sortable_header_col(sort_pagination, "family_id", align="right") %}
+        <i class="fa-solid fa-bug " title="Family ID"></i>
+      {% endcall %}
+      {% call sortable_header_col(sort_pagination, "sample_id", align="right") %}
+        <i class="fa-solid fa-virus " title="Sample ID"></i>
+      {% endcall %}
+    {% endif %}
+    <th style="text-align: right;" scope="col">Pichash</th>
+    <th style="text-align: center;" scope="col">Minhash</th>
+    {% call sortable_header_col(sort_pagination, "offset", align="right") %}
+      Offset
+    {% endcall %}
+    {% call sortable_header_col(sort_pagination, "function_name") %}
+      Name
+    {% endcall %}
+    {% call sortable_header_col(sort_pagination, "num_instructions", align="right") %}
+      INS
+    {% endcall %}
+    {% call sortable_header_col(sort_pagination, "num_blocks", align="right") %}
+      BLK
+    {% endcall %}
+    <th scope="col"></th>
+  </tr>
+{% endmacro %}
+      
+      
+{% macro function_row(function, for_sample_view=False) %}
+  <tr class="function-row parent_{{ kwargs['parent'] }}" >
+    <th align="left" valign="middle" scope="row" class="function-id">{{ "%d"|format(function.function_id) }}</th>
+    {% if not for_sample_view %}
+      <td align="right" valign="middle" scope="row" class="family-id">{{ format_family_id(function.family_id) }}</th>
+      <td align="right" valign="middle" scope="row" class="sample-id">{{ format_sample_id(function.sample_id) }}</th>
+    {% endif %}
+    <td align="right" valign="middle" class="font-monospace">{{ format_pichash(function.pichash) }}</td>
+    <td align="center" valign="middle"><i {% if function.minhash|length > 0 %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
+    <td align="right" valign="middle" class="font-monospace">{{ format_offset(function.offset) }}</td>
+    <td valign="middle">{{ function.function_name }}</td>
+    <td align="right" valign="middle" class="font-monospace">{{ "%d"|format(function.num_instructions) }}</td>
+    <td align="right" valign="middle" class="font-monospace">{{ "%d"|format(function.num_blocks) }}</td>
+    <td align="center">
+      <a class="btn btn-outline-dark btn-sm" href="{{ url_for('analyze.compare') }}" role="button"><i class="fa-solid fa-flask" title="Create Analysis Job"></i></a>
+    </td>
+  </tr>
+{% endmacro %}

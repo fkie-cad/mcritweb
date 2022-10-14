@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title%}
+Import
+{% endblock %}
+{% block style %}
+<link rel="stylesheet" href="{{ url_for('static', filename='dropzone.min.css') }}">
+{{ dropzone.style('border: 2px dashed black; margin: 10%; min-height: 400px;border-radius: 25px; background: rgb(240, 240, 240);') }}
+{% endblock %}
+{% set suppress_dropzone_overlay=true %}
+{% block content %}
+<center>
+    {{ dropzone.create(action= url_for('data.import_view')) }}
+</center>
+<script src="{{ url_for('static', filename='dropzone.min.js') }}"></script>
+{{ dropzone.config(max_file_size=100000000) }}
+{% endblock %}

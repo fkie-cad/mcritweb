@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title%}
+Statistics
+{% endblock %}
+{% block content %}
+  <h1>Import completed</h1>
+  <table class="table table-sm table-borderless" style="width:50%;">
+    {% if results %}
+    {% for key in results %}
+    <tr>
+      <th valign="middle">{{ key }}</td>
+      <td valign="middle">{{ results[key] }}</td>
+    </tr>
+    {% endfor %}
+    {% endif %}
+  </table>
+{% endblock %}

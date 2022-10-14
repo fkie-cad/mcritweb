@@ -1,0 +1,87 @@
+{% from 'table/compare_nav.html' import compare_nav %}
+{% from 'table/table.html' import sample_table, table_std_js %}
+{% from 'table/pagination_widget.html' import pagination_widget, pagination_js, set_pagination_params %}
+{% from 'table/tabs.html' import add_tab, finalize_tabs %}
+{% extends 'base.html' %}
+{% block title%}
+Compare
+{% endblock %}
+{% block style %}
+<script>
+var selected = '{{ selected or "" }}'
+var selected_column = null;
+$(document).ready(function(){
+  var table = document.getElementsByClassName("parent_table_sample");
+
+  for (var i = 0; i < table.length; i++) {
+    if ($(table.item(i)).children("th.sample-id").text()==selected){
+      selected_column = table.item(i);
+      table.item(i).style.backgroundColor = "rgb(240, 240, 240)";
+    }
+  }
+
+  $("tr.parent_table_sample").click(function(){
+    if (selected_column === null) {
+      document.getElementById("button_match").style.display = "initial";
+    } else {
+      selected_column.style.backgroundColor = "white";
+    }
+    selected_column = this;
+    selected = $(selected_column).children("th.sample-id").text();
+    this.style.backgroundColor = "rgb(240, 240, 240)";
+  });
+
+  $('#compare_search_form').submit(function(eventObj) {
+    var checkedValue = $("#force_rematch").is(":checked");
+    $("<input />").attr("type", "hidden")
+        .attr("name", "rematch")
+        .attr("value", checkedValue)
+        .appendTo("#compare_search_form");
+    return true;
+  });
+
+});
+
+function createJob() {
+  var checkedValue = $("#force_rematch").is(":checked");
+  window.location.href="/analyze/compare/"+selected+"?rematch="+checkedValue;
+}
+
+function fetchState() {
+  var checkedValue = $("#force_rematch").is(":checked");
+  return {
+    "rematch": checkedValue,
+    "selected": selected,
+  }
+}
+</script>
+
+{{ pagination_js() }}
+
+{% endblock %}
+{% block content %}
+
+
+{{ compare_nav("1vsN") }}
+<h1>Compare Samples 1vsN</h1>
+<form style="width:100%" id="compare_search_form" action="#Search" method="GET">
+  <input type="text" class="form-control shadow-none" name="query" id="Search" value="{{ query }}" placeholder="Search" autofocus autocomplete="on">
+</form>
+{{ set_pagination_params(pagination, _js_argument_provider="fetchState", _anchor="Search") }}
+{{ sample_table(samples, table_id="table_sample", show_analyze=False, show_hint=True, sort_pagination=pagination) }}
+{% if samples %}
+  {{ pagination_widget(pagination)}}
+{% endif %}
+<center>
+  <input class="form-check-input shadow-none" type="checkbox" name="rematch" value="true" id="force_rematch" {% if rematch %}checked{% else %}{% endif %}>
+  <label class="form-check-label" for="flexCheckChecked">
+    Force rematch
+  </label>
+  <input type='submit' hidden>
+  <br>
+  <button type="button" {% if not selected  %}style="display:none"{% endif %} onclick="createJob()" id="button_match" class="btn btn-primary">Compare</button>
+</center>
+
+
+
+{% endblock %}

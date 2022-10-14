@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title%}
+Export
+{% endblock %}
+{% block content %}
+<center>
+    <form action = "{{ url_for('data.export_view') }}" method='post'>
+        <div class="form-group">
+            <label for="samples">Enter comma seperated sample_ids to export or export all samples</label>
+            <input type="text" name='samples' class="form-control" id="samples" aria-describedby="export" placeholder="Export all samples">
+        </div>
+        <button type="submit" class="btn btn-primary">Export</button>
+    </form>
+</center>
+{% endblock %}

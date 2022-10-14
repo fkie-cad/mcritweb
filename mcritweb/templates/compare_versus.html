@@ -1,0 +1,145 @@
+{% from 'table/compare_nav.html' import compare_nav %}
+{% from 'table/table.html' import sample_table, table_std_js %}
+{% from 'table/pagination_widget.html' import pagination_widget, pagination_js, set_pagination_params %}
+{% from 'table/tabs.html' import add_tab, finalize_tabs %}
+{% extends 'base.html' %}
+{% block title%}
+Compare
+{% endblock %}
+{% block style %}
+<script>
+var selected_a = '{{ selected_a or "" }}'
+var selected_b = '{{ selected_b or "" }}'
+var selected_column_a = null;
+var selected_column_b = null;
+$(document).ready(function(){
+  var table_a = document.getElementsByClassName("parent_table_sample_a");
+  var table_b = document.getElementsByClassName("parent_table_sample_b");
+
+  for (var i = 0; i < table_a.length; i++) {
+    if ($(table_a.item(i)).children("th.sample-id").text()==selected_a){
+      selected_column_a = table_a.item(i);
+      table_a.item(i).style.backgroundColor = "rgb(240, 240, 240)";
+    }
+  }
+  for (var i = 0; i < table_b.length; i++) {
+    if ($(table_b.item(i)).children("th.sample-id").text()==selected_b){
+      selected_column_b = table_b.item(i);
+      table_b.item(i).style.backgroundColor = "rgb(240, 240, 240)";
+    }
+  }
+
+  $("tr.parent_table_sample_a").click(function(){
+    if (selected_column_a === null) {
+      document.getElementById("button_match").style.display = "initial";
+    } else {
+      selected_column_a.style.backgroundColor = "white";
+    }
+    selected_column_a = this;
+    selected_a = $(selected_column_a).children("th.sample-id").text();
+    this.style.backgroundColor = "rgb(240, 240, 240)";
+  });
+  $("tr.parent_table_sample_b").click(function(){
+    if (selected_column_b === null) {
+      document.getElementById("button_match").style.display = "initial";
+    } else {
+      selected_column_b.style.backgroundColor = "white";
+    }
+    selected_column_b = this;
+    selected_b = $(selected_column_b).children("th.sample-id").text();
+    this.style.backgroundColor = "rgb(240, 240, 240)";
+  });
+
+  $('#compare_search_form_a').submit(function(eventObj) {
+    eventObj.preventDefault();
+    eventObj.stopPropagation();
+    base_url = window.location.href;
+    args = fetchState();
+    args.selected_a = null;
+    args._anchor = "Search_a";
+    null_keys = {{ pagination_a.params_list|safe }};
+    for(var i = 0, size = null_keys.length; i < size ; i++){
+      args[null_keys[i]] = null;
+    }
+    args["query_a"] = $("#Search_a").val();
+    // overwrites base_link with args and forwards to the resulting url
+    pagination_js_helper(base_url, args);
+    return true;
+  });
+
+  $('#compare_search_form_b').submit(function(eventObj) {
+    eventObj.preventDefault();
+    eventObj.stopPropagation();
+    base_url = window.location.href;
+    args = fetchState();
+    args.selected_b = null;
+    args._anchor = "Search_b";
+    null_keys = {{ pagination_b.params_list|safe }};
+    for(var i = 0, size = null_keys.length; i < size ; i++){
+      args[null_keys[i]] = null;
+    }
+    args["query_b"] = $("#Search_b").val();
+    // overwrites base_link with args and forwards to the resulting url
+    pagination_js_helper(base_url, args);
+    return true;
+  });
+
+});
+
+function createJob() {
+  var checkedValue = $("#force_rematch").is(":checked");
+  window.location.href="/analyze/compare/"+selected_a+"/"+selected_b+"?rematch="+checkedValue;
+}
+
+function fetchState() {
+  var checkedValue = $("#force_rematch").is(":checked");
+  return {
+    "rematch": checkedValue,
+    "selected_a": selected_a,
+    "selected_b": selected_b,
+  }
+}
+</script>
+
+{{ pagination_js() }}
+
+{% endblock %}
+{% block content %}
+
+
+{{ compare_nav("1vs1") }}
+<h1>Compare Samples 1vs1</h1>
+<div class="row">
+  <div class="col">
+    <form style="width:100%" id="compare_search_form_a">
+      <input type="text" class="form-control shadow-none" name="query_a" id="Search_a" value="{{ query_a }}" placeholder="Search" autofocus autocomplete="on">
+    </form>
+    {{ set_pagination_params(pagination_a, _js_argument_provider="fetchState", _anchor="Search_a") }}
+    {{ sample_table(samples_a, table_id="table_sample_a", compact_view=True, show_analyze=False, show_hint=True, sort_pagination=pagination_a) }}
+    {% if samples_a %}
+      {{ pagination_widget(pagination_a)}}
+    {% endif %}
+  </div>
+  <div class="col">
+    <form style="width:100%" id="compare_search_form_b">
+      <input type="text" class="form-control shadow-none" name="query_b" id="Search_b" value="{{ query_b }}" placeholder="Search" autofocus autocomplete="on">
+    </form>
+    {{ set_pagination_params(pagination_b, _js_argument_provider="fetchState", _anchor="Search_b") }}
+    {{ sample_table(samples_b, table_id="table_sample_b", compact_view=True, show_analyze=False, show_hint=True, sort_pagination=pagination_b) }}
+    {% if samples_b %}
+      {{ pagination_widget(pagination_b)}}
+    {% endif %}
+  </div>
+</div>
+<center>
+  <input class="form-check-input shadow-none" type="checkbox" name="rematch" value="true" id="force_rematch" {% if rematch %}checked{% else %}{% endif %}>
+  <label class="form-check-label" for="flexCheckChecked">
+    Force rematch
+  </label>
+  <input type='submit' hidden>
+  <br>
+  <button type="button" {% if not selected_a or not selected_b  %}style="display:none"{% endif %} onclick="createJob()" id="button_match" class="btn btn-primary">Compare</button>
+</center>
+{% endblock %}
+
+ 

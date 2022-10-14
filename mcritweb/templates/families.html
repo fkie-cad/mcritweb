@@ -1,0 +1,29 @@
+{% from 'table/pagination_widget.html' import pagination_widget %}
+{% from 'table/table.html' import family_table%}
+{% from 'table/family_row.html' import family_row_std_js %}
+
+{% extends 'base.html' %}
+
+{% block title%}
+Families
+{% endblock %}
+
+{% block style %}
+{{ family_row_std_js() }}
+{% endblock %}
+
+
+{% block content %}
+
+<h1>Overview of Families</h1>
+
+  <form style="width:100%" method="GET" required action="#">
+    <input type="text" class="form-control shadow-none" name="query" value="{{ query or '' }}" id="query" placeholder="Search" autofocus autocomplete="on">
+    <input type='submit' hidden>
+  </form>
+
+{{ family_table(families, show_export=True, sort_pagination=pagination)}}
+{% if families %}
+{{ pagination_widget(pagination) }}
+{% endif %}
+{% endblock %}

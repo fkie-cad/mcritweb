@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title%}
+Home
+{% endblock %}
+{% block content %}
+<form style="width:100%" method="POST" required>
+  <input type="text" class="form-control shadow-none" name="Search" id="Search" placeholder="Search" autofocus autocomplete="on" required>
+  <input type='submit' hidden>
+</form>
+
+{% if g.user %}
+  <h1>Welcome {{g.user['username']}}</h1>
+  {% if g.user['role'] == 'pending' %}
+    <h4>Please wait for an admin to assign you a role</h4>
+  {% else %}
+    <h4>Your role is: {{g.user['role']}}</h4>
+  {% endif %}
+{% endif %}
+  
+{% endblock %}

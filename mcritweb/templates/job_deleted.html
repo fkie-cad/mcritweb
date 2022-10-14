@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title%}
+Deleted Job with ID: {{ job_id }}
+{% endblock %}
+{% block content %}
+
+<h1>Deleted Job with ID: {{ job_id }}</h1>
+
+<p>back to <a href="{{ url_for('data.jobs') }}">Jobs and Results</a></p>
+
+{% endblock %}
+
+

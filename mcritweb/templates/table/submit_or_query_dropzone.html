@@ -1,0 +1,198 @@
+{% macro submit_or_query_dropzone_js(select_form_type=False) %}
+<link rel="stylesheet" href="{{ url_for('static', filename='dropzone.min.css') }}">
+{{ dropzone.style('border: 2px dashed black; margin: 30%; min-height: 200px;border-radius: 25px; background: rgb(240, 240, 240);') }}
+<script>
+  function show_dumped(x) {
+    if (x.checked) {      
+      $(document.getElementById("dumpExtraFields")).slideDown();   
+    }
+  }
+ 
+  function hide_dumped(x) {
+    if (x.checked) {
+      $(document.getElementById("dumpExtraFields")).slideUp();
+    }
+  }
+
+  function show_submit(x) {
+    if (x.checked) {      
+      $(document.getElementsByClassName("submit-form-exclusive")).slideDown();   
+    }
+  }
+ 
+  function hide_submit(x) {
+    if (x.checked) {
+      $(document.getElementsByClassName("submit-form-exclusive")).slideUp();   
+    }
+  }
+
+  $(document).ready(function(){
+    if ($("#dumped").prop("checked")){
+      $(document.getElementById("dumpExtraFields")).slideDown(); 
+    }
+    {% if select_form_type %}
+    if ($("#submit_form").prop("checked")){
+      $(document.getElementsByClassName("submit-form-exclusive")).slideDown();   
+    }
+    if ($("#query_form").prop("checked")){
+      $(document.getElementsByClassName("submit-form-exclusive")).slideUp();   
+    }
+    {% endif %}
+  });
+
+  function fill_form(data) {
+    data = JSON.parse(data);
+    // set dumped/unmapped
+    if (data["dump"]){
+      $("#dumped").click();
+    } else {
+      $("#unmapped").click();
+    }
+    // set bitness
+    if (data["bitness"] == 32){
+      $("#bitness32").click();
+    } else if (data["bitness"] == 64) {
+      $("#bitness64").click();
+    }
+    // set base address
+    $("#base_address").val(data["baseaddress"])
+  }
+
+
+  $(document).ready(function(){
+    myDropzone = Dropzone.forElement("#myDropzone");
+
+    myDropzone.on("removedfile", function(file) {
+      if (this.files.length == 0) {
+        $("#submit-dropzone").prop("disabled", true);
+      }
+    });
+
+    myDropzone.on("addedfile", function(file) { 
+      // ensure only one file in dropzone
+      if (this.files.length > 1) {
+        this.removeFile(this.files[0]);
+      }
+
+      // activate button
+      $("#submit-dropzone").prop("disabled", false);
+
+      // fill form with data derived from file name
+      filename = file.name
+
+      let xhr = new XMLHttpRequest();
+      xhr.open("POST", "{{ url_for('data.request_filename_info') }}" );
+
+      xhr.setRequestHeader("Accept", "application/json");
+      xhr.setRequestHeader("Content-Type", "application/json");
+
+      xhr.onload = () => fill_form(xhr.responseText);
+
+      let data = {
+        "filename": filename
+      };
+
+      xhr.send(JSON.stringify(data));
+
+    });
+
+    myDropzone.on('sending', function(file, xhr, formData) {
+      // Append all form inputs to the formData Dropzone will POST
+      $("#submit-spinner").show();
+      var data = $('#dropzone-additional-fields-form').serializeArray();
+      $.each(data, function(key, el) {
+          formData.append(el.name, el.value);
+      });
+    });
+
+    $("#submit-dropzone").click(function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      myDropzone.processQueue();
+    });
+
+    myDropzone.on('error', function(file, response) {
+      location.reload();
+    });
+
+    myDropzone.on('success', function(file, response) {
+      window.location.href=response;
+    });
+
+  });
+
+</script>
+{% endmacro %}
+
+{% macro submit_or_query_dropzone(families=[], select_form_type=False, show_submit_fields=False) %}
+<center>
+
+{% if select_form_type %}
+  {% set target_link = url_for('data.submit_or_query') %}
+{% elif show_submit_fields %}
+  {% set target_link = url_for('data.submit') %}
+{% else %}
+  {% set target_link = url_for('analyze.query') %}
+{% endif %}
+  {{ dropzone.create(action=target_link) }}
+  <script src="{{ url_for('static', filename='dropzone.js') }}"></script>
+  {{ dropzone.config(max_file_size=20000000, redirect_view=None, custom_options='autoProcessQueue: false') }}
+  <form id="dropzone-additional-fields-form">
+  {% if select_form_type %}
+    <div class="container-fluid">
+      <div class="form-check form-check-inline col-xs-6" align="left">
+          <input class="form-check-input" onchange="hide_submit(this)" type="radio" name="form_type" id="query_form" value="query_form" checked>
+          <label class="form-check-label" for="query_form">Match against database</label>
+      </div>
+      <div class="form-check form-check-inline col-xs-6" align="left">
+          <input class="form-check-input"  onchange="show_submit(this)" type="radio" name="form_type" id="submit_form" value="submit_form">
+          <label class="form-check-label" for="submit_form">Add to database</label>
+      </div>
+    </div>
+  {% endif %}
+    <div class="form-group submit-form-exclusive" {% if not show_submit_fields %}style="display:none"{% endif %}>
+      <input type='text' name='family' class="form-control" id="family" aria-describedby="familyHelp" placeholder="Enter family" autofocus autocomplete="off">
+      <input name='version' class="form-control" id="version" aria-describedby="versionHelp" placeholder="Enter version">
+    </div>
+    <div class="form-group" style="display:none" id='dumpExtraFields'>
+        <input name='base_address' class="form-control" id="base_address" aria-describedby="baseAddressHelp" placeholder="Enter base address">
+        <div class="form-check form-check-inline submit-form-exclusive" {% if not show_submit_fields %}style="display:none"{% endif %}>
+          <input class="form-check-input" type="radio" name="bitness" id="bitness32" value="32">
+          <label class="form-check-label" for="inlineRadio1">32bit</label>
+        </div>
+        <div class="form-check form-check-inline submit-form-exclusive" {% if not show_submit_fields %}style="display:none"{% endif %}>
+          <input class="form-check-input" type="radio" name="bitness" id="bitness64" value="64">
+          <label class="form-check-label" for="inlineRadio2">64bit</label>
+        </div>
+      </div>
+
+    <div class="form-check form-check-inline" align="left">
+        <input class="form-check-input" onchange="hide_dumped(this)" type="radio" name="options" id="unmapped" value="unmapped" checked>
+        <label class="form-check-label" for="unmapped">Unmapped</label>
+    </div>
+    <div class="form-check form-check-inline" align="left">
+        <input class="form-check-input"  onchange="show_dumped(this)" type="radio" name="options" id="dumped" value="dumped">
+        <label class="form-check-label" for="dumped">Dumped</label>
+    </div>
+     <!-- TODO: only show if file available -->
+    <button type="submit" class="btn btn-primary" id="submit-dropzone" disabled>Submit <span id="submit-spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display:none"></span></button>
+</form>
+</center>
+<script>
+    var families = "{{ families | safe }}";
+    families = families.replace('[', '');
+    families = families.replace(']', '');
+    families = families.split(", ");
+    families_ac = [];
+    for (let i in families) {
+        families_ac.push({label:families[i].substring(1, families[i].length-1), value:families[i].substring(1, families[i].length-1)})
+    }
+    const field = document.getElementById('family');
+        const ac = new Autocomplete(field, {
+            data: families_ac,
+            maximumItems: 5,
+            threshold: 1,
+        });
+</script>
+{% endmacro %}
+

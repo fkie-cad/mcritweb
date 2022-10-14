@@ -1,0 +1,77 @@
+{% from 'table/table.html' import function_table, sample_table, family_table %}
+{% from 'table/pagination_widget.html' import pagination_widget, set_pagination_params %}
+{% from 'table/family_row.html' import family_row_std_js %}
+{% from 'table/sample_row.html' import sample_row_std_js %}
+{% from 'table/function_row.html' import function_row_std_js %}
+{% extends 'base.html' %}
+{% block title%}
+Search
+{% endblock %}
+{% block style %}
+
+{{ function_row_std_js() }}
+{{ sample_row_std_js() }}
+{{ family_row_std_js() }}
+
+{% endblock %}
+{% block content %}
+
+  {% if query %}
+    <h1>Results for "{{ query }}"</h1>
+  {% endif %}
+
+  {# find out if search should be focused #}
+  {% set focus_search=namespace(value=True) %}
+  {% for pagination in [family_pagination, sample_pagination, function_pagination] %}
+    {% if (pagination and pagination.request_had_page) %}
+      {% set focus_search.value = False %}
+    {% endif %}
+  {% endfor %}
+
+  <form style="width:100%" method="GET" required action="#">
+    <input type="text" class="form-control shadow-none" name="query" value="{{ query or '' }}" id="query" placeholder="Search" {% if focus_search.value %}autofocus{% endif %} autocomplete="on">
+    <div>
+      <input class="form-check-input shadow-none" type="checkbox" name="type" value="family" id="families_checkbox" {% if search_types.__contains__('family') %}checked{% endif %}>
+      <label class="form-check-label" for="flexCheckChecked">
+        Families
+      </label>
+      <input class="form-check-input shadow-none" type="checkbox" name="type" value="sample" id="samples_checkbox" {% if search_types.__contains__('sample') %}checked{% endif %}>
+      <label class="form-check-label" for="flexCheckChecked">
+        Samples
+      </label>
+      <input class="form-check-input shadow-none" type="checkbox" name="type" value="function" id="functions_checkbox" {% if search_types.__contains__('function') %}checked{% endif %}>
+      <label class="form-check-label" for="flexCheckChecked">
+        Functions
+      </label>
+    </div>
+     <input type='submit' hidden>
+  </form>
+
+  {% if families |length > 0 or (family_pagination and family_pagination.hasCurrent) %}
+    <h3 id="family-results">Families</h3>
+    {{ set_pagination_params(family_pagination, _anchor="family-results") }}
+    {{ family_table(families, sort_pagination=family_pagination) }}
+    {% if families %}
+    {{ pagination_widget(family_pagination) }}
+    {% endif %}
+  {% endif %}
+
+  {% if samples |length > 0 or (sample_pagination and sample_pagination.hasCurrent) %}
+    <h3 id="sample-results">Samples</h3>
+    {{ set_pagination_params(sample_pagination, _anchor="sample-results") }}
+    {{ sample_table(samples, sort_pagination=sample_pagination) }}
+    {% if samples %}
+    {{ pagination_widget(sample_pagination) }}
+    {% endif %}
+  {% endif %}
+
+  {% if functions |length > 0 or (function_pagination and function_pagination.hasCurrent) %}
+    <h3 id="function-results">Functions</h3>
+    {{ set_pagination_params(function_pagination, _anchor="function-results") }}
+    {{ function_table(functions, sort_pagination=function_pagination) }}
+    {% if functions %}
+    {{ pagination_widget(function_pagination) }}
+    {% endif %}
+  {% endif %}
+
+{% endblock %}

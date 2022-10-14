@@ -1,0 +1,136 @@
+
+{% macro cross_table(samples, matching_percent, matching_matches, fifth_indices, job_info) %}
+  <table>
+    <tr>
+        <td style="font-size: 13px;color: black">#</td>
+        <td style="font-size: 13px;color: black">family</td>
+        <td style="font-size: 13px;color: black">version</td>
+        <td style="font-size: 13px;color: black">Bit</td>
+        <td style="font-size: 13px;color: black">FNs</td>
+        <td style="font-size: 13px;color: black" colspan="{{ samples|length }}">Matrix</td>
+    </tr>
+    
+    <tr>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+    {% for id in fifth_indices %}
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td align="middle" style="font-size: 10px;color: black">{{id}}</td>
+    {% endfor %}
+    </tr>
+
+    {% for sample in samples %}
+      {% set outer_loop = loop %}
+      <tr style="border: 0px solid black; line-height: 0.7em;">
+        <td class="id clickable" style="padding: 0 5px; font-size: 13px;color: black">{{ sample.sample_id }}</td>
+        <td class="result clickable" style="display: none;">{{ sample_to_job_id[sample.sample_id|string] }}</td>
+        <td class="clickable" style="padding: 0 5px; font-size: 13px">{{sample.family}}</td>
+        <td class="clickable" style="padding: 0 5px; font-size: 13px">{{sample.version}}</td>
+        <td class="clickable" style="padding: 0 5px; font-size: 13px">{{sample.bitness}}</td>
+        <td class="clickable" style="padding: 0 5px; font-size: 13px;color: black">{{sample.statistics['num_functions']}}</td>
+      {% for sample2 in samples %}
+        <td><span onclick="window.location.href='{{ sample_to_job_id[sample.sample_id|string] }}?samid={{ sample2.sample_id }}'";" class="hint--top" data-hint="MCRIT: {{ '%.2f%%'|format(matching_percent[sample.sample_id|string][sample2.sample_id|string]) }} ({{ matching_matches[sample.sample_id|string][sample2.sample_id|string] }} matches) &#10;
+            {{ sample.sample_id }}: {{sample.sha256[:8]}} -- {{ sample.family }} {{ sample.version }} -- ({{sample.statistics['num_functions']}} func)
+            &#10;vs.&#10;
+            {{ sample2.sample_id }}: {{sample2.sha256[:8]}} -- {{ sample2.family }} {{ sample2.version }} -- ({{sample2.statistics['num_functions']}} func)" 
+            style="background-color: #{{ score_to_color(matching_percent[sample.sample_id|string][sample2.sample_id|string]) }}; width: 20px; height: 20px; "></span>
+        </td>
+      {% endfor %}
+      </tr>
+    {% endfor %}
+  </table>
+{% endmacro %}
+
+{% from 'table/column_table.html' import job_column_table %}
+
+{% extends 'base.html' %}
+{% block title%}
+Results for Job: {{ job_info.job_id }}
+{% endblock %}
+{% block style %}
+
+<script>
+  $(document).ready(function(){
+    $("td.clickable").click(function(){
+      var result = $(this).parent().children("td.result").text();
+      window.location.href="/data/result/"+result;
+    });
+  });
+  $( function() {
+    $( "#sortable" ).sortable();
+  } );
+  function changeorder() {
+    var array1 = document.getElementById('sortable').children;
+    var array2 = []
+    for (let i = 0; i < array1.length; i++) {
+        array2.push(array1[i].innerHTML.split(' ')[0]);} 
+    var result = "{{ job_info.job_id|safe }}";
+    window.location.href="/data/result/"+result+"?custom="+array2;
+
+  }
+</script>
+{% endblock %} 
+{% block content %}
+
+<h1>Results for Job: {{ job_info.job_parameters }}</h1>
+{{ job_column_table(job_info, show_created=False, show_started=False, show_finished=False) }}
+
+<p>Cross Comparison of {{ samples["unweighted"]|length }} samples in the data set. You can order the samples in this list per drag and drop to change the order in the matrices.</p>
+<div class="container">
+    <div class="row">
+      <div class="col-sm-auto">
+        <ul style="list-style: none" id="sortable">
+            {% for sample in samples["unweighted"] %}
+            <li>{{ sample.sample_id ~' '~ sample.family ~ ' ' ~ sample.version}}</li>
+            {% endfor %}
+          </ul>
+      </div>
+      <div class="col-sm-auto align-self-center mb-3">
+        <button onclick="changeorder()"type="button" class="btn btn-primary ">Change order</button> 
+        <button onclick="window.location.href='{{ url_for('data.result', job_id=job_info.job_id) }}'"type="button" class="btn btn-primary ">Reset order</button> 
+      </div>
+    </div>
+  </div>
+
+<ul class="nav nav-pills mb-3 justify-content-center" id="pills-tab" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link show active" id="pills-unweighted-tab" data-bs-toggle="pill" data-bs-target="#pills-unweighted" type="button" role="tab" aria-controls="pills-unweighted" aria-selected="true">unweighted</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="pills-score_weighted-tab" data-bs-toggle="pill" data-bs-target="#pills-score_weighted" type="button" role="tab" aria-controls="pills-score_weighted" aria-selected="false">score_weighted</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="pills-frequency_weighted-tab" data-bs-toggle="pill" data-bs-target="#pills-frequency_weighted" type="button" role="tab" aria-controls="pills-frequency_weighted" aria-selected="false">frequency_weighted</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="pills-nonlib_unweighted-tab" data-bs-toggle="pill" data-bs-target="#pills-nonlib_unweighted" type="button" role="tab" aria-controls="pills-nonlib_unweighted" aria-selected="false">nonlib_unweighted</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="pills-nonlib_score_weighted-tab" data-bs-toggle="pill" data-bs-target="#pills-nonlib_score_weighted" type="button" role="tab" aria-controls="pills-nonlib_score_weighted" aria-selected="false">nonlib_score_weighted</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="pills-nonlib_frequency_weighted-tab" data-bs-toggle="pill" data-bs-target="#pills-nonlib_frequency_weighted" type="button" role="tab" aria-controls="pills-nonlib_frequency_weighted" aria-selected="false">nonlib_frequency_weighted</button>
+      </li>
+  </ul>
+
+
+<div class="tab-content" id="pills-tabContent">
+
+    {% for method in matching_percent.keys() %}
+      <div class="tab-pane fade {% if method=='unweighted' %}show active{%endif%}" id="pills-{{ method }}" role="tabpanel" aria-labelledby="pills-{{ method }}-tab">
+          <center> 
+            {{ cross_table(samples[method], matching_percent[method], matching_matches[method], sample_indices[method], job_info) }}
+          </center>
+      </div>
+    {% endfor %}
+
+  </div>
+{% endblock %}
+
+

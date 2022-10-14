@@ -1,0 +1,109 @@
+{% from 'table/pagination_widget.html' import sortable_header_col %}
+{% from 'table/links.html' import format_pichash, format_offset, format_family_name, format_family_id, format_sample_id, format_function_id %}
+
+{% macro sample_row_std_js() %}
+<script>
+  var button_clicked = false;
+  $(document).ready(function(){
+
+    $("tr.sample-row").click(function(e){
+      if(button_clicked) {
+        e.stopPropagation();
+        button_clicked = false;
+        own_menu = $(this).find('#dropdown-menu');
+        was_visible = own_menu.is(":visible");
+        $("tr.sample-row").find('#dropdown-menu').hide();
+        if (!was_visible){
+          $(this).find('#dropdown-menu').toggle();
+        }
+      }
+      else{
+        var sample_id = $(this).children("th.sample-id").text();
+        window.location.href="{{ url_for('explore.samples') }}"+ "/" + sample_id;
+      }
+    });
+  });
+  function set_analyze_sample_button_clicked() {
+    button_clicked = true;
+  }
+</script>
+{% endmacro %}
+
+
+
+{% macro sample_header(no_family=False, compact_view=False, show_analyze=True, show_export=False, show_hint=False, sort_pagination=None) %}
+  {# accept but discard additional kwargs #}
+  {% if False %}{{ kwargs }}{% endif %} 
+  <tr>
+    {% call sortable_header_col(sort_pagination, "sample_id") %}
+      <i class="fa-solid fa-virus" title="Sample ID"></i>
+    {% endcall %}
+    {% call sortable_header_col(sort_pagination, "sha256", align="right") %}
+      SHA256
+    {% endcall %}
+    {% if not no_family %}
+      {% call sortable_header_col(sort_pagination, "family") %}
+        Family
+      {% endcall %}
+    {% endif %}
+    {% if not compact_view %}
+      {% call sortable_header_col(sort_pagination, "version") %}
+        Version 
+      {% endcall %}
+      {% call sortable_header_col(sort_pagination, "filename") %}
+        Filename
+      {% endcall %}
+        <th style="text-align: right;" scope="col">Bitness</th>
+    {% endif %}
+    {% call sortable_header_col(sort_pagination, "statistics.num_functions", align="right") %}
+      Functions
+    {% endcall %}
+    {% if show_hint %}
+      <th scope="col"></th>
+    {% endif %}
+    {% if (show_export or show_analyze) %}
+      <th scope="col"></th>
+    {% endif %}
+  </tr>
+{% endmacro %}
+  
+  
+{% macro sample_row(sample, no_family=False, compact_view=False, show_analyze=True, show_export=False, show_hint=False) %}
+  <tr class="sample-row parent_{{ kwargs['parent'] }}" >
+    <th align="left" valign="middle" scope="row" class="sample-id">{{ "%d"|format(sample.sample_id) }}</th>
+    <td align="right" valign="middle" class="font-monospace">{{ sample.getShortSha256() }}</td>
+    {% if not no_family %}
+      <td valign="middle">{{ format_family_name(sample.family, sample.family_id) }}</td>
+    {% endif %}
+    {% if not compact_view %}
+      <td valign="middle">{{ sample.version }}</td>
+      <td valign="middle">{{ sample.getShortFilename() }}</td>
+      <td align="right" valign="middle">{{ "%d"|format(sample.bitness) }}</td>
+    {% endif %}
+    <td align="right" valign="middle">{{ "%d"|format(sample.statistics['num_functions']) }}</td>
+    {% if show_hint %}
+      <td>
+        <span class="hint--left" data-hint="Sample_ID: {{ sample.sample_id }}&#10;SHA256: {{ sample.sha256 }}&#10;Family: {{ sample.family }}&#10;Version: {{ sample.version }}&#10;Filename: {{ sample.filename }} &#10;Architecture: {{ sample.architecture }}&#10;Bitness: {{ sample.bitness }} &#10;Base_Address: 0x{{ '%0x' % sample.base_addr }}&#10;Binary_Size: {{ '{:,.0f}'.format(sample.binary_size) }}&#10;Binweight: {{ '{:,.0f}'.format(sample.binweight) }}"><i class="fa-solid fa-circle-info"></i></span>
+      </td>
+    {% endif %}
+    {% if (show_export or show_analyze) %}
+      <td align="right" class="buttons">
+        {% if show_analyze %}
+          <button type="button" class="btn btn-outline-dark btn-sm" onclick=set_analyze_sample_button_clicked() bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <i class="fa-solid fa-flask"></i>
+          </button>
+          <div class="dropdown-menu dropdown-menu-end" id="dropdown-menu">
+            <a class="dropdown-item" href="{{ url_for('analyze.compare') + '/' + sample.sample_id|string }}">1 vs N</a>
+            <a class="dropdown-item" href="{{ url_for('analyze.compare_versus', selected_a=sample.sample_id, query_a='sha256:'+sample.sha256) }}">1 vs 1</a>
+            <a class="dropdown-item" href="{{ url_for('analyze.cross_compare', samples=sample.sample_id) }}">Cross Compare</a>
+          </div>
+        {% endif %}
+        {% if show_export %}
+          <a class="btn btn-outline-dark btn-sm" name="family_blocks" href="{{ url_for('analyze.blocks_sample', sample_id=sample.sample_id) }}" role="button" target="_self"><i class="fa-solid fa-cubes-stacked"></i></a>
+          <a class="btn btn-outline-dark btn-sm" href="{{ url_for('data.specific_export', type='samples', item_id=sample.sample_id) }}" role="button" target="_self"><i class="fa-solid fa-file-export"></i></a>
+        {% endif %}
+      </td>
+    {% endif %}
+  </tr>
+
+{% endmacro %}

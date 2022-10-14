@@ -1,0 +1,28 @@
+{% macro matching_statistics_table(match_aggregation) %}
+  {% set fields = [
+    'num_own_functions_matched',
+    'num_foreign_functions_matched',
+    'num_own_functions_matched_as_library',
+    'num_self_matches',
+    'bytes_matched',
+  ] %}
+  
+  <table class="table table-hover">
+    <thead class="thead-light">
+      <tr>
+        <th scope="col">Field</th>
+        <th style="text-align: right;" scope="col">MinHash</th>
+        <th style="text-align: right;" scope="col">PicHash</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for field in fields %}
+        <tr>
+          <td valign="middle">{{ field }}: </td>
+          <td style="text-align: right;" valign="middle">{{ match_aggregation["minhash"][field] }}</td>
+          <td style="text-align: right;" valign="middle">{{ match_aggregation["pichash"][field] }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endmacro %}

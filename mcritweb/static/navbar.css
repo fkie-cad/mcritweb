@@ -1,0 +1,19 @@
+.navbar-brand img {
+  height: 100px;
+}
+.navbar-brand-small img {
+  height: 40px;
+}
+.navbar{
+  margin-bottom: 20px;
+  padding: 0.5rem;  
+}
+.navbar .right-logo {
+  position:absolute;
+  top:0;
+  right:0;
+  margin: 0.5rem;
+}
+.navbar .right-logo img{
+  height:50px;
+}

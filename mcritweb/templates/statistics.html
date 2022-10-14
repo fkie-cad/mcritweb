@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title%}
+Statistics
+{% endblock %}
+{% block content %}
+  <h1>Statistics</h1>
+  <table class="table table-sm table-borderless" style="width:50%;">
+    {% for key in stats['status'] %}
+    {% if loop.index <= 12 %}
+    <tr>
+      <th valign="middle">{{ key }}</td>
+      <td align="right" valign="middle">{{ stats['status'][key] }}</td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+
+  </table>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title%}
+Job overview: {{ job_info.job_id }} - corrupted!
+{% endblock %}
+{% block content %}
+
+<h1>Job overview:{{ job_info.job_id }} is corrupted :(</h1>
+
+<p>{{reason}}</p>
+<p>back to <a href="{{ url_for('data.jobs') }}">Jobs and Results</a></p>
+<p><a href="{{"/data/jobs/" + job_info.job_id + "/delete"}}">Delete job data</a> and return back to Jobs and Results</p>
+
+{% endblock %}

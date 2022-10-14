@@ -1,0 +1,165 @@
+{% from 'table/submit_or_query_dropzone.html' import submit_or_query_dropzone, submit_or_query_dropzone_js with context%}
+<!doctype html>
+<head>
+  <title>{% block title %}{% endblock %} - MCRIT Web</title>
+  <link href="{{ url_for('static', filename='bootstrap-5.0.2-dist/css/bootstrap.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/all.css') }}" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" type="image/png" href=" {{ url_for('static',filename='d20_mcrit_cabaret_small.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='navbar.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='hint.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='jquery-ui.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='dataTables.bootstrap5.min.css') }}">
+  <script src="{{ url_for('static', filename='jquery.js') }}"></script>
+  <script src="{{ url_for('static', filename='jquery.dataTables.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='dataTables.bootstrap5.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='jquery-ui.js') }}"></script>
+  <script src="{{ url_for('static', filename='autocomplete.js') }}"></script>
+  <script src="{{ url_for('static', filename='bootstrap-5.0.2-dist/js/bootstrap.bundle.min.js') }}"></script>
+
+  {% if not suppress_dropzone_overlay %}
+    {{ submit_or_query_dropzone_js(select_form_type=True) }}
+    <script>
+    $(document).ready(function(){
+      function showDropModal() {
+        $("#submitFileModal").modal("show");
+      }
+      function clearDropzone(e) {
+        myDropzone = Dropzone.forElement("#myDropzone");
+        myDropzone.removeAllFiles();
+      }
+
+      $("#submitFileModal").on("hidden.bs.modal", function () {
+          clearDropzone();
+      });
+
+      window.addEventListener('dragover', function(e) {
+        var dt = e.dataTransfer;
+        if (dt.effectAllowed == "copy" || dt.dropEffect == "copy"){
+          showDropModal();
+        }
+      });
+    });
+    </script>
+  {% endif %}
+  {% block style %}{% endblock %}
+</head>
+<body style="font-family: sans-serif">
+  <header>
+    <noscript>Please enable JavaScript to use all features of this site. </noscript>
+<nav class="navbar navbar-expand-lg navbar-light">
+  <a class="navbar-brand d-none d-md-block" href="{{ url_for('index') }}">
+    <img src="{{ url_for('static', filename='d20_mcrit_cabaret.png') }}" class="img-fluid">
+  </a>
+  <a class="navbar-brand d-md-none" href="{{ url_for('index') }}">
+    <img src="{{ url_for('static', filename='d20_mcrit_cabaret.png') }}" class="img-fluid">
+  </a>
+  <button class="navbar-toggler navbar-toggler-end float-end" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+  <a class="right-logo d-none d-lg-block ms-lg-auto mb-lg-auto" href="https://www.fkie.fraunhofer.de/">
+    <img src="{{ url_for('static', filename='fkie_190x52.gif') }}">
+  </a>
+
+
+  <div class="collapse navbar-collapse mt-md-auto flex-column ms-lg-auto" id="navbarSupportedContent">
+  <ul class="navbar-nav ms-lg-auto mt-lg-auto">
+    {% if g.user %}
+    <li><hr class="dropdown-divider"></li>
+    <li class="nav-item dropdown">
+      <a class="nav-link" href="#" id="navbarDropdownExplore" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" {% if g.user['role'] == 'pending' %} disabled{% endif %}>Explore</a>
+      <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownExplore">
+        <a class="dropdown-item" href="{{ url_for('explore.search') }}"><i class="fa-solid fa-search "></i>&nbsp;Search</a>
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="{{ url_for('explore.families') }}"><i class="fa-solid fa-bug "></i>&nbsp;Families</a>
+        <a class="dropdown-item" href="{{ url_for('explore.samples') }}"><i class="fa-solid fa-virus "></i>&nbsp;Samples</a>
+        <a class="dropdown-item" href="{{ url_for('explore.functions') }}"><i class="fa-solid fa-project-diagram "></i>&nbsp;Functions</a>
+        <a class="dropdown-item" href="{{ url_for('explore.statistics') }}"><i class="fa-solid fa-chart-line "></i>&nbsp;Statistics</a>
+      </div>
+    </li>
+    <li class="nav-item dropdown">
+      <a class="nav-link" href="{% if not g.user %}{{ url_for('authentication.login') }}{% endif %}" id="navbarDropdownAnalyze" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" {% if g.user['role'] == 'pending' %} disabled{% endif %}>
+        Analyze
+      </a>
+      <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownAnalyze">
+        <a class="dropdown-item" href="{{ url_for('analyze.compare') }}" >Compare 1vsN</a>
+        <a class="dropdown-item" href="{{ url_for('analyze.compare_versus') }}" >Compare 1vs1</a>
+        <a class="dropdown-item" href="{{ url_for('analyze.cross_compare') }}">Cross-Compare</a>
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="{{ url_for('analyze.query') }}">Query</a>
+      </div>
+    </li>
+    <li class="nav-item dropdown">
+      <a class="nav-link" href="{% if not g.user %}{{ url_for('authentication.login') }}{% endif %}" id="navbarDropdownData" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" {% if g.user['role'] == 'pending' %} disabled{% endif %}>
+        Data
+      </a>
+      <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownData">
+        <a class="dropdown-item" href="{{ url_for('data.import_view') }}">Import</a>
+        <a class="dropdown-item" href="{{ url_for('data.export_view') }}">Export</a>
+        <a class="dropdown-item" href="{{ url_for('data.submit') }}">Submit binary</a>
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="{{ url_for('data.jobs') }}">Jobs/Results</a>
+      </div>
+    </li>
+    {% endif %}
+    <li class="nav-item dropdown">
+      {% if not g.user %}
+      <a class="nav-link" href="{{ url_for('authentication.login') }}">Login</a>
+      {% else %}
+      <a class="nav-link"  href="#" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{g.user['username']}}</a>
+      <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownUser">
+        {% if g.user['role'] == 'admin'%}
+          <a class="dropdown-item" href="{{ url_for('admin.server') }}">Server</a>
+          {% if g.operation_mode == 'multi' %}
+            <a class="dropdown-item" href="{{ url_for('admin.users', tab='pending') }}">Users</a>
+          {% endif %}
+          <hr class="dropdown-divider">
+        {% endif %}
+        <a class="dropdown-item" href="{{ url_for('index') }}">View profile</a>
+        <a class="dropdown-item" href="{{ url_for('authentication.settings') }}">Settings</a>
+        <a class="dropdown-item" href="{{ url_for('authentication.logout') }}">Logout</a>
+      </div>
+      {% endif %}
+  </ul>
+</nav>
+
+  </header>
+  <section class="content">
+      {% for category, message in get_flashed_messages(with_categories=true) %}
+        {% if category == 'error' %}
+          <div class="alert alert-danger mt-3" role="alert">{{ message }}</div>
+        {% elif category == 'warning' %}
+          <div class="alert alert-warning mt-3" role="alert">{{ message }}</div>
+        {% elif category == 'success' %}
+          <div class="alert alert-success mt-3" role="alert">{{ message }}</div>
+        {% elif category == 'info' %}
+          <div class="alert alert-info mt-3" role="alert">{{ message }}</div>
+        {% else %}
+          <div class="alert alert-info mt-3" role="alert">{{ message }}</div>
+        {% endif %}
+      {% endfor %}
+
+      {% block content %}{% endblock %}
+
+      {% if not suppress_dropzone_overlay %}
+        <div class="modal fade" id="submitFileModal" tabindex="-1" aria-labelledby="submitFileModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="submitFileModalLabel">Submit File</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="close-submit-modal"></button>
+              </div>
+              <div class="modal-body">
+                <!-- TODO: get families... dynamically?-->
+                {{ submit_or_query_dropzone(families=[], show_submit_fields=False, select_form_type=True) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+  </section>
+
+
+</body>
+
+</html>

@@ -1,0 +1,51 @@
+{% macro job_row_std_js() %}
+<script>
+  $(document).ready(function(){
+    $("tr.job-row").click(function(){
+      var job_id = $(this).children("th.id")[0].getAttribute('job_id');
+      window.location.href="/data/jobs/"+job_id;
+    });
+  });
+</script>
+{% endmacro %}
+
+
+{% macro job_header() %}
+  <tr>
+    <th scope="col">#</th>
+    <th scope="col">Type</th>
+    <th style="text-align: right;" scope="col">Started</th>
+    <th style="text-align: right;" scope="col">Finished</th>
+    <th style="text-align: right;" scope="col">Progress</th>
+    <th scope="col"></th>
+  </tr> 
+{% endmacro %}  
+  
+{% macro job_row(job) %}
+  <tr class="job-row parent_{{ kwargs['parent'] }}" >
+    <th align="right" valign="middle" class="id" scope="row" job_id="{{ job.job_id }}">{{ "%d"|format(job.number) }}</th>
+    <td valign="middle">{{ job.parameters }}</td>
+    {% if job.started_at != None %}
+    <td align="right" valign="middle">{{ job.started_at|date_time }}</td>
+    {% else %}
+    <td align="right" valign="middle">Not started yet</td>
+    {% endif %}
+    {% if job.finished_at != None %}
+    <td align="right" valign="middle">{{ job.finished_at|date_time }}</td>
+    {% elif job.is_failed %}
+    <td align="right" valign="middle">Failed</td>
+    {% else %}
+    <td align="right" valign="middle">Not finished yet</td>
+    {% endif %}
+    {% if job.started_at != None %}
+      <td align="right" valign="middle">{{ "%5.2f"|format(100 * job.progress) }}%</td>
+    {% else %}
+      <td align="right" valign="middle">{{ "%5.2f"|format(0) }}%</td>
+    {% endif %}
+    <td align="right">
+      {% if job.finished_at %}
+      <a class="btn btn-outline-dark btn-sm" href="{{"/data/result/" + job.job_id}}"  role="button" target="_self"><i class="fa-solid fa-square-poll-vertical"></i></a>
+      {% endif %}
+    </td>
+  </tr>
+{% endmacro %}  

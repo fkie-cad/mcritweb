@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+{% block title%}
+Users
+{% endblock %}
+{% block content %}
+
+<ul class="nav nav-pills mb-3 justify-content-center" id="pills-tab" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active == 'all' %}show active{% endif %}" id="pills-all-tab" data-bs-toggle="pill" data-bs-target="#pills-all" type="button" role="tab" aria-controls="pills-all" aria-selected="true">All users</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active == 'pending' %}active{% endif %}" id="pills-pending-tab" data-bs-toggle="pill" data-bs-target="#pills-pending" type="button" role="tab" aria-controls="pills-pending" aria-selected="false">Pending users</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active == 'visitors' %}active{% endif %}" id="pills-visitors-tab" data-bs-toggle="pill" data-bs-target="#pills-visitors" type="button" role="tab" aria-controls="pills-visitors" aria-selected="false">Visitors</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active == 'contributors' %}active{% endif %}" id="pills-contributors-tab" data-bs-toggle="pill" data-bs-target="#pills-contributors" type="button" role="tab" aria-controls="pills-contributors" aria-selected="false">Contributors</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active == 'admins' %}active{% endif %}" id="pills-admins-tab" data-bs-toggle="pill" data-bs-target="#pills-admins" type="button" role="tab" aria-controls="pills-admins" aria-selected="false">Admins</button>
+  </li>
+</ul>
+<div class="tab-content" id="pills-tabContent">
+  <div class="tab-pane fade {% if active == 'pending' %}show active{% endif %}"id="pills-pending" role="tabpanel" aria-labelledby="pills-pending-tab">
+    <table class="table table-hover">
+      <thead class="thead-light">
+        <tr>
+          <th scope="col">User_ID</th>
+          <th scope="col">Username</th>
+          <th scope="col">Role</th>
+          <th scope="col">Registered</th>
+          <th scope="col">Last login</th>
+          <th scope="col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in g.all_users %}
+        {% if user.role == 'pending' %}
+        <tr>
+          <th valign="middle" scope="row">{{ user.id }}</th>
+          <td valign="middle">{{ user.username }}</td>
+          <td valign="middle">{{ user.role }}</td>
+          <td valign="middle">{{ user.registered|date }}</td>
+          <td valign="middle">{{ user.last_login|date }}</td>
+          <td align="right"><button type="button" class="btn btn-outline-dark btn-sm" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <i class="fas fa-user-cog fa-xs"></i>
+          </button>
+          <div class="dropdown-menu">
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'admin', id = user.id, tab = 'pending') }}">Change role to admin</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'contributor', id = user.id, tab = 'pending') }}">Change role to contributor</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'visitor', id = user.id, tab = 'pending') }}">Change role to visitor</a>
+            <a class="dropdown-item" href="{{ url_for('analyze.cross_compare') }}">View profile</a>
+            <a class="dropdown-item"href="{{ url_for('admin.delete_user', id = user.id, tab = 'pending') }}">Delete user</a>
+          </div>
+        </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="tab-pane fade {% if active == 'contributors' %}show active{% endif %}" id="pills-contributors" role="tabpanel" aria-labelledby="pills-contributors-tab">
+    <table class="table table-hover">
+      <thead class="thead-light">
+        <tr>
+          <th scope="col">User_ID</th>
+          <th scope="col">Username</th>
+          <th scope="col">Role</th>
+          <th scope="col">Registered</th>
+          <th scope="col">Last login</th>
+          <th scope="col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in g.all_users %}
+        {% if user.role == 'contributor' %}
+        <tr>
+          <th valign="middle" scope="row">{{ user.id }}</th>
+          <td valign="middle">{{ user.username }}</td>
+          <td valign="middle">{{ user.role }}</td>
+          <td valign="middle">{{ user.registered|date }}</td>
+          <td valign="middle">{{ user.last_login|date }}</td>
+          <td align="right"><button type="button" class="btn btn-outline-dark btn-sm" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <i class="fas fa-user-cog fa-xs"></i>
+          </button>
+          <div class="dropdown-menu">
+            <a class="dropdown-item" href="{{url_for('admin.change_user_role', role = 'admin', id = user.id, tab = 'contributors')}}">Change role to admin</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'visitor', id = user.id, tab = 'contributors') }}">Change role to visitor</a>
+            <a class="dropdown-item" href="{{ url_for('analyze.cross_compare') }}">View profile</a>
+            <a class="dropdown-item" href="{{ url_for('admin.delete_user', id = user.id, tab = 'contributors') }}">Delete user</a>
+          </div>
+        </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="tab-pane fade {% if active == 'admins' %}show active{% endif %}" id="pills-admins" role="tabpanel" aria-labelledby="pills-admins-tab">
+    <table class="table table-hover">
+      <thead class="thead-light">
+        <tr>
+          <th scope="col">User_ID</th>
+          <th scope="col">Username</th>
+          <th scope="col">Role</th>
+          <th scope="col">Registered</th>
+          <th scope="col">Last login</th>
+          <th scope="col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in g.all_users %}
+        {% if user.role == 'admin' %}
+        <tr>
+          <th valign="middle" scope="row">{{ user.id }}</th>
+          <td valign="middle">{{ user.username }}</td>
+          <td valign="middle">{{ user.role }}</td>
+          <td valign="middle">{{ user.registered|date }}</td>
+          <td valign="middle">{{ user.last_login|date }}</td>
+          <td align="right"><button type="button" class="btn btn-outline-dark btn-sm" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <i class="fas fa-user-cog fa-xs"></i>
+          </button>
+          <div class="dropdown-menu">
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'contributor', id = user.id, tab = 'admins') }}">Change role to contributor</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'visitor', id = user.id, tab = 'admins') }}">Change role to visitor</a>
+            <a class="dropdown-item" href="{{ url_for('analyze.cross_compare') }}">View profile</a>
+            <a class="dropdown-item" href="{{ url_for('admin.delete_user', id = user.id, tab = 'admin') }}">Delete user</a>
+          </div>
+        </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="tab-pane fade{% if active == 'all' %}show active{% endif %}" id="pills-all" role="tabpanel" aria-labelledby="pills-all-tab">
+    <table class="table table-hover">
+      <thead class="thead-light">
+        <tr>
+          <th scope="col">User_ID</th>
+          <th scope="col">Username</th>
+          <th scope="col">Role</th>
+          <th scope="col">Registered</th>
+          <th scope="col">Last login</th>
+          <th scope="col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in g.all_users %}
+        <tr>
+          <th valign="middle" scope="row">{{ user.id }}</th>
+          <td valign="middle">{{ user.username }}</td>
+          <td valign="middle">{{ user.role }}</td>
+          <td valign="middle">{{ user.registered|date }}</td>
+          <td valign="middle">{{ user.last_login|date }}</td>
+          <td align="right"><button type="button" class="btn btn-outline-dark btn-sm" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <i class="fas fa-user-cog fa-xs"></i>
+          </button>
+          <div class="dropdown-menu">
+            {% if user.role == 'pending' %}
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'visitor', id = user.id, tab = 'all') }}">Change role to visitor</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'contributor', id = user.id, tab = 'all') }}">Change role to contributor</a>
+            <a class="dropdown-item" href="{{url_for('admin.change_user_role', role = 'admin', id = user.id, tab = 'all')}}">Change role to admin</a>
+            {% endif %}
+            {% if user.role == 'admin' %}
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'visitor', id = user.id, tab = 'all') }}">Change role to visitor</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'contributor', id = user.id, tab = 'all') }}">Change role to contributor</a>
+            {% endif %}
+            {% if user.role == 'contributor' %}
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'visitor', id = user.id, tab = 'all') }}">Change role to visitor</a>
+            <a class="dropdown-item" href="{{url_for('admin.change_user_role', role = 'admin', id = user.id, tab = 'all')}}">Change role to admin</a>
+            {% endif %}
+            {% if user.role == 'visitor' %}
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'contributor', id = user.id, tab = 'all') }}">Change role to contributor</a>
+            <a class="dropdown-item" href="{{url_for('admin.change_user_role', role = 'admin', id = user.id, tab = 'all')}}">Change role to admin</a>
+            {% endif %}
+            <a class="dropdown-item" href="{{ url_for('analyze.cross_compare') }}">View profile</a>
+            <a class="dropdown-item" href="{{ url_for('admin.delete_user', id = user.id, tab = 'all') }}">Delete user</a>
+          </div>
+        </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="tab-pane fade {% if active == 'visitors' %}show active{% endif %}"id="pills-visitors" role="tabpanel" aria-labelledby="pills-visitors-tab">
+    <table class="table table-hover">
+      <thead class="thead-light">
+        <tr>
+          <th scope="col">User_ID</th>
+          <th scope="col">Username</th>
+          <th scope="col">Role</th>
+          <th scope="col">Registered</th>
+          <th scope="col">Last login</th>
+          <th scope="col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in g.all_users %}
+        {% if user.role == 'visitor' %}
+        <tr>
+          <th valign="middle" scope="row">{{ user.id }}</th>
+          <td valign="middle">{{ user.username }}</td>
+          <td valign="middle">{{ user.role }}</td>
+          <td valign="middle">{{ user.registered|date }}</td>
+          <td valign="middle">{{ user.last_login|date }}</td>
+          <td align="right"><button type="button" class="btn btn-outline-dark btn-sm" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <i class="fas fa-user-cog fa-xs"></i>
+          </button>
+          <div class="dropdown-menu">
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'admin', id = user.id, tab = 'visitors') }}">Change role to admin</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'contributor', id = user.id, tab = 'visitors') }}">Change role to contributor</a>
+            <a class="dropdown-item" href="{{ url_for('analyze.cross_compare') }}">View profile</a>
+            <a class="dropdown-item"href="{{ url_for('admin.delete_user', id = user.id, tab = 'visitors') }}">Delete user</a>
+          </div>
+        </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

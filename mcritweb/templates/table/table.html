@@ -1,0 +1,49 @@
+{% from 'table/job_row.html' import job_row, job_header %}
+{% from 'table/family_row.html' import family_row, family_header %}
+{% from 'table/function_row.html' import function_row, function_header %}
+{% from 'table/sample_row.html' import sample_row, sample_header %}
+
+{% macro _table_base(iterable_rows, header_macro, row_macro, table_id="unknown-table") %}
+  <table class="table table-hover" id="{{table_id}}">
+    <thead class="thead-light">
+      {{ header_macro(**kwargs) }}
+    </thead>
+    <tbody>
+      {% for row_data in iterable_rows %}
+        {{ row_macro(row_data, parent=table_id, **kwargs) }}
+      {% endfor %}
+    </tbody>
+  </table>
+{% endmacro %}
+
+{% macro job_table(jobs, table_id="job-table") %}
+  {% if jobs %}
+  {{ _table_base(jobs, job_header, job_row, table_id=table_id, **kwargs) }}
+  {% else %}
+  <center><a href='{{ url_for("analyze.compare") }}' style="color: #0d6efd; text-decoration: underline;" >No jobs available. Click here to create your first job</a></center>
+  {% endif %}
+{% endmacro %}
+
+{% macro family_table(families, table_id="family-table") %}
+  {% if families %}
+  {{ _table_base(families, family_header, family_row, table_id=table_id, **kwargs) }}
+  {% else %}
+  <center><a href='{{ url_for("data.submit") }}' style="color: #0d6efd; text-decoration: underline;" >No families available. Click here to upload your first sample</a></center>
+  {% endif %}
+{% endmacro %}
+
+{% macro function_table(functions, table_id="function-table") %}
+  {% if functions %}
+  {{ _table_base(functions, function_header, function_row, table_id=table_id, **kwargs) }}
+  {% else %}
+  <center><a href='{{ url_for("data.submit") }}' style="color: #0d6efd; text-decoration: underline;" >No functions available. Click here to upload your first sample</a></center>
+  {% endif %}
+{% endmacro %}
+
+{% macro sample_table(samples, table_id="sample-table") %}
+  {% if samples %}
+  {{ _table_base(samples, sample_header, sample_row, table_id=table_id, **kwargs) }}
+  {% else %}
+  <center><a href='{{ url_for("data.submit") }}' style="color: #0d6efd; text-decoration: underline;" >No samples available. Click here to upload your first sample</a></center>
+  {% endif %}
+{% endmacro %}

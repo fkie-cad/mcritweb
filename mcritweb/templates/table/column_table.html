@@ -1,0 +1,171 @@
+{% from 'table/links.html' import format_family_name, format_family_id, format_sample_id %}
+
+{% macro sample_column_table()%}
+  <table class="table table-hover">
+    <thead class="thead-light">
+      <tr>
+        <th scope="col">Field</th>
+        {% for name_and_sample in varargs %}
+          <th scope="col">{{ name_and_sample[0]}}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td valign="middle">Sample ID: </td>
+        {% for name_and_sample in varargs %}
+          <td valign="middle">{{ name_and_sample[1].sample_id }}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <td valign="middle">SHA256: </td>
+        {% for name_and_sample in varargs %}
+          <td valign="middle">{{ name_and_sample[1].getShortSha256(border=20) }}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <td valign="middle">Filename: </td>
+        {% for name_and_sample in varargs %}
+          <td valign="middle">{{ name_and_sample[1].getShortFilename() }}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <td valign="middle">Family ID / Name: </td>
+        {% for name_and_sample in varargs %}
+          <td valign="middle">{{ name_and_sample[1].family_id }} | {{ format_family_name(name_and_sample[1].family, name_and_sample[1].family_id) }}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <td valign="middle">Version / Component: </td>
+        {% for name_and_sample in varargs %}
+          <td valign="middle">{{ name_and_sample[1].version }} / {{ name_and_sample[1].component }}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <td valign="middle">Base Address:</td>
+        {% for name_and_sample in varargs %}
+          <td valign="middle">0x{{ "%x"|format(name_and_sample[1].base_addr) }}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <td valign="middle">Binary Size (BinWeight): </td>
+        {% for name_and_sample in varargs %}
+          <td valign="middle">{{ name_and_sample[1].binary_size }} ({{ "%d"|format(name_and_sample[1].binweight) }}) bytes</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <td valign="middle">Platform: </td>
+        {% for name_and_sample in varargs %}
+          <td valign="middle">{{ name_and_sample[1].architecture }} / {{ name_and_sample[1].bitness }}bit</td>
+        {% endfor %}
+      </tr>
+    </tbody>
+  </table>
+{% endmacro %}
+
+
+
+
+{% macro job_column_table(job_info, show_created=True, show_started=True, show_finished=True, show_progress=False, show_duration=True) %}
+  <table class="table table-hover">
+    <tbody>
+      <tr>
+        <td valign="middle">Task:</td>
+        <td valign="middle">{{ job_info.parameters }}</td>
+      </tr>
+      <tr>
+        <td valign="middle">Job ID:</td>
+        <td valign="middle">{{ job_info.job_id }}</td>
+      </tr>
+      {% if show_created %}
+        <tr>
+          <td valign="middle">Created: </td>
+          <td valign="middle">
+            {% if job_info.created_at|length > 15 %}
+              {{ job_info.created_at|date_time }}
+            {% else %}
+              {{ job_info.created_at }}
+            {% endif %}
+          </td>
+        </tr>
+      {% endif %}
+      {% if show_started %}
+        <tr>
+          <td valign="middle">Started: </td>
+          <td valign="middle">
+            {% if job_info.started_at %}
+              {{ job_info.started_at|date_time }}
+            {% else %}
+              This job hasn't started yet
+            {% endif %}
+          </td>
+        </tr>
+      {% endif %}
+      {% if show_finished %}
+        <tr>
+          <td valign="middle">Finished: </td>
+          <td valign="middle">
+            {% if job_info.finished_at %}
+              {{ job_info.finished_at|date_time }}
+            {% elif job_info.is_failed %}
+              Failed</td>
+            {% else %}
+              This job hasn't finished yet
+            {% endif %}
+          </td>
+        </tr>
+      {% endif %}
+      {% if show_duration %}
+        <tr>
+          <td valign="middle">Duration: </td>
+          <td valign="middle">
+            {% if job_info.finished_at %}
+              {{ job_info.duration }}
+            {% elif job_info.is_failed %}
+              Failed
+            {% else %}
+              This job hasn't finished yet
+            {% endif %}
+          </td>
+        </tr>
+      {% endif %}
+      {% if show_progress %}
+        <tr>
+          <td valign="middle">Progress: </td>
+          <td valign="middle">
+            {% if job_info.finished_at %}
+              <a href="{{ url_for('data.result', job_id=job_info.job_id ) }}">Results available</a>
+            {% else %}
+              {% if job_info.started_at %}
+                {{ "%5.2f"|format(100 * job_info.progress) }}% 
+              {% else %}
+                {{ "%5.2f"|format(0) }}% 
+              {% endif %}
+            {% endif %}
+          </td>
+        </tr>
+      {% endif %}
+      {% if job_info.is_failed and job_info.last_error %}
+        <tr>
+          <td valign="middle">Error Message: </td>
+          <td valign="middle">
+            <div white-space: pre-wrap;>
+              <pre><code>{{ (job_info.last_error.rstrip()|e) -}}</code></pre>
+            </div>
+          </td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+{% endmacro %}
+
+
+
+{% macro matching_result_job_column_table(job_info, show_created=False, show_started=False) %}
+  {{ job_column_table(
+    job_info,
+    show_created=show_created,
+    show_started=False,
+    **kwargs,
+  )}}
+{% endmacro %}

@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title%}
+Submit
+{% endblock %}
+{% block style %}
+{# no need to import these macros, they are already imported in base #}
+{{ submit_or_query_dropzone_js(select_form_type=select_form_type) }}
+{% endblock %}
+{% set suppress_dropzone_overlay=true %}
+{% block content %}
+{{ submit_or_query_dropzone(select_form_type=select_form_type, show_submit_fields=show_submit_fields, families=families) }}
+{% endblock %}
