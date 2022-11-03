@@ -39,6 +39,7 @@ Alternatively, we recommend to use the fully packaged [docker-mcrit](https://git
 First and foremost, this will ensure that you have fully compatible versions across all components.
 
 ## Version History
+ * 2022-11-03 v0.9.1: Improved Unique Blocks Isolation and added YARA generation.
  * 2022-10-14 v0.9.0: Initial public beta release.
 
 
