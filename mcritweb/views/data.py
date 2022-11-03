@@ -211,64 +211,71 @@ def result(job_id):
         # if we can't find job or result, we have to assume the job_id was invalid
         return render_template("result_invalid.html", job_id=job_id)
 
-@bp.route('/yarafication/<job_id>', methods=['POST'])
-@mcrit_server_required
-@visitor_required
-def yarafication(job_id):
-    client = McritClient(mcrit_server=get_server_url())
-    # check if we have the respective report already locally cached
-    result_json = load_cached_result(current_app, job_id)
-    job_info = client.getJobData(job_id)
-    if not result_json:
-        # otherwise obtain result report from remote
-            result_json = client.getResultForJob(job_id)
-            if result_json:
-                cache_result(current_app, job_info, result_json)
-    if result_json:
-        # TODO validation - only parse to matching_result if this data type is appropriate 
-        # re-format result report for visualization and choose respective template
-        if job_info is None:
-            return render_template("result_invalid.html", job_id=job_id)
-    query = None
-    if request.method == 'POST' and "block_count" in request.form:
-        query = request.form['block_count']
-    selected_picblocks = []
-    if query:
-        # TODO build rule with greedy algorithm
-        pass
-    yara_rule = query
-    return render_template("result_blocks_yara.html", job_info=job_info, yara_rule=yara_rule)
+def build_yara_rule(job_info, blocks_result, blocks_statistics):
+    unique_blocks = blocks_result["unique_blocks"]
+    yara_blocks = blocks_result["yara_rule"]
+    yara_rule = f"rule mcrit_{job_info.job_id} {{\n"
+    yara_rule += "    meta:\n"
+    yara_rule += "        author = \"MCRIT YARA Generator\"\n"
+    yara_rule += f"        description = \"Code-based YARA rule composed from potentially unique basic blocks for the selected set of samples/family.\"\n"
+    rule_date = datetime.utcnow().strftime("%Y-%m-%d")
+    yara_rule += f"        date = \"{rule_date}\"\n"
+    yara_rule += "    strings:\n"
+    yara_rule += f"        // Rule generation selected {len(yara_blocks)} picblocks, covering {blocks_statistics['num_samples']} input sample(s).\n"
+    for pichash, result in unique_blocks.items():
+        if pichash not in yara_blocks:
+            continue
+        yarafied = f"        /* picblockhash: {pichash} \n"
+        maxlen_ins = max([len(ins[1]) for ins in result["instructions"]])
+        for ins in result["instructions"]:
+            yarafied += f"         * {ins[1]:{maxlen_ins}} | {ins[2]} {ins[3]}\n"
+        yarafied += "         */\n"
+        yarafied += f"        $blockhash_{pichash} = {{ " + re.sub("(.{80})", "\\1\n", result["escaped_sequence"], 0, re.DOTALL) + " }\n"
+        yara_rule += yarafied + "\n"
+    yara_rule += "    condition:\n"
+    yara_rule += "        7 of them\n"
+    yara_rule += "}"
+    return yara_rule
 
 def result_unique_blocks(job_info, blocks_result: dict):
+    client = McritClient(mcrit_server=get_server_url())
     payload_params = json.loads(job_info.payload["params"])
     sample_ids = payload_params["0"]
     sample_id = sample_ids[0]
     family_id = None
+    family_entry = None
     if "family_id" in payload_params:
         family_id = payload_params["family_id"]
+        family_entry = client.getFamily(family_id)
     if blocks_result is None:
         if family_id is not None:
-            flash(f"Ups, no results for unique blocks in family with id {family_id}", category="error")
+            flash(f"No results for unique blocks in family with id {family_id}", category="error")
         else:
-            flash(f"Ups, no results for unique blocks in family with id {sample_id}", category="error")
-    number_of_unique_blocks = 0
+            flash(f"No results for unique blocks in family with id {sample_id}", category="error")
+    blocks_statistics = blocks_result["statistics"]
+    yara_rule = build_yara_rule(job_info, blocks_result, blocks_statistics)
+    unique_blocks = blocks_result["unique_blocks"]
+
     paginated_blocks = []
-    if blocks_result is not None:
+    # TODO this result object has changed, we should split it into stats/blocks/yara and process further
+    if unique_blocks is not None:
         min_score = _parse_integer_query_param(request, "min_score")
         min_block_length = _parse_integer_query_param(request, "min_block_length")
         max_block_length = _parse_integer_query_param(request, "max_block_length")
-        filtered_blocks = blocks_result
+        active_tab = request.args.get('tab','stats')
+        active_tab = active_tab if active_tab in ["stats", "yara", "blocks"] else "stats"
+        filtered_blocks = unique_blocks
         if min_score:
-            filtered_blocks = {pichash: block for pichash, block in blocks_result.items() if block["score"] >= min_score}
+            filtered_blocks = {pichash: block for pichash, block in unique_blocks.items() if block["score"] >= min_score}
         if min_block_length or max_block_length:
             min_block_length = 0 if min_block_length is None else min_block_length
             max_block_length = 0xFFFFFFFF if max_block_length is None else max_block_length
             filtered_blocks = {pichash: block for pichash, block in filtered_blocks.items() if max_block_length >= block["length"] >= min_block_length}
-        blocks_result = filtered_blocks
-        number_of_unique_blocks = len(blocks_result)
+        unique_blocks = filtered_blocks
+        number_of_unique_blocks = len(filtered_blocks)
         block_pagination = Pagination(request, number_of_unique_blocks, limit=100, query_param="blkp")
         index = 0
-        for pichash, result in sorted(blocks_result.items(), key=lambda x: x[1]["score"], reverse=True):
+        for pichash, result in sorted(unique_blocks.items(), key=lambda x: x[1]["score"], reverse=True):
             if index >= block_pagination.end_index:
                 break
             if index >= block_pagination.start_index:
@@ -278,16 +285,15 @@ def result_unique_blocks(job_info, blocks_result: dict):
                     yarafied += f" * {ins[1]:{maxlen_ins}} | {ins[2]} {ins[3]}\n"
                 yarafied += " */\n"
                 yarafied += "{ " + re.sub("(.{80})", "\\1\n", result["escaped_sequence"], 0, re.DOTALL) + " }"
-                blocks_result[pichash]["yarafied"] = yarafied
+                unique_blocks[pichash]["yarafied"] = yarafied
                 paginated_block = result
                 paginated_block["key"] = pichash
                 paginated_block["yarafied"] = yarafied
                 paginated_blocks.append(paginated_block)
             index += 1
-    if family_id is not None:
-        return render_template("result_blocks_family.html", job_info=job_info, family_id=family_id, number_of_unique_blocks=number_of_unique_blocks, results=paginated_blocks, blkp=block_pagination)
-    else:
-        return render_template("result_blocks_sample.html", job_info=job_info, sample_id=sample_id, number_of_unique_blocks=number_of_unique_blocks, results=paginated_blocks, blkp=block_pagination)
+    # TODO pass the new result objects as single arguments and then render them in page tabs on the template
+    return render_template("result_unique_blocks.html", job_info=job_info, family_entry=family_entry, sample_id=sample_id, yara_rule=yara_rule, statistics=blocks_statistics, results=paginated_blocks, blkp=block_pagination, active_tab=active_tab)
+
 
 def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult):
     score_color_provider = ScoreColorProvider()
@@ -411,13 +417,15 @@ def jobs():
     pagination_vs1 = Pagination(request, client.getJobCount('Vs'), query_param="p_1")
     pagination_vsN = Pagination(request, client.getJobCount('getMatchesForSample'), query_param="p_n")
     pagination_cross = Pagination(request, client.getJobCount('combineMatchesToCross'), query_param="p_c")
+    pagination_blocks = Pagination(request, client.getJobCount('getUniqueBlocks'), query_param="p_b")
     others = client.getQueueData(start=pagination_others.start_index, limit=pagination_others.limit, filter=query)
     # NOTE: the filter is not just 'Vs' anymore. It is longer to prevent false matches. E.g. if a filename contains 'Vs'.
     vs1 = client.getQueueData(start=pagination_vs1.start_index, limit=pagination_vs1.limit, filter='getMatchesForSampleVs(')
     # NOTE: this includes '(', because otherwise vsN would also contain all vs1 jobs.
     vsN = client.getQueueData(start=pagination_vsN.start_index, limit=pagination_vsN.limit, filter='getMatchesForSample(')
     cross = client.getQueueData(start=pagination_vsN.start_index, limit=pagination_vsN.limit, filter='combineMatchesToCross(')
-    return render_template('jobs.html', active=active, others=others, cross=cross, vs1=vs1, vsN=vsN, p_o=pagination_others, p_1=pagination_vs1, p_n=pagination_vsN, p_c=pagination_cross, query=query)
+    blocks = client.getQueueData(start=pagination_blocks.start_index, limit=pagination_blocks.limit, filter='getUniqueBlocks(')
+    return render_template('jobs.html', active=active, others=others, cross=cross, vs1=vs1, vsN=vsN, blocks=blocks, p_o=pagination_others, p_1=pagination_vs1, p_n=pagination_vsN, p_c=pagination_cross, p_b=pagination_blocks, query=query)
 
 @bp.route('/jobs/<job_id>')
 @mcrit_server_required

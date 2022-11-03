@@ -1,0 +1,146 @@
+{% from 'table/links.html' import format_pichash, format_function_id, format_sample_id, format_family_name %}
+{% from 'table/pagination_widget.html' import pagination_widget %}
+{% extends 'base.html' %}
+{% block title%}
+{% if family_entry is not none %}
+Unique Blocks for Family: {{ family_entry.family_id }}
+{% else %}
+Unique Blocks for Sample: {{ sample_id }}
+{% endif %}
+{% endblock %}
+
+{% block style %}
+{% endblock %}
+
+{% block content %}
+<script>
+  function copyElementToClipboard(element) {
+    // based on https://stackoverflow.com/a/50230647
+    var $temp = $("<textarea>");
+    var brRegex = /<br\s*[\/]?>/gi;
+    $("body").append($temp);
+    $temp.val($(element).html()).select();
+    document.execCommand("copy");
+    $temp.remove();
+    alert("Copied YARA rule to clipboard!");
+  }
+</script>
+
+<h1>Unique Block Isolation Report</h1>
+<table class="table table-hover">
+  <tbody>
+    <tr>
+      <td valign="middle">Job ID</td>
+      <td valign="middle">{{ job_info.job_id }}</td>
+    </tr>
+    {% if family_entry is not none %}
+    <tr>
+      <td valign="middle">Family</td>
+      <td valign="middle">{{ format_family_name(family_entry.family_name, family_entry.family_id) }}</td>
+    </tr>
+    {% endif %}
+    <tr>
+      <td valign="middle">Samples</td>
+      <td valign="middle">{{ statistics["num_samples"] }}</td>
+    </tr>
+    <tr>
+      <td valign="middle">Unique Blocks</td>
+      <td valign="middle">{{ statistics["unique_blocks_overall"] }}</td>
+    </tr>
+    <tr>
+      <td valign="middle">YARA to cover all?</td>
+      <td valign="middle">{{ statistics["has_yara_rule"] }}</td>
+    </tr>
+</tbody>
+</table>
+
+<ul class="nav nav-pills mb-3 justify-content-center" id="pills-tab" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active_tab=='stats' %}show active{%endif%}" id="pills-statistics-tab" data-bs-toggle="pill" data-bs-target="#pills-statistics" type="button" role="tab" aria-controls="pills-statistics" aria-selected="true">Statistics</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active_tab=='blocks' %}show active{%endif%}" id="pills-blocks-tab" data-bs-toggle="pill" data-bs-target="#pills-blocks" type="button" role="tab" aria-controls="pills-blocks" aria-selected="false">Unique Blocks</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active_tab=='yara' %}show active{%endif%} {% if not statistics['has_yara_rule'] %}disabled{%endif%}" id="pills-yara-tab" data-bs-toggle="pill" data-bs-target="#pills-yara" type="button" role="tab" aria-controls="pills-yara" aria-selected="false">YARA Rule</button>
+  </li>
+</ul>
+
+<div class="tab-content" id="pills-tabContent">
+  <div class="tab-pane fade {% if active_tab=='stats' %}show active{%endif%}" id="pills-statistics" role="tabpanel" aria-labelledby="pills-statistics-tab">
+    <h3 id="block-statistics">Block Statistics across Samples</h3>
+    <p>
+      Characteristic blocks are basic blocks only found in this collection of samples (versus rest of the whole data set), unique blocks are only found in the specific sample.
+    </p>
+    <table class="table table-hover">
+        <thead class="thead-light">
+          <tr>
+            <th style="text-align: right;" scope="col">Sample ID</th>
+            <th style="text-align: right;" scope="col">Total Blocks</th>
+            <th style="text-align: right;" scope="col">Characteristic Blocks</th>
+            <th style="text-align: right;" scope="col">Unique Blocks</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sid, stats_entry in statistics["by_sample_id"].items() %}
+          <tr>
+            <td style="text-align: right;" valign="middle" scope="row" class="id">{{ format_sample_id(stats_entry["sample_id"]) }}</td>
+            <td style="text-align: right;" valign="middle">{{ stats_entry["total_blocks"] }}</td>
+            <td style="text-align: right;" valign="middle">{{ stats_entry["characteristic_blocks"] }} ({{ "%5.2f"|format(stats_entry["characteristic_blocks"] / stats_entry["total_blocks"] * 100) }}%)</td>
+            <td style="text-align: right;" valign="middle">{{ stats_entry["unique_blocks"] }} ({{ "%5.2f"|format(stats_entry["unique_blocks"] / stats_entry["total_blocks"] * 100) }}%)</td>
+         </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+  </div>
+  <div class="tab-pane fade {% if active_tab=='blocks' %}show active{%endif%}" id="pills-blocks" role="tabpanel" aria-labelledby="pills-blocks-tab">
+    <h3 id="unique-blocks">Explore Unique Blocks</h3>
+    <form class="form-inline" action ="{{ url_for('data.result', job_id=job_info.job_id) }}" method='GET'>
+        <div class="form-group row">
+          <label class="col-3" for="block_count">Filter blocks to</label>
+          <input class="col-3" type="text" name='min_score' id="min_score" aria-describedby="min_score" placeholder="min score (0-100)">
+          <input class="col-3" type="text" name='min_block_length' id="min_block_length" aria-describedby="min_block_length" placeholder="min block length">
+          <input class="col-3" type="text" name='max_block_length' id="max_block_length" aria-describedby="max_block_length" placeholder="max block length">
+          <input type="hidden" name="tab" value="blocks">
+          <button type="submit" class="btn btn-primary">filter</button>
+        </div>
+    </form>
+    
+    <p>total: {{ blkp.max_value }}, showing: {{ 1 + blkp.start_index }} - {{ blkp.end_index }}</p>
+    <table class="table table-hover">
+        <thead class="thead-light">
+          <tr>
+            <th style="text-align: right;" scope="col">Score</th>
+            <th scope="col">PicBlockHash</th>
+            {% if family_id is not none %}
+            <th scope="col">Samples</th>
+            {% endif %}
+            <th style="text-align: right;" scope="col">Instructions</th>
+            <th style="text-align: right;" scope="col">Function ID</th>
+            <th style="text-align: center;" scope="col">Block</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for block in results %}
+          <tr>
+            <td style="text-align: right;" valign="middle">{{ "%5.2f"|format(block["score"]) }}</td>
+            <td valign="middle" scope="row" class="id">{{ block["key"] }}</td>
+            <td style="text-align: right;" valign="middle">{{ block["samples"]|length }} / {{ statistics["num_samples"] }}</td>
+            <td style="text-align: right;" valign="middle">{{ block["length"] }}</td>
+            <td style="text-align: right;" valign="middle">{{ format_function_id(block["function_id"]) }}</td>
+            <td style="text-align: left;" valign="middle"><code style="white-space:pre">{{ block["yarafied"] }}</code></td>
+         </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {{ pagination_widget(blkp, _anchor="unique-blocks")}}
+  </div>
+  <div class="tab-pane fade {% if active_tab=='yara' %}show active{%endif%}" id="pills-yara" role="tabpanel" aria-labelledby="pills-yara-tab">
+    <h3 id="yara">Proposed YARA rule</h3>
+    <p>Copy rule to clipboard!&nbsp;<i class="fa-regular fa-copy" onclick="copyElementToClipboard('#yara_text')"></i>
+    </p>
+    <textarea style="font-family:monospace; min-width: 100%" id="yara_text" name="yara_text" 
+        rows="50">{{yara_rule}}</textarea>
+  </div>
+</div>
+{% endblock %}

@@ -62,6 +62,13 @@ Jobs
   {% endif %}
 {% endcall %}
 
+{% call add_tab(tabs, title="Blocks", id="blocks") %}
+  {{ job_table(blocks) }}
+  {% if p_b and blocks %}
+    {{ pagination_widget(p_b, active="blocks") }}
+  {% endif %}
+{% endcall %}
+
 {% call add_tab(tabs, title="Others", id="others") %}
   {{ job_table(others) }}
   {% if p_o and others %}

@@ -19,29 +19,8 @@ bp = Blueprint('analyze', __name__, url_prefix='/analyze')
 @mcrit_server_required
 def blocks_family(family_id):
     client = McritClient(mcrit_server=get_server_url())
-    job_id = client.getUniqueBlocksForFamily(family_id)
+    job_id = client.requestUniqueBlocksForFamily(family_id)
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
-
-    if results is None:
-        flash(f"Ups, no results for unique blocks in family with id {family_id}", category="error")
-    
-    number_of_unique_blocks = len(results)
-    for pichash, result in results.items():
-        yarafied = f"/* picblockhash: {pichash} \n"
-        maxlen_ins = max([len(ins[1]) for ins in result["instructions"]])
-        for ins in result["instructions"]:
-            yarafied += f" * {ins[1]:{maxlen_ins}} | {ins[2]} {ins[3]}\n"
-        yarafied += " */\n"
-        
-        yarafied += "{ " + re.sub("(.{80})", "\\1\n", result["escaped_sequence"], 0, re.DOTALL) + " }"
-        results[pichash]["yarafied"] = yarafied
-
-    return render_template(
-        "blocks_family.html",
-        family_id=family_id,
-        number_of_unique_blocks=number_of_unique_blocks,
-        results=results,
-    )
 
 
 @bp.route('/blocks/sample/<int:sample_id>')
@@ -49,29 +28,8 @@ def blocks_family(family_id):
 @mcrit_server_required
 def blocks_sample(sample_id):
     client = McritClient(mcrit_server=get_server_url())
-    job_id = client.getUniqueBlocksForSamples([sample_id])
+    job_id = client.requestUniqueBlocksForSamples([sample_id])
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
-
-    if results is None:
-        flash(f"Ups, no results for unique blocks in family with id {sample_id}", category="error")
-    
-    number_of_unique_blocks = len(results)
-    for pichash, result in results.items():
-        yarafied = f"/* picblockhash: {pichash} \n"
-        maxlen_ins = max([len(ins[1]) for ins in result["instructions"]])
-        for ins in result["instructions"]:
-            yarafied += f" * {ins[1]:{maxlen_ins}} | {ins[2]} {ins[3]}\n"
-        yarafied += " */\n"
-        
-        yarafied += "{ " + re.sub("(.{80})", "\\1\n", result["escaped_sequence"], 0, re.DOTALL) + " }"
-        results[pichash]["yarafied"] = yarafied
-
-    return render_template(
-        "blocks_sample.html",
-        sample_id=sample_id,
-        number_of_unique_blocks=number_of_unique_blocks,
-        results=results,
-    )
 
 
 @bp.route('/compare_submit_query')
