@@ -225,7 +225,7 @@ def build_yara_rule(job_info, blocks_result, blocks_statistics):
     for pichash, result in unique_blocks.items():
         if pichash not in yara_blocks:
             continue
-        yarafied = f"        /* picblockhash: {pichash} \n"
+        yarafied = f"        /* picblockhash: {pichash} - coverage: {len(result['samples'])}/{blocks_statistics['num_samples']} samples.\n"
         maxlen_ins = max([len(ins[1]) for ins in result["instructions"]])
         for ins in result["instructions"]:
             yarafied += f"         * {ins[1]:{maxlen_ins}} | {ins[2]} {ins[3]}\n"
