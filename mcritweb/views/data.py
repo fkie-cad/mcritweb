@@ -221,11 +221,11 @@ def build_yara_rule(job_info, blocks_result, blocks_statistics):
     rule_date = datetime.utcnow().strftime("%Y-%m-%d")
     yara_rule += f"        date = \"{rule_date}\"\n"
     yara_rule += "    strings:\n"
-    yara_rule += f"        // Rule generation selected {len(yara_blocks)} picblocks, covering {blocks_statistics['num_samples']} input sample(s).\n"
+    yara_rule += f"        // Rule generation selected {len(yara_blocks)} picblocks, covering {blocks_statistics['num_samples_covered']}/{blocks_statistics['num_samples']} input sample(s).\n"
     for pichash, result in unique_blocks.items():
         if pichash not in yara_blocks:
             continue
-        yarafied = f"        /* picblockhash: {pichash} - coverage: {len(result['samples'])}/{blocks_statistics['num_samples']} samples.\n"
+        yarafied = f"        /* picblockhash: {pichash} - coverage: {len(result['samples'])}/{blocks_statistics['num_samples_covered']} samples.\n"
         maxlen_ins = max([len(ins[1]) for ins in result["instructions"]])
         for ins in result["instructions"]:
             yarafied += f"         * {ins[1]:{maxlen_ins}} | {ins[2]} {ins[3]}\n"

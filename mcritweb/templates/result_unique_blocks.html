@@ -48,8 +48,12 @@ Unique Blocks for Sample: {{ sample_id }}
       <td valign="middle">{{ statistics["unique_blocks_overall"] }}</td>
     </tr>
     <tr>
-      <td valign="middle">YARA to cover all?</td>
-      <td valign="middle">{{ statistics["has_yara_rule"] }}</td>
+      <td valign="middle">Has a YARA rule?</td>
+      <td valign="middle">{{ statistics["has_yara_rule"] }}, covers: {{ statistics["num_samples_covered"] }} samples</td>
+    </tr>
+    <tr>
+      <td valign="middle">YARA rule covers all?</td>
+      <td valign="middle">{{ statistics["has_complete_yara_rule"] }}</td>
     </tr>
 </tbody>
 </table>
