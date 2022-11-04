@@ -91,7 +91,7 @@ Unique Blocks for Sample: {{ sample_id }}
             <td style="text-align: right;" valign="middle" scope="row" class="id">{{ format_sample_id(stats_entry["sample_id"]) }}</td>
             <td style="text-align: right;" valign="middle">{{ stats_entry["total_blocks"] }}</td>
             <td style="text-align: right;" valign="middle">{{ stats_entry["characteristic_blocks"] }} ({% if stats_entry["total_blocks"] > 0 %}{{ "%5.2f"|format(stats_entry["characteristic_blocks"] / stats_entry["total_blocks"] * 100) }}%{%else%}0%{%endif%})</td>
-            <td style="text-align: right;" valign="middle">{{ stats_entry["unique_blocks"] }} ({% if stats_entry["total_blocks"] > 0 %}{{ "%5.2f"|format(stats_entry["characteristic_blocks"] / stats_entry["total_blocks"] * 100) }}%{%else%}0%{%endif%})</td>
+            <td style="text-align: right;" valign="middle">{{ stats_entry["unique_blocks"] }} ({% if stats_entry["total_blocks"] > 0 %}{{ "%5.2f"|format(stats_entry["unique_blocks"] / stats_entry["total_blocks"] * 100) }}%{%else%}0%{%endif%})</td>
          </tr>
           {% endfor %}
         </tbody>
