@@ -154,7 +154,7 @@ class MatchReportRenderer(object):
         match_class_map = {
             0: " ",
             1: "S",
-            "multi": "M",
+            2: "M",
         }
         cluster_by_family_id = defaultdict(set)
         this_family_id = self.sample_info.family_id
@@ -177,7 +177,9 @@ class MatchReportRenderer(object):
                 family_matches_log_score = self._calculateLogScore(len(reduced_cluster))
                 library_match_class = " "
                 num_library_families_matched = len(self.function_library_match_map[function_id])
-                if len(self.function_library_match_map[function_id]) in match_class_map:
+                if num_library_families_matched > 1:
+                    library_match_class = match_class_map[1]
+                else:
                     library_match_class = match_class_map[num_library_families_matched]
                 for family_id in reduced_cluster:
                     cluster_by_family_id[family_id].add(function_id)
@@ -516,15 +518,19 @@ class MatchReportRenderer(object):
 
 def main():
     if os.path.isfile(sys.argv[1]):
-        function_renderer = FunctionLevelRenderer()
-        function_renderer.loadReportFromFile(sys.argv[1])
-        # function_renderer.renderText()
-        # function_renderer.renderDiagram()
-        function_renderer.printInfo()
-        image = function_renderer.renderStackedDiagram()
-        image.show()
+        from mcrit.storage.MatchingResult import MatchingResult
+        with open(sys.argv[1], "r") as fin:
+            result_json = json.loads(fin.read())
+        matching_result = MatchingResult.fromDict(result_json)
+        report_renderer = MatchReportRenderer()
+        filtered_family_id = None
         if len(sys.argv) > 2:
-            image.save(sys.argv[2])
+            filtered_family_id = int(sys.argv[2])
+            matching_result.filterToFamilyId(filtered_family_id)
+        report_renderer.printInfo()
+        report_renderer.processReport(matching_result)
+        image = report_renderer.renderStackedDiagram(filtered_family_id=filtered_family_id)
+        image.show()
     else:
         print(f"Usage: {sys.argv[0]} <cached_match_report> <opt:output_filepath>")
 
