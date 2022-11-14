@@ -538,6 +538,8 @@ def submit():
         if sample_entry is None:
             # NOTE: This flash is done on redirect target
             # flash('We received your sample, currently processing!', category='info')
+            with open(os.sep.join([current_app.instance_path, "cache", hash]), "wb") as fout:
+                fout.write(binary_content)
             job_id = client.addBinarySample(binary_content, filename=f.filename, family=family, version=version, is_dump=is_dump, base_addr=base_address, bitness=bitness)
             return url_for('data.job_by_id', job_id=job_id, refresh=3, forward=1), 202 # Accepted
         else:

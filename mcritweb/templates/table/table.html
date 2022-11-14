@@ -42,6 +42,53 @@
 
 {% macro sample_table(samples, table_id="sample-table") %}
   {% if samples %}
+<!-- Modal -->
+<div class="modal fade" id="editSampleModal" tabindex="-1" aria-labelledby="editSampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editSampleModalLabel">Modify Sample</h5>
+      </div>
+      <div class="modal-body">
+          <form action="modifySample" method="POST" style="width: 80%">
+          <div class="form-group mb-3">
+            <label for="sample_family_name" class="col-form-label">Family Name:</label>
+            <input type="text" class="form-control" name="sample_family_name" id="sample_family_name" maxlength="64">
+          </div>
+          <div class="form-group mb-3">
+            <label for="sample_version" class="col-form-label">Version:</label>
+            <input class="form-control" name="sample_version" id="sample_version" maxlength="64">
+          </div>
+          <div class="form-group mb-3">
+            <input type="checkbox" value="" name="sample_is_library" id="sample_is_library">
+            &nbsp;&nbsp;
+            <label for="sample_is_library" class="col-form-label">Sample is Library?</label>
+          </div>
+          <div class="form-group mb-3">
+            <input type="checkbox" value="" name="sample_delete" id="sample_delete" onclick='toggle_delete_sample(this);'>
+            &nbsp;&nbsp;
+            <label for="sample_delete" class="col-form-label">Delete Sample</label>
+          </div>
+          <div>
+            <button type="button" class="btn btn-secondary mb-3" data-bs-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary mb-3">Submit Changes</button>
+            <button type="submit" id="button_delete_sample" class="btn btn-danger mb-3" hidden>Delete Sample</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+  <script>
+    function toggle_delete_sample(cb) {
+    var deleteButton = document.getElementById('button_delete_sample');
+    if (cb.checked) {
+      deleteButton.hidden = false;
+    } else {
+      deleteButton.hidden = true;
+    }
+  }
+  </script>
   {{ _table_base(samples, sample_header, sample_row, table_id=table_id, **kwargs) }}
   {% else %}
   <center><a href='{{ url_for("data.submit") }}' style="color: #0d6efd; text-decoration: underline;" >No samples available. Click here to upload your first sample</a></center>

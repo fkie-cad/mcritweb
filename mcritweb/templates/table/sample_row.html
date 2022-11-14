@@ -4,23 +4,50 @@
 {% macro sample_row_std_js() %}
 <script>
   var button_clicked = false;
+  
   $(document).ready(function(){
+    var editSampleModal = document.getElementById('editSampleModal');
+    editSampleModal.addEventListener('show.bs.modal', function (event) {
+    // Button that triggered the modal
+    var button = event.relatedTarget;
+    // Extract info from data-bs-* attributes
+    var family_name = button.getAttribute('data-bs-familyname');
+    var sample_id = button.getAttribute('data-bs-sampleid');
+    var version = button.getAttribute('data-bs-version');
+    var is_library = button.getAttribute('data-bs-islibrary');
+    // Update the modal's content.
+    var modalTitle = editSampleModal.querySelector('.modal-title');
+    var modalBodyFamilyName = editSampleModal.querySelector('.modal-body #sample_family_name');
+    var modalBodyVersion = editSampleModal.querySelector('.modal-body #sample_version');
+  
+    modalTitle.textContent = 'Change Data for Sample ' + sample_id;
+    modalBodyFamilyName.value = family_name;
+    modalBodyVersion.value = version;
+    if (is_library == "True") {
+      modalBodyLibrary.checked = true;
+    }
+    else {
+      modalBodyLibrary.checked = false;
+    }
+    })
 
     $("tr.sample-row").click(function(e){
-      if(button_clicked) {
-        e.stopPropagation();
-        button_clicked = false;
-        own_menu = $(this).find('#dropdown-menu');
-        was_visible = own_menu.is(":visible");
-        $("tr.sample-row").find('#dropdown-menu').hide();
-        if (!was_visible){
-          $(this).find('#dropdown-menu').toggle();
-        }
+    if(event.target.id.includes("_edit")) {
+    }
+    else if(button_clicked) {
+      e.stopPropagation();
+      button_clicked = false;
+      own_menu = $(this).find('#dropdown-menu');
+      was_visible = own_menu.is(":visible");
+      $("tr.sample-row").find('#dropdown-menu').hide();
+      if (!was_visible){
+        $(this).find('#dropdown-menu').toggle();
       }
-      else{
-        var sample_id = $(this).children("th.sample-id").text();
-        window.location.href="{{ url_for('explore.samples') }}"+ "/" + sample_id;
-      }
+    }
+    else{
+      var sample_id = $(this).children("th.sample-id").text();
+      window.location.href="{{ url_for('explore.samples') }}"+ "/" + sample_id;
+    }
     });
   });
   function set_analyze_sample_button_clicked() {
@@ -31,7 +58,7 @@
 
 
 
-{% macro sample_header(no_family=False, compact_view=False, show_analyze=True, show_export=False, show_hint=False, sort_pagination=None) %}
+{% macro sample_header(no_family=False, compact_view=False, show_analyze=True, show_export=False, show_hint=False, show_edit=False, sort_pagination=None) %}
   {# accept but discard additional kwargs #}
   {% if False %}{{ kwargs }}{% endif %} 
   <tr>
@@ -61,14 +88,14 @@
     {% if show_hint %}
       <th scope="col"></th>
     {% endif %}
-    {% if (show_export or show_analyze) %}
+    {% if (show_export or show_analyze or show_edit) %}
       <th scope="col"></th>
     {% endif %}
   </tr>
 {% endmacro %}
   
   
-{% macro sample_row(sample, no_family=False, compact_view=False, show_analyze=True, show_export=False, show_hint=False) %}
+{% macro sample_row(sample, no_family=False, compact_view=False, show_analyze=True, show_export=False, show_edit=False, show_hint=False) %}
   <tr class="sample-row parent_{{ kwargs['parent'] }}" >
     <th align="left" valign="middle" scope="row" class="sample-id">{{ "%d"|format(sample.sample_id) }}</th>
     <td align="right" valign="middle" class="font-monospace">{{ sample.getShortSha256() }}</td>
@@ -89,7 +116,7 @@
     {% if (show_export or show_analyze) %}
       <td align="right" class="buttons">
         {% if show_analyze %}
-          <button type="button" class="btn btn-outline-dark btn-sm" onclick=set_analyze_sample_button_clicked() bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <button type="button" class="btn btn-outline-dark btn-sm" id="sample_{{ sample.sample_id }}_analyze" onclick=set_analyze_sample_button_clicked() bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             <i class="fa-solid fa-flask"></i>
           </button>
           <div class="dropdown-menu dropdown-menu-end" id="dropdown-menu">
@@ -98,9 +125,14 @@
             <a class="dropdown-item" href="{{ url_for('analyze.cross_compare', samples=sample.sample_id) }}">Cross Compare</a>
           </div>
         {% endif %}
+        {% if show_analyze %}
+          <a class="btn btn-outline-dark btn-sm" id="sample_{{ sample.sample_id }}_family_blocks" href="{{ url_for('analyze.blocks_sample', sample_id=sample.sample_id) }}" role="button" target="_self"><i class="fa-solid fa-cubes-stacked"></i></a>
+        {% endif %}
         {% if show_export %}
-          <a class="btn btn-outline-dark btn-sm" name="family_blocks" href="{{ url_for('analyze.blocks_sample', sample_id=sample.sample_id) }}" role="button" target="_self"><i class="fa-solid fa-cubes-stacked"></i></a>
-          <a class="btn btn-outline-dark btn-sm" href="{{ url_for('data.specific_export', type='samples', item_id=sample.sample_id) }}" role="button" target="_self"><i class="fa-solid fa-file-export"></i></a>
+          <a class="btn btn-outline-dark btn-sm" id="sample_{{ sample.sample_id }}_export" href="{{ url_for('data.specific_export', type='samples', item_id=sample.sample_id) }}" role="button" target="_self"><i class="fa-solid fa-file-export"></i></a>
+        {% endif %}
+        {% if show_edit %}
+          <a class="btn btn-outline-dark btn-sm" id="sample_{{ sample.sample_id }}_edit" role="button" data-bs-toggle="modal" data-bs-target="#editSampleModal" data-bs-islibrary="{{ sample.is_library }}"  data-bs-version="{{ sample.version }}"  data-bs-sampleid="{{ sample.sample_id }}" data-bs-familyname="{{ sample.family }}"><i class="fa-solid fa-pen-to-square"></i></a>
         {% endif %}
       </td>
     {% endif %}

@@ -4,7 +4,7 @@ from mcrit.storage.FamilyEntry import FamilyEntry
 from mcrit.storage.SampleEntry import SampleEntry
 from mcrit.storage.FunctionEntry import FunctionEntry
 
-from mcritweb.views.authentication import visitor_required
+from mcritweb.views.authentication import visitor_required, contributor_required
 from mcritweb.views.utility import get_server_url, mcrit_server_required
 from mcritweb.views.cursor_pagination import CursorPagination
 
@@ -37,6 +37,22 @@ def families():
             families.append(FamilyEntry.fromDict(family_dict))
     return render_template("families.html", families=families, pagination=pagination, query=query)
 
+@bp.route('/modifySample', methods=['POST'])
+@contributor_required
+@mcrit_server_required
+def modifySample():
+    out_str = ""
+    if request.method=='POST':
+        data = request.data
+        data = data.decode("utf-8")
+        print(data)
+        print(request.form.to_dict(flat=False))
+        print("sample_family_name", request.form.get("sample_family_name"))
+        print("sample_version", request.form.get("sample_version"))
+        print("sample_is_library", request.form.get("sample_is_library", "library not set"))
+        print("sample_delete", request.form.get("sample_delete", "delete not set"))
+    return out_str
+
 
 @bp.route('/samples')
 @mcrit_server_required
@@ -58,7 +74,9 @@ def samples():
         for sample_dict in results['search_results'].values():
             samples.append(SampleEntry.fromDict(sample_dict))
 
-    return render_template("samples.html", samples=samples, pagination=pagination, query=query)
+    all_families = client.getFamilies()
+    family_names = [family_entry.family_name for family_entry in all_families.values()]
+    return render_template("samples.html", samples=samples, family_names=family_names, pagination=pagination, query=query)
 
 
 @bp.route('/functions')
@@ -105,7 +123,9 @@ def family_by_id(family_id):
         else:
             for sample_dict in results['search_results'].values():
                 samples.append(SampleEntry.fromDict(sample_dict))
-        return render_template("single_family.html", family=family_info, samples=samples, pagination=pagination, query=original_query)
+        all_families = client.getFamilies()
+        family_names = [family_entry.family_name for family_entry in all_families.values()]
+        return render_template("single_family.html", family=family_info, samples=samples, family_names=family_names, pagination=pagination, query=original_query)
     else:
         flash("The given Family ID doesn't exist", category='error')
         return redirect(url_for('explore.families'))
