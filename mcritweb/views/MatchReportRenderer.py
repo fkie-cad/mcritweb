@@ -107,6 +107,10 @@ class MatchReportRenderer(object):
                 self.function_library_match_map[match.function_id] = set([])
             if match.match_is_library:
                 self.function_library_match_map[match.function_id].add(match.matched_family_id)
+        # this mapping to libraries remains regardless of report is filtered in any way
+        for function_id, lib_mapping in self.match_report.library_matches.items():
+            if lib_mapping:
+                self.function_library_global_map[function_id] = len(set([tup[0] for tup in lib_mapping]))
         # output stats
         num_matchable_functions = sum([1 for _, function_info in self.function_infos.items() if function_info.num_instructions >= 10])
         num_matched_functions = len(set([match.function_id for match in self.match_report.function_matches]))
@@ -121,6 +125,7 @@ class MatchReportRenderer(object):
         self.function_family_match_map = {}
         self.function_sample_match_map = {}
         self.function_library_match_map = {}
+        self.function_library_global_map = {}
         self.matches_by_function_id = {}
 
 
@@ -155,6 +160,8 @@ class MatchReportRenderer(object):
             0: " ",
             1: "S",
             2: "M",
+            3: "FS",
+            4: "FM"
         }
         cluster_by_family_id = defaultdict(set)
         this_family_id = self.sample_info.family_id
@@ -167,6 +174,7 @@ class MatchReportRenderer(object):
             best_score = 0
             is_matchable = function_info.num_instructions >= 10
             library_match_class = " "
+            num_library_families_matched = 0
             # sample match info
             if function_id in self.function_sample_match_map:
                 reduced_cluster = sorted(list(self.function_sample_match_map[function_id].difference(set([self.sample_info.sample_id]))))
@@ -177,12 +185,11 @@ class MatchReportRenderer(object):
                 family_matches_log_score = self._calculateLogScore(len(reduced_cluster))
                 library_match_class = " "
                 num_library_families_matched = len(self.function_library_match_map[function_id])
-                if num_library_families_matched > 1:
-                    library_match_class = match_class_map[1]
-                else:
-                    library_match_class = match_class_map[num_library_families_matched]
+                library_match_class = match_class_map[min(num_library_families_matched, 2)]
                 for family_id in reduced_cluster:
                     cluster_by_family_id[family_id].add(function_id)
+            if num_library_families_matched == 0 and function_id in self.function_library_global_map:
+                library_match_class = match_class_map[min(self.function_library_global_map[function_id], 2) + 2]
             # function match info
             function_matches_log_score = None
             if function_id in self.matches_by_function_id:
@@ -279,66 +286,6 @@ class MatchReportRenderer(object):
         print(output_families)
         print(output_match_class)
 
-    def renderDiagram(self):
-        # additional line where top X families or family clusters are highlighted in flavors of the same color?
-        output_map = self._calculateOutputMap()
-        im = Image.new("RGB", (len(output_map) + 20, 65), "#FFFFFF")
-        pixels = im.load()
-        index = 10
-        for function_id, function_output in sorted(output_map.items()):
-            yindex = 0
-            for row in range(5):
-                pixels[index, yindex + row] = (255, 255, 255)
-            yindex += 5
-            yindex += 2
-            # library
-            color_tuple = (255, 255, 255)
-            if function_output["library_match_class"] == "M":
-                color_tuple = (0xfd, 0x1a, 0x20)
-            elif function_output["library_match_class"] == "+":
-                color_tuple = (0x10, 0x7f, 0xfc)
-            elif function_output["library_match_class"] == "L":
-                color_tuple = (0x1f, 0xfe, 0x28)
-            for row in range(10):
-                pixels[index, yindex + row] = color_tuple
-            yindex += 10
-            yindex += 2
-            # family
-            color = 0xFF
-            if function_output["family_matches_log_score"] is not None:
-                color = 256 - 16 * function_output["family_matches_log_score"]
-            color_tuple = (color, color, color)
-            for row in range(10):
-                pixels[index, yindex + row] = color_tuple
-            yindex += 10
-            yindex += 2
-            # matches
-            color = 0xFF
-            if function_output["function_matches_log_score"] is not None:
-                color = 256 - 16 * function_output["function_matches_log_score"]
-            color_tuple = (color, color, color)
-            for row in range(10):
-                pixels[index, yindex + row] = color_tuple
-            yindex += 10
-            yindex += 2
-            # matchable
-            for row in range(1, 11, 1):
-                if row in function_output["most_common_cluster"]:
-                    pixels[index, yindex + row] = (0, 0, 0)
-            yindex += 10
-            yindex += 2
-            color_tuple = (0, 0, 0) if function_output["is_matchable"] else (255, 255, 255)
-            pixels[index, yindex] = (255, 255, 255)
-            yindex += 1
-            pixels[index, yindex] = (255, 255, 255)
-            yindex += 1
-            for row in range(2):
-                pixels[index, yindex + row] = color_tuple
-            yindex += 2
-            index += 1
-        print(yindex)
-        im.show()
-
     def drawBlock(self, pixels, x1, y1, block_size, color):
         for x in range(block_size):
             for y in range(block_size):
@@ -425,6 +372,10 @@ class MatchReportRenderer(object):
                     library_color_tuple = (0xfd, 0x1a, 0x20)
                 elif function_output["library_match_class"] == "S":
                     library_color_tuple = (0x1f, 0xfe, 0x28)
+                elif function_output["library_match_class"] == "FM":
+                    library_color_tuple = (0xfd, 0x8b, 0x8e)
+                elif function_output["library_match_class"] == "FS":
+                    library_color_tuple = (0x91, 0xfe, 0x95)
             if function_output["is_matchable"]:
                 if function_index:
                     xindex = int(block_index / stack_size)
@@ -518,17 +469,14 @@ class MatchReportRenderer(object):
 
 def main():
     if os.path.isfile(sys.argv[1]):
-        from mcrit.storage.MatchingResult import MatchingResult
-        with open(sys.argv[1], "r") as fin:
-            result_json = json.loads(fin.read())
-        matching_result = MatchingResult.fromDict(result_json)
+        matching_result = load_cached_result(sys.argv[1])
         report_renderer = MatchReportRenderer()
         filtered_family_id = None
         if len(sys.argv) > 2:
             filtered_family_id = int(sys.argv[2])
             matching_result.filterToFamilyId(filtered_family_id)
-        report_renderer.printInfo()
         report_renderer.processReport(matching_result)
+        report_renderer.printInfo()
         image = report_renderer.renderStackedDiagram(filtered_family_id=filtered_family_id)
         image.show()
     else:
