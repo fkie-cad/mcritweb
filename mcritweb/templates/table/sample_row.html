@@ -19,10 +19,12 @@
     var modalTitle = editSampleModal.querySelector('.modal-title');
     var modalBodyFamilyName = editSampleModal.querySelector('.modal-body #sample_family_name');
     var modalBodyVersion = editSampleModal.querySelector('.modal-body #sample_version');
+    var modalBodySampleId = editSampleModal.querySelector('.modal-body #sample_id');
   
     modalTitle.textContent = 'Change Data for Sample ' + sample_id;
     modalBodyFamilyName.value = family_name;
     modalBodyVersion.value = version;
+    modalBodySampleId.value = sample_id;
     if (is_library == "True") {
       modalBodyLibrary.checked = true;
     }

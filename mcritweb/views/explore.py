@@ -37,6 +37,7 @@ def families():
             families.append(FamilyEntry.fromDict(family_dict))
     return render_template("families.html", families=families, pagination=pagination, query=query)
 
+
 @bp.route('/modifySample', methods=['POST'])
 @contributor_required
 @mcrit_server_required
@@ -47,6 +48,7 @@ def modifySample():
         data = data.decode("utf-8")
         print(data)
         print(request.form.to_dict(flat=False))
+        print("sample_id", request.form.get("sample_id"))
         print("sample_family_name", request.form.get("sample_family_name"))
         print("sample_version", request.form.get("sample_version"))
         print("sample_is_library", request.form.get("sample_is_library", "library not set"))
