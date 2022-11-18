@@ -1,0 +1,26 @@
+<script>
+    var families = "{{ family_names | safe }}";
+    families = families.replace('[', '');
+    families = families.replace(']', '');
+    families = families.split(", ");
+    families_ac = [];
+    for (let i in families) {
+        families_ac.push({label:families[i].substring(1, families[i].length-1), value:families[i].substring(1, families[i].length-1)})
+    }
+    const sample_field = document.getElementById('sample_family_name');
+    if(sample_field) {
+        const ac_sample = new Autocomplete(sample_field, {
+            data: families_ac,
+            maximumItems: 5,
+            threshold: 1,
+        });
+    }
+    const family_field = document.getElementById('family_new_name');
+    if(family_field) {
+        const ac_family = new Autocomplete(family_field, {
+            data: families_ac,
+            maximumItems: 5,
+            threshold: 1,
+        });
+    }
+</script>

@@ -4,9 +4,37 @@
 {% macro family_row_std_js() %}
 <script>
   $(document).ready(function(){
+    var editFamilyModal = document.getElementById('editFamilyModal');
+    editFamilyModal.addEventListener('show.bs.modal', function (event) {
+    // Button that triggered the modal
+    var button = event.relatedTarget;
+    // Extract info from data-bs-* attributes
+    var family_id = button.getAttribute('data-bs-familyid');
+    var family_name = button.getAttribute('data-bs-familyname');
+    var is_library = button.getAttribute('data-bs-islibrary');
+    // Update the modal's content.
+    var modalTitle = editFamilyModal.querySelector('.modal-title');
+    var modalBodyFamilyName = editFamilyModal.querySelector('.modal-body #family_new_name');
+    var modalBodyFamilyId = editFamilyModal.querySelector('.modal-body #family_id');
+    var modalBodyLibrary = editFamilyModal.querySelector('.modal-body #family_is_library');
+  
+    modalTitle.textContent = 'Change Data for Family ' + family_id;
+    modalBodyFamilyName.value = family_name;
+    modalBodyFamilyId.value = family_id;
+    if (is_library == "True") {
+      modalBodyLibrary.checked = true;
+    }
+    else {
+      modalBodyLibrary.checked = false;
+    }
+    })
+
+
     $("tr.family-row").click(function(e){
       console.log(e.target.name)
-      if(e.target.name === 'malpedia') {
+      if(event.target.id.includes("_edit")) {
+      }
+      else if(e.target.name === 'malpedia') {
         e.stopPropagation();
       }
       else{
@@ -45,7 +73,7 @@
   </tr>
 {% endmacro %}  
   
-{% macro family_row(family, show_export=False) %}
+{% macro family_row(family, show_export=False, show_edit=False) %}
   <tr class="family-row parent_{{ kwargs['parent'] }}" >
     <th align="right" valign="middle" class="id" scope="row">{{ "%d"|format(family.family_id) }}</th>
     <td valign="middle" >{{ format_family_name(family.family_name, None) }}<a name="malpedia" href="https://malpedia.caad.fkie.fraunhofer.de/details/{{ family.family }}" target="_blank"><i class="fa-solid fa-external-link-alt "></i></a></td>
@@ -59,6 +87,9 @@
       {% if show_export %}
         <a class="btn btn-outline-dark btn-sm" href="{{ url_for('data.specific_export', type='family', item_id=family.family_id) }}" role="button" target="_self"><i class="fa-solid fa-file-export"></i></a>
       {% endif %}
+      {% if show_edit %}
+      <a class="btn btn-outline-dark btn-sm" id="sample_{{ family.family_id }}_edit" role="button" data-bs-toggle="modal" data-bs-target="#editFamilyModal" data-bs-islibrary="{{ family.is_library }}"  data-bs-familyid="{{ family.family_id }}" data-bs-familyname="{{ family.family_name }}"><i class="fa-solid fa-pen-to-square"></i></a>
+    {% endif %}
     </td>
   </tr>
 {% endmacro %}  

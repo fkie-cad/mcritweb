@@ -204,6 +204,15 @@ def result(job_id):
             return result_unique_blocks(job_info, result_json)
         elif job_info.parameters.startswith("addBinarySample"):
             return redirect(url_for('explore.sample_by_id', sample_id=result_json['sample_info']['sample_id']))
+        # modify and delete samples and families
+        elif job_info.parameters.startswith("deleteSample"):
+            return redirect(url_for('explore.samples'))
+        elif job_info.parameters.startswith("modifySample"):
+            return redirect(url_for('explore.samples'))
+        elif job_info.parameters.startswith("deleteFamily"):
+            return redirect(url_for('explore.families'))
+        elif job_info.parameters.startswith("modifyFamily"):
+            return redirect(url_for('explore.families'))
     elif job_info:
         # if we are not done processing, list job data
         return render_template("job_in_progress.html", job_info=job_info)
@@ -538,6 +547,8 @@ def submit():
         if sample_entry is None:
             # NOTE: This flash is done on redirect target
             # flash('We received your sample, currently processing!', category='info')
+            with open(os.sep.join([current_app.instance_path, "cache", hash]), "wb") as fout:
+                fout.write(binary_content)
             job_id = client.addBinarySample(binary_content, filename=f.filename, family=family, version=version, is_dump=is_dump, base_addr=base_address, bitness=bitness)
             return url_for('data.job_by_id', job_id=job_id, refresh=3, forward=1), 202 # Accepted
         else:

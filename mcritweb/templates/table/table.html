@@ -26,6 +26,58 @@
 
 {% macro family_table(families, table_id="family-table") %}
   {% if families %}
+<!-- Modal -->
+<div class="modal fade" id="editFamilyModal" tabindex="-1" aria-labelledby="editFamilyModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editFamilyModalLabel">Modify Family</h5>
+      </div>
+      <div class="modal-body">
+          <form action='{{ url_for("explore.modifyFamily") }}'' method="POST" style="width: 80%">
+            <input type="text" class="form-control" name="family_id" id="family_id" hidden value="">
+          <div class="form-group mb-3">
+            <label for="family_new_name" class="col-form-label">Family Name:</label>
+            <input type="text" class="form-control" name="family_new_name" id="family_new_name" maxlength="64">
+          </div>
+          <div class="form-group mb-3">
+            <input type="checkbox" value="" name="family_is_library" id="family_is_library">
+            &nbsp;&nbsp;
+            <label for="family_is_library" class="col-form-label">Family is Library?</label>
+          </div>
+          <div class="form-group mb-3">
+            <input type="checkbox" value="" name="family_delete" id="family_delete" onclick='toggle_delete_family(this);'>
+            &nbsp;&nbsp;
+            <label for="family_delete" class="col-form-label">Delete Family</label>
+          </div>
+          <div id="div_family_keeping_samples" class="form-group mb-3" hidden>
+            <input type="checkbox" value="" name="family_keeping_samples" id="family_keeping_samples" checked>
+            &nbsp;&nbsp;
+            <label for="family_keeping_samples" class="col-form-label">Keep samples (put under unlabeled family)</label>
+          </div>
+          <div>
+            <button type="button" class="btn btn-secondary mb-3" data-bs-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary mb-3">Submit Changes</button>
+            <button type="submit" id="button_delete_family" class="btn btn-danger mb-3" hidden>Delete Family</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+  <script>
+    function toggle_delete_family(cb) {
+    var deleteFamilyButton = document.getElementById('button_delete_family');
+    var keepSamplesForFamilyDiv = document.getElementById('div_family_keeping_samples');
+    if (cb.checked) {
+      deleteFamilyButton.hidden = false;
+      keepSamplesForFamilyDiv.hidden = false;
+    } else {
+      deleteFamilyButton.hidden = true;
+      keepSamplesForFamilyDiv.hidden = true;
+    }
+  }
+  </script>
   {{ _table_base(families, family_header, family_row, table_id=table_id, **kwargs) }}
   {% else %}
   <center><a href='{{ url_for("data.submit") }}' style="color: #0d6efd; text-decoration: underline;" >No families available. Click here to upload your first sample</a></center>
@@ -42,6 +94,54 @@
 
 {% macro sample_table(samples, table_id="sample-table") %}
   {% if samples %}
+<!-- Modal -->
+<div class="modal fade" id="editSampleModal" tabindex="-1" aria-labelledby="editSampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editSampleModalLabel">Modify Sample</h5>
+      </div>
+      <div class="modal-body">
+          <form action='{{ url_for("explore.modifySample") }}'' method="POST" style="width: 80%">
+            <input type="text" class="form-control" name="sample_id" id="sample_id" hidden value="">
+          <div class="form-group mb-3">
+            <label for="sample_family_name" class="col-form-label">Family Name:</label>
+            <input type="text" class="form-control" name="sample_family_name" id="sample_family_name" maxlength="64">
+          </div>
+          <div class="form-group mb-3">
+            <label for="sample_version" class="col-form-label">Version:</label>
+            <input class="form-control" name="sample_version" id="sample_version" maxlength="64">
+          </div>
+          <div class="form-group mb-3">
+            <input type="checkbox" value="" name="sample_is_library" id="sample_is_library">
+            &nbsp;&nbsp;
+            <label for="sample_is_library" class="col-form-label">Sample is Library?</label>
+          </div>
+          <div class="form-group mb-3">
+            <input type="checkbox" value="" name="sample_delete" id="sample_delete" onclick='toggle_delete_sample(this);'>
+            &nbsp;&nbsp;
+            <label for="sample_delete" class="col-form-label">Delete Sample</label>
+          </div>
+          <div>
+            <button type="button" class="btn btn-secondary mb-3" data-bs-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary mb-3">Submit Changes</button>
+            <button type="submit" id="button_delete_sample" class="btn btn-danger mb-3" hidden>Delete Sample</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+  <script>
+    function toggle_delete_sample(cb) {
+    var deleteSampleButton = document.getElementById('button_delete_sample');
+    if (cb.checked) {
+      deleteSampleButton.hidden = false;
+    } else {
+      deleteSampleButton.hidden = true;
+    }
+  }
+  </script>
   {{ _table_base(samples, sample_header, sample_row, table_id=table_id, **kwargs) }}
   {% else %}
   <center><a href='{{ url_for("data.submit") }}' style="color: #0d6efd; text-decoration: underline;" >No samples available. Click here to upload your first sample</a></center>

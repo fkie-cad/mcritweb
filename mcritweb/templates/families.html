@@ -22,8 +22,9 @@ Families
     <input type='submit' hidden>
   </form>
 
-{{ family_table(families, show_export=True, sort_pagination=pagination)}}
+{{ family_table(families, show_export=True, show_edit=True, sort_pagination=pagination)}}
 {% if families %}
 {{ pagination_widget(pagination) }}
 {% endif %}
+{% include 'js/ac_family_names.html' %}
 {% endblock %}
