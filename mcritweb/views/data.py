@@ -204,6 +204,15 @@ def result(job_id):
             return result_unique_blocks(job_info, result_json)
         elif job_info.parameters.startswith("addBinarySample"):
             return redirect(url_for('explore.sample_by_id', sample_id=result_json['sample_info']['sample_id']))
+        # modify and delete samples and families
+        elif job_info.parameters.startswith("deleteSample"):
+            return redirect(url_for('explore.samples'))
+        elif job_info.parameters.startswith("modifySample"):
+            return redirect(url_for('explore.samples'))
+        elif job_info.parameters.startswith("deleteFamily"):
+            return redirect(url_for('explore.families'))
+        elif job_info.parameters.startswith("modifyFamily"):
+            return redirect(url_for('explore.families'))
     elif job_info:
         # if we are not done processing, list job data
         return render_template("job_in_progress.html", job_info=job_info)

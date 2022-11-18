@@ -42,18 +42,45 @@ def families():
 @contributor_required
 @mcrit_server_required
 def modifySample():
-    out_str = ""
     if request.method=='POST':
         data = request.data
         data = data.decode("utf-8")
-        print(data)
-        print(request.form.to_dict(flat=False))
-        print("sample_id", request.form.get("sample_id"))
-        print("sample_family_name", request.form.get("sample_family_name"))
-        print("sample_version", request.form.get("sample_version"))
-        print("sample_is_library", request.form.get("sample_is_library", "library not set"))
-        print("sample_delete", request.form.get("sample_delete", "delete not set"))
-    return out_str
+        if not request.form.to_dict(flat=False):
+            return None
+        client = McritClient(mcrit_server= get_server_url())
+        sample_id = request.form.get("sample_id", None)
+        if sample_id is None: 
+            flash(f"No valid sample_id received.", category="error")
+            return redirect(url_for('explore.samples'))
+        sample_entry = None
+        try:
+            sample_id = int(sample_id)
+            sample_entry = client.getSampleById(sample_id)
+            if sample_entry is None:
+                raise ValueError
+        except:
+            flash(f"No valid sample_id received.", category="error")
+            return redirect(url_for('explore.samples'))
+        is_sample_delete = True if request.form.get("sample_delete", None) is not None else False
+        # delete sample
+        if is_sample_delete:
+            job_id = client.deleteSample(sample_id)
+            flash(f"Job to delete sample was scheduled.", category="info")
+            return redirect(url_for('data.job_by_id', job_id=job_id, refresh=5))
+        # check if sample_entry should be modified
+        new_family_name = request.form.get("sample_family_name", None)
+        new_version = request.form.get("sample_version", None)
+        new_is_library = True if request.form.get("sample_is_library", None) is not None else False
+        if new_family_name is None or new_family_name == sample_entry.family:
+            new_family_name = None
+        if new_version is None or new_version == sample_entry.version:
+            new_version = None
+        if new_is_library is None or new_is_library == sample_entry.is_library:
+            new_is_library = None
+        if any([item is not None for item in [new_family_name, new_version, new_is_library]]):
+            client.modifySample(sample_id, family_name=new_family_name, version=new_version, is_library=new_is_library)
+        flash(f"Job to modify sample was scheduled.", category="info")
+    return redirect(url_for('explore.samples'))
 
 
 @bp.route('/samples')
