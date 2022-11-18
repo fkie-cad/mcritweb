@@ -1,3 +1,4 @@
+import time
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from mcrit.client.McritClient import McritClient
 from mcrit.storage.FamilyEntry import FamilyEntry
@@ -17,6 +18,50 @@ bp = Blueprint('explore', __name__, url_prefix='/explore')
 ### Unfiltered Collections: Families, Samples, Function
 ##############################################################
 
+@bp.route('/modifyFamily', methods=['POST'])
+@contributor_required
+@mcrit_server_required
+def modifyFamily():
+    if request.method=='POST':
+        data = request.data
+        data = data.decode("utf-8")
+        if not request.form.to_dict(flat=False):
+            return None
+        client = McritClient(mcrit_server= get_server_url())
+        family_id = request.form.get("family_id", None)
+        if family_id is None: 
+            flash(f"No valid family_id received.", category="error")
+            return redirect(url_for('explore.families'))
+        family_entry = None
+        try:
+            family_id = int(family_id)
+            family_entry = client.getFamily(family_id)
+            if family_entry is None:
+                raise ValueError
+        except:
+            flash(f"No valid family_id received.", category="error")
+            return redirect(url_for('explore.families'))
+        # check if we want ot keep samples
+        is_family_keeping_samples = True if request.form.get("family_keeping_samples", None) is not None else False
+        is_family_delete = True if request.form.get("family_delete", None) is not None else False
+        # delete family
+        if is_family_delete:
+            job_id = client.deleteFamily(family_id, keep_samples=is_family_keeping_samples)
+            flash(f"Job to delete family was scheduled.", category="info")
+            return redirect(url_for('data.job_by_id', job_id=job_id, refresh=5))
+        # check if sample_entry should be modified
+        new_family_name = request.form.get("family_new_name", None)
+        new_is_library = True if request.form.get("family_is_library", None) is not None else False
+        if new_family_name is None or new_family_name == family_entry.family:
+            new_family_name = None
+        if new_is_library is None or new_is_library == family_entry.is_library:
+            new_is_library = None
+        if any([item is not None for item in [new_family_name, new_is_library]]):
+            job_id = client.modifyFamily(family_id, family_name=new_family_name, is_library=new_is_library)
+            time.sleep(0.3)
+        flash(f"Job to modify family was scheduled.", category="info")
+    return redirect(url_for('explore.families'))
+
 @bp.route('/families')
 @mcrit_server_required
 @visitor_required
@@ -35,7 +80,9 @@ def families():
     else:
         for family_dict in results['search_results'].values():
             families.append(FamilyEntry.fromDict(family_dict))
-    return render_template("families.html", families=families, pagination=pagination, query=query)
+    all_families = client.getFamilies()
+    family_names = [family_entry.family_name for family_entry in all_families.values()]
+    return render_template("families.html", families=families, family_names=family_names, pagination=pagination, query=query)
 
 
 @bp.route('/modifySample', methods=['POST'])
@@ -79,6 +126,7 @@ def modifySample():
             new_is_library = None
         if any([item is not None for item in [new_family_name, new_version, new_is_library]]):
             client.modifySample(sample_id, family_name=new_family_name, version=new_version, is_library=new_is_library)
+            time.sleep(0.3)
         flash(f"Job to modify sample was scheduled.", category="info")
     return redirect(url_for('explore.samples'))
 

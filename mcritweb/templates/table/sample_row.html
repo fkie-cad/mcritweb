@@ -20,6 +20,7 @@
     var modalBodyFamilyName = editSampleModal.querySelector('.modal-body #sample_family_name');
     var modalBodyVersion = editSampleModal.querySelector('.modal-body #sample_version');
     var modalBodySampleId = editSampleModal.querySelector('.modal-body #sample_id');
+    var modalBodyLibrary = editSampleModal.querySelector('.modal-body #sample_is_library');
   
     modalTitle.textContent = 'Change Data for Sample ' + sample_id;
     modalBodyFamilyName.value = family_name;
@@ -85,8 +86,9 @@
         <th style="text-align: right;" scope="col">Bitness</th>
     {% endif %}
     {% call sortable_header_col(sort_pagination, "statistics.num_functions", align="right") %}
-      Functions
+    Functions
     {% endcall %}
+    <th style="text-align: right;" scope="col">Library</th>
     {% if show_hint %}
       <th scope="col"></th>
     {% endif %}
@@ -110,6 +112,7 @@
       <td align="right" valign="middle">{{ "%d"|format(sample.bitness) }}</td>
     {% endif %}
     <td align="right" valign="middle">{{ "%d"|format(sample.statistics['num_functions']) }}</td>
+    <td align="center" valign="middle"><i {% if sample.is_library %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
     {% if show_hint %}
       <td>
         <span class="hint--left" data-hint="Sample_ID: {{ sample.sample_id }}&#10;SHA256: {{ sample.sha256 }}&#10;Family: {{ sample.family }}&#10;Version: {{ sample.version }}&#10;Filename: {{ sample.filename }} &#10;Architecture: {{ sample.architecture }}&#10;Bitness: {{ sample.bitness }} &#10;Base_Address: 0x{{ '%0x' % sample.base_addr }}&#10;Binary_Size: {{ '{:,.0f}'.format(sample.binary_size) }}&#10;Binweight: {{ '{:,.0f}'.format(sample.binweight) }}"><i class="fa-solid fa-circle-info"></i></span>
