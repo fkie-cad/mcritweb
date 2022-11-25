@@ -24,7 +24,7 @@ Function: {{ function_id_a }} vs {{ function_id_b }}
 {% block content %}
 
 <div class="container">
-<span><h1>Function Comparison: {{ function_id_a }} vs. {{ function_id_b }}</h1></span>
+<span><h1>Function Comparison: {{ format_function_id(function_id_a) }} vs. {{ format_function_id(function_id_b) }}</h1></span>
 <span style="float:right"><a href="#function_xcfg">go to cfg</a></span>
 {% if entry_a is not none and entry_b is not none %}
       {% set entry_dict_a = entry_a.toDict() %}
