@@ -26,3 +26,21 @@
 {%- macro format_function_id(function_id) -%}
   <a href="{{ url_for('explore.function_by_id', function_id=function_id) }}">{{ function_id }}</a>
 {%- endmacro -%}
+
+{%- macro clipboard_btn(clipboard_value) -%}
+  <button class="btn btn-light btn-sm" title="Copy to Clipboard" data-toggle="tooltip" onclick="copy_to_clipboard(this, '{{ clipboard_value }}')"><i class="fa-regular fa-copy"></i></button>
+{%- endmacro -%}
+
+{%- macro clipboard_js() -%}
+<script>
+$(function () {
+  $('[data-toggle="tooltip"]').tooltip()
+})
+function copy_to_clipboard(btn, val){
+  navigator.clipboard.writeText(val);
+  $(btn).attr('data-bs-original-title', "Copied!");
+  bootstrap.Tooltip.getInstance(btn).show();
+  $(btn).attr('data-bs-original-title', "Copy to Clipboard");
+}
+</script>
+{%- endmacro -%}
