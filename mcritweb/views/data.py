@@ -334,10 +334,21 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         # TODO: get minhash matching score and also show in resulting HTML
         function_entry = client.getFunctionById(filtered_function_id, with_xcfg=True)
         pichash_matches_a = client.getMatchesForPicHash(function_entry.pichash, summary=True)
+        sample_entry_a = client.getSampleById(function_entry.sample_id)
         other_function_entry = client.getFunctionById(other_function_id, with_xcfg=True)
+        sample_entry_b = client.getSampleById(other_function_entry.sample_id)
         pichash_matches_b = client.getMatchesForPicHash(other_function_entry.pichash, summary=True)
         node_colors = get_matches_node_colors(filtered_function_id, other_function_id)
-        return render_template("result_compare_function_vs.html", entry_a=function_entry, entry_b=other_function_entry, pichash_matches_a=pichash_matches_a, pichash_matches_b=pichash_matches_b, node_colors=json.dumps(node_colors)) 
+        return render_template(
+            "result_compare_function_vs.html",
+            entry_a=function_entry,
+            entry_b=other_function_entry,
+            sample_entry_a=sample_entry_a,
+            sample_entry_b=sample_entry_b,
+            pichash_matches_a=pichash_matches_a,
+            pichash_matches_b=pichash_matches_b,
+            node_colors=json.dumps(node_colors)
+        ) 
     # treat family/sample part as if there was no filter
     elif filtered_function_id is not None and client.isFunctionId(filtered_function_id):
         create_match_diagram(current_app, job_info.job_id, matching_result)

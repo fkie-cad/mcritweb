@@ -244,8 +244,9 @@ def function_by_id(function_id):
     client = McritClient(mcrit_server=get_server_url())
     function_entry = client.getFunctionById(function_id)
     if function_entry:
+        sample_entry = client.getSampleById(function_entry.sample_id)
         pichash_match_summary = client.getMatchesForPicHash(function_entry.pichash, summary=True)
-        return render_template("single_function.html", entry=function_entry, pichash_match_summary=pichash_match_summary)
+        return render_template("single_function.html", entry=function_entry, sample_entry=sample_entry, pichash_match_summary=pichash_match_summary)
     else:
         flash("The given Function ID doesn't exist", category="error")
         return redirect(url_for('explore.functions'))
