@@ -1,10 +1,11 @@
-{% from 'table/links.html' import format_pichash, format_offset, format_family_name, format_family_id, format_sample_id, format_function_id %}
+{% from 'table/links.html' import format_pichash, format_offset, format_family_name_tuple, format_family_id, format_sample_id, format_function_id, format_sha_short_clipboard, clipboard_js %}
 {% extends 'base.html' %}
 {% block style %}
 <!-- 
 <script src="{{ url_for('static', filename='trace_CFG/lib/jquery-3.1.1.min.js') }}"></script>
 <script src="{{ url_for('static', filename='trace_CFG/lib/split.js') }}"></script>
 -->
+{{ clipboard_js() }}
 <script src="{{ url_for('static', filename='trace_CFG/lib/d3.min.js') }}"></script>
 <script src="{{ url_for('static', filename='trace_CFG/lib/graphlib.min.js') }}"></script>
 <script src="{{ url_for('static', filename='trace_CFG/lib/graphlib-dot.min.js') }}"></script>
@@ -23,15 +24,27 @@ Function: {{ function_id_a }} vs {{ function_id_b }}
 {% block content %}
 
 <div class="container">
-<span><h1>Function Comparison: {{ function_id_a }} vs. {{ function_id_b }}</h1></span>
+<span><h1>Function Comparison: {{ format_function_id(function_id_a) }} vs. {{ format_function_id(function_id_b) }}</h1></span>
 <span style="float:right"><a href="#function_xcfg">go to cfg</a></span>
 {% if entry_a is not none and entry_b is not none %}
+      {% set entry_dict_a = entry_a.toDict() %}
+      {% set entry_dict_b = entry_b.toDict() %}
+      {{ entry_dict_a.update(
+          {"family_name": (sample_entry_a.family, sample_entry_a.family_id), "sha256": sample_entry_a.sha256}
+        ) |silent
+      }}
+      {{ entry_dict_b.update(
+          {"family_name": (sample_entry_b.family, sample_entry_b.family_id), "sha256": sample_entry_b.sha256}
+        ) |silent
+      }}
       <table class="table table-sm table-borderless" style="width:90%;">
       {% set keys_to_names = dict(
           architecture = "Architecture",
           binweight = "Binweight",
           family_id = "Family ID",
+          family_name = "Family Name",
           sample_id = "Sample ID",
+          sha256 = "Short Sha256",
           function_id = "Function ID",
           function_name = "Function Name",
           num_blocks = "Num Blocks",
@@ -43,14 +56,16 @@ Function: {{ function_id_a }} vs {{ function_id_b }}
           offset = format_offset,
           pichash = format_pichash,
           family_id = format_family_id,
+          family_name = format_family_name_tuple,
           sample_id = format_sample_id,
           function_id = format_function_id,
+          sha256 = format_sha_short_clipboard
       ) %}
       {% for key, name in keys_to_names.items() %}
         <tr>
             <th valign="middle">{{ name }}</th>
             {% if key in formatters %}
-            <td valign="middle">{{ formatters[key](entry_a[key]) }}
+            <td valign="middle">{{ formatters[key](entry_dict_a[key]) }}
               {% if key == "pichash" %}
                 (
                 {{ pichash_matches_a["families"] }} <i class="fa-solid fa-bug" title="Families matched"> </i>, 
@@ -59,7 +74,7 @@ Function: {{ function_id_a }} vs {{ function_id_b }}
                 )
               {% endif %}
             </td>
-            <td valign="middle">{{ formatters[key](entry_b[key]) }}
+            <td valign="middle">{{ formatters[key](entry_dict_b[key]) }}
               {% if key == "pichash" %}
                 (
                 {{ pichash_matches_b["families"] }} <i class="fa-solid fa-bug" title="Families matched"> </i>, 
@@ -73,8 +88,8 @@ Function: {{ function_id_a }} vs {{ function_id_b }}
                 <td valign="middle">{{ "%d"|format(entry_a[key]) }}</td>
                 <td valign="middle">{{ "%d"|format(entry_b[key]) }}</td>
               {% else %}
-              <td valign="middle">{{ entry_a[key] }}</td>
-              <td valign="middle">{{ entry_b[key] }}</td>
+              <td valign="middle">{{ entry_dict_a[key] }}</td>
+              <td valign="middle">{{ entry_dict_b[key] }}</td>
               {% endif %}
             {% endif %}
         </tr>

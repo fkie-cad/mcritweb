@@ -2,6 +2,7 @@
 {% from 'table/function_row.html' import function_row_std_js %}
 {% from 'table/pagination_widget.html' import pagination_widget %}
 {% from 'table/job_row.html' import job_row_std_js %}
+{% from 'table/links.html' import clipboard_btn, clipboard_js %}
 {% extends 'base.html' %}
 {% block title%}
 Sample: {{ entry.sample_id }}
@@ -10,6 +11,7 @@ Sample: {{ entry.sample_id }}
 {% block style %}
 {{ function_row_std_js() }}
 {{ job_row_std_js() }}
+{{ clipboard_js() }}
 {% endblock %}
 
 {% block content %}
@@ -32,13 +34,17 @@ Sample: {{ entry.sample_id }}
     <div id="flush-collapseOne" class="accordion-collapse collapse" aria-labelledby="flush-headingOne" data-bs-parent="#accordionFlushExample">
       <table class="table table-sm table-borderless" style="width:50%;">
         {% for key in entry.toDict() %}
-          {% if loop.index <= 12 %}
+          {% if loop.index <= 11 %}
             <tr>
               <th valign="middle">{{ key.replace('_', ' ')|capitalize_all }}</td>
               <td valign="middle">{% if key == 'family' %}<a href='{{ url_for("explore.family_by_id",family_id=entry.toDict()['family_id']) }}' >{{ entry.toDict()[key] }}</a>{% else %}{{ entry.toDict()[key] }}{% endif %}</td>
             </tr>
           {% endif %}
         {% endfor %}
+        <tr>
+          <th valign="middle">Sha256</td>
+          <td valign="middle">{{ entry.sha256 }} {{ clipboard_btn(entry.sha256) }}</td>
+        </tr>
         <tr>
           <th valign="middle">Timestamp</td>
           <td valign="middle">{{ entry.timestamp }}</td>
