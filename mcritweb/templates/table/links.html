@@ -4,11 +4,11 @@
 
 {%- macro format_pichash(pichash) -%}
   {% set hex_pichash = "0x" + ("%016x"|format(pichash)) %}
-  <a href="{{ url_for('explore.search', query='pichash:'+hex_pichash, type='function') }}">{{ hex_pichash }}</a>
+  <span class="font-monospace"><a href="{{ url_for('explore.search', query='pichash:'+hex_pichash, type='function') }}">{{ hex_pichash }}</a></span>
 {%- endmacro -%}
 
 {%- macro format_offset(offset) -%}
-  0x{{ "%0x"|format(offset) }}
+  <span class="font-monospace">0x{{ "%0x"|format(offset) }}</span>
 {%- endmacro -%}
 
 {%- macro format_family_name(family_name, family_id) -%}
