@@ -1249,13 +1249,13 @@ function highlightUERs(UERtype){
     function loadWithDotGraphAndFunctionIdA(function_id, node_colors) {
       isTraceSupplied = false;
       // Send request for loop information; load when ready
-        d3.xhr("../../explore/fetchDotGraph/" + function_id).header("Content-Type", "text/plain")
+        d3.xhr(window.location.origin + "/explore/fetchDotGraph/" + function_id).header("Content-Type", "text/plain")
         .get(function(err, result){
           dot_graph = result.responseText;
           dotFile_a = dot_graph.replace(/\\l/g, "\n");
           g_a = graphlibDot.parse(dotFile_a);
           // Send request for loop information; load when ready
-          d3.xhr("../../explore/findLoops/")
+          d3.xhr(window.location.origin + "/explore/findLoops/")
             .header("Content-Type", "text/plain")
             .post(dotFile_a,
               function(err, result){
@@ -1284,13 +1284,13 @@ function highlightUERs(UERtype){
   function loadWithDotGraphAndFunctionIdB(function_id, node_colors) {
     isTraceSupplied = false;
     // Send request for loop information; load when ready
-     d3.xhr("../../explore/fetchDotGraph/" + function_id).header("Content-Type", "text/plain")
+     d3.xhr(window.location.origin + "/explore/fetchDotGraph/" + function_id).header("Content-Type", "text/plain")
       .get(function(err, result){
         dot_graph = result.responseText;
         dotFile_b = dot_graph.replace(/\\l/g, "\n");
         g_b = graphlibDot.parse(dotFile_b);
         // Send request for loop information; load when ready
-        d3.xhr("../../explore/findLoops/")
+        d3.xhr(window.location.origin + "/explore/findLoops/")
           .header("Content-Type", "text/plain")
           .post(dotFile_b,
             function(err, result){

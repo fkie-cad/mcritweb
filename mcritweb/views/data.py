@@ -5,6 +5,9 @@ import hashlib
 from datetime import datetime
 from mcrit.client.McritClient import McritClient
 from mcrit.storage.MatchingResult import MatchingResult
+from mcrit.storage.MatchedFunctionEntry import MatchedFunctionEntry
+from mcrit.storage.FunctionEntry import FunctionEntry
+from mcrit.storage.SampleEntry import SampleEntry
 from flask import current_app, Blueprint, render_template, request, redirect, url_for, Response, flash, session, send_from_directory, json
 
 from mcritweb.views.authentication import visitor_required, contributor_required
@@ -152,10 +155,43 @@ def specific_export(type, item_id):
                     "attachment; filename=export_samples.json"})
 
 ################################################################
-# Result presentation
+# Direct Function Matching
 ################################################################
 
+@bp.route('/matches/function/<function_id_a>/<function_id_b>')
+@mcrit_server_required
+@visitor_required
+def match_functions(function_id_a, function_id_b):
+    client = McritClient(mcrit_server=get_server_url())
+    if client.isFunctionId(function_id_a) and client.isFunctionId(function_id_b):
+        match_info = client.getMatchFunctionVs(function_id_a, function_id_b)
+        function_entry = FunctionEntry.fromDict(match_info["function_entry_a"])
+        print(function_entry)
+        print(function_entry.pichash)
+        pichash_matches_a = client.getMatchesForPicHash(function_entry.pichash, summary=True)
+        sample_entry_a = SampleEntry.fromDict(match_info["sample_entry_a"])
+        other_function_entry = FunctionEntry.fromDict(match_info["function_entry_b"])
+        sample_entry_b = SampleEntry.fromDict(match_info["sample_entry_b"])
+        pichash_matches_b = client.getMatchesForPicHash(other_function_entry.pichash, summary=True)
+        matched_function_entry = MatchedFunctionEntry(match_info["match_entry"]["fid"], match_info["match_entry"]["num_bytes"], match_info["match_entry"]["offset"], match_info["match_entry"]["matches"])
+        node_colors = get_matches_node_colors(function_id_a, function_id_b)
+        return render_template(
+            "result_compare_function_vs.html",
+            entry_a=function_entry,
+            entry_b=other_function_entry,
+            sample_entry_a=sample_entry_a,
+            sample_entry_b=sample_entry_b,
+            pichash_matches_a=pichash_matches_a,
+            pichash_matches_b=pichash_matches_b,
+            match_result=matched_function_entry,
+            node_colors=json.dumps(node_colors)
+        )
+    flash("One of the function_ids is not valid.", category='error')
+    return render_template("index.html")
 
+################################################################
+# Result presentation
+################################################################
 
 @bp.route('/result/<job_id>')
 @mcrit_server_required
@@ -329,26 +365,6 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         sample_pagination = Pagination(request, 1, limit=10, query_param="samp")
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), query_param="funp")
         return render_template("result_compare_sample.html", samid=filtered_sample_id, job_info=job_info, samp=sample_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
-    # treat family/sample part as if there was no filter
-    elif filtered_function_id is not None and other_function_id is not None and client.isFunctionId(filtered_function_id) and client.isFunctionId(other_function_id):
-        # TODO: get minhash matching score and also show in resulting HTML
-        function_entry = client.getFunctionById(filtered_function_id, with_xcfg=True)
-        pichash_matches_a = client.getMatchesForPicHash(function_entry.pichash, summary=True)
-        sample_entry_a = client.getSampleById(function_entry.sample_id)
-        other_function_entry = client.getFunctionById(other_function_id, with_xcfg=True)
-        sample_entry_b = client.getSampleById(other_function_entry.sample_id)
-        pichash_matches_b = client.getMatchesForPicHash(other_function_entry.pichash, summary=True)
-        node_colors = get_matches_node_colors(filtered_function_id, other_function_id)
-        return render_template(
-            "result_compare_function_vs.html",
-            entry_a=function_entry,
-            entry_b=other_function_entry,
-            sample_entry_a=sample_entry_a,
-            sample_entry_b=sample_entry_b,
-            pichash_matches_a=pichash_matches_a,
-            pichash_matches_b=pichash_matches_b,
-            node_colors=json.dumps(node_colors)
-        ) 
     # treat family/sample part as if there was no filter
     elif filtered_function_id is not None and client.isFunctionId(filtered_function_id):
         create_match_diagram(current_app, job_info.job_id, matching_result)
