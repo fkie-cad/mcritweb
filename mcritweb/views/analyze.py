@@ -102,9 +102,16 @@ def start_cross_compare():
     client = McritClient(mcrit_server= get_server_url())
     selected = request.args.get('samples', '')
     rematch = request.args.get('rematch', '')
+    try:
+        minhash_band_range = int(request.args.get('minhashBandRange', "2"))
+        minhash_band_range = min(3, minhash_band_range)
+        minhash_band_range = max(0, minhash_band_range)
+    except:
+        minhash_band_range = 2
+    minhash_band_range = 4 - minhash_band_range
     if selected != '':
         selected_list = [int(x) for x in selected.split(',') if x != '']
-        job_id = client.requestMatchesCross(selected_list, force_recalculation=rematch)
+        job_id = client.requestMatchesCross(selected_list, force_recalculation=rematch, band_matches_required=minhash_band_range)
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
 
@@ -168,18 +175,32 @@ def compare_versus():
 @visitor_required
 @mcrit_server_required
 def compare_all(sample_id_a):
-    client = McritClient(mcrit_server= get_server_url())
+    client = McritClient(mcrit_server=get_server_url())
     rematch = request.args.get('rematch', False)
-    job_id = client.requestMatchesForSample(sample_id_a, force_recalculation=rematch)
+    try:
+        minhash_band_range = int(request.args.get('minhashBandRange', "2"))
+        minhash_band_range = min(3, minhash_band_range)
+        minhash_band_range = max(0, minhash_band_range)
+    except:
+        minhash_band_range = 2
+    minhash_band_range = 4 - minhash_band_range
+    job_id = client.requestMatchesForSample(sample_id_a, force_recalculation=rematch, band_matches_required=minhash_band_range)
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
 @bp.route('/compare/<sample_id_a>/<sample_id_b>')
 @visitor_required
 @mcrit_server_required
 def compare_vs(sample_id_a, sample_id_b):
-    client = McritClient(mcrit_server= get_server_url())
+    client = McritClient(mcrit_server=get_server_url())
     rematch = request.args.get('rematch', False)
-    job_id = client.requestMatchesForSampleVs(sample_id_a, sample_id_b, force_recalculation=rematch)
+    try:
+        minhash_band_range = int(request.args.get('minhashBandRange', "2"))
+        minhash_band_range = min(3, minhash_band_range)
+        minhash_band_range = max(0, minhash_band_range)
+    except:
+        minhash_band_range = 2
+    minhash_band_range = 4 - minhash_band_range
+    job_id = client.requestMatchesForSampleVs(sample_id_a, sample_id_b, force_recalculation=rematch, band_matches_required=minhash_band_range)
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
 @bp.route('/query',methods=('GET', 'POST'))
@@ -199,10 +220,17 @@ def query():
             base_address = int(request.form['base_address'], 16)
 
         binary_content = f.read()
+        try:
+            minhash_band_range = int(request.args.get('minhashBandRange', "2"))
+            minhash_band_range = min(3, minhash_band_range)
+            minhash_band_range = max(0, minhash_band_range)
+        except:
+            minhash_band_range = 2
+        minhash_band_range = 4 - minhash_band_range
         if is_dump:
-            job_id = client.requestMatchesForMappedBinary(binary=binary_content, disassemble_locally=False, base_address=base_address, force_recalculation=True)
+            job_id = client.requestMatchesForMappedBinary(binary=binary_content, disassemble_locally=False, base_address=base_address, force_recalculation=True, band_matches_required=minhash_band_range)
         else:
-            job_id = client.requestMatchesForUnmappedBinary(binary=binary_content, disassemble_locally=False, force_recalculation=True)
+            job_id = client.requestMatchesForUnmappedBinary(binary=binary_content, disassemble_locally=False, force_recalculation=True, band_matches_required=minhash_band_range)
         
         if job_id is not None:
             flash('Sample submitted!', category='success')

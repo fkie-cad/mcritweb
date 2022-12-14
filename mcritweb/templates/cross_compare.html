@@ -67,7 +67,8 @@ Compare
   function createJob() {
     var params = fetchState();
     var samples_string = {{selected_ids|safe}}.join(",")+","+params.cache;
-    window.location.href="/analyze/start_cross_compare?samples="+samples_string+"&rematch="+params.rematch;
+    var minhashBandRange = document.getElementById('minhashBandRange').value;
+    window.location.href="/analyze/start_cross_compare?samples="+samples_string+"&rematch="+params.rematch+"&minhashBandRange="+minhashBandRange;
   }
   function fetchState() {
     var string = selected.join(',');
@@ -155,10 +156,20 @@ Compare
     </table>
     {{ pagination_widget(pagination) }}
     <center>
-      <input class="form-check-input shadow-none" type="checkbox" value="" id="force_rematch" {% if is_forcing_rematch %}checked{% else %}{% endif %}>
-      <label class="form-check-label" for="flexCheckChecked">
-        Force rematch
+      <div class="form-group">
+    <div class="col-sm-6 d-inline-flex justify-content-center">
+        <input class="form-check-input shadow-none" type="checkbox" name="rematch" value="true" id="force_rematch" {% if rematch %}checked{% else %}{% endif %}>
+        <label class="form-check-label" for="flexCheckChecked">
+          &nbsp;Force rematch    
+        </label>
+    </div>
+    <div class="col-sm-6 d-inline-flex justify-content-center">
+      <label class="form-check-label" for="minhashBandRange">
+        Minhash Candidate Fuzziness
       </label>
+      <input type="range" class="form-range" min="0" max="3" value="2" step="1" id="minhashBandRange" />
+    </div>
+</div>
       <br>
       <button type="button"  onclick="setSelected()" id="button2" class="btn btn-outline-primary">Add</button>
       {% if selected_ids %}

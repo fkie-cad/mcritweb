@@ -88,7 +88,8 @@ $(document).ready(function(){
 
 function createJob() {
   var checkedValue = $("#force_rematch").is(":checked");
-  window.location.href="/analyze/compare/"+selected_a+"/"+selected_b+"?rematch="+checkedValue;
+  var minhashBandRange = document.getElementById('minhashBandRange').value;
+  window.location.href="/analyze/compare/"+selected_a+"/"+selected_b+"?rematch="+checkedValue+"&minhashBandRange="+minhashBandRange;
 }
 
 function fetchState() {
@@ -132,10 +133,20 @@ function fetchState() {
   </div>
 </div>
 <center>
-  <input class="form-check-input shadow-none" type="checkbox" name="rematch" value="true" id="force_rematch" {% if rematch %}checked{% else %}{% endif %}>
-  <label class="form-check-label" for="flexCheckChecked">
-    Force rematch
-  </label>
+  <div class="form-group">
+    <div class="col-sm-6 d-inline-flex justify-content-center">
+        <input class="form-check-input shadow-none" type="checkbox" name="rematch" value="true" id="force_rematch" {% if rematch %}checked{% else %}{% endif %}>
+        <label class="form-check-label" for="flexCheckChecked">
+          &nbsp;Force rematch    
+        </label>
+    </div>
+    <div class="col-sm-6 d-inline-flex justify-content-center">
+      <label class="form-check-label" for="minhashBandRange">
+        Minhash Candidate Fuzziness
+      </label>
+      <input type="range" class="form-range" min="0" max="3" value="2" step="1" id="minhashBandRange" />
+    </div>
+</div>
   <input type='submit' hidden>
   <br>
   <button type="button" {% if not selected_a or not selected_b  %}style="display:none"{% endif %} onclick="createJob()" id="button_match" class="btn btn-primary">Compare</button>
