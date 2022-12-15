@@ -17,12 +17,14 @@
   function show_submit(x) {
     if (x.checked) {      
       $(document.getElementsByClassName("submit-form-exclusive")).slideDown();   
+      $(document.getElementsByClassName("query-form-exclusive")).slideUp();   
     }
   }
  
   function hide_submit(x) {
     if (x.checked) {
       $(document.getElementsByClassName("submit-form-exclusive")).slideUp();   
+      $(document.getElementsByClassName("query-form-exclusive")).slideDown();   
     }
   }
 
@@ -33,9 +35,11 @@
     {% if select_form_type %}
     if ($("#submit_form").prop("checked")){
       $(document.getElementsByClassName("submit-form-exclusive")).slideDown();   
+      $(document.getElementsByClassName("query-form-exclusive")).slideUp();   
     }
     if ($("#query_form").prop("checked")){
       $(document.getElementsByClassName("submit-form-exclusive")).slideUp();   
+      $(document.getElementsByClassName("query-form-exclusive")).slideDown();   
     }
     {% endif %}
   });
@@ -125,6 +129,7 @@
 {% endmacro %}
 
 {% macro submit_or_query_dropzone(families=[], select_form_type=False, show_submit_fields=False) %}
+{% set show_query_fields = not show_submit_fields %}
 <center>
 
 {% if select_form_type %}
@@ -175,14 +180,14 @@
         <label class="form-check-label" for="dumped">Dumped</label>
     </div>
      <!-- TODO: only show if file available -->
-     <div class="form-group">
+    <div class="form-group query-form-exclusive" {% if not show_query_fields %}style="display:none"{% endif %}>
       <div class="d-inline-flex justify-content-center">
         <label class="form-check-label" for="minhashBandRange">
           Minhash Candidate Fuzziness
         </label>
         <input type="range" class="form-range" min="0" max="3" value="2" step="1" id="minhashBandRange" />
       </div>
-  </div>
+    </div>
     <button type="submit" class="btn btn-primary" id="submit-dropzone" disabled>Submit <span id="submit-spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display:none"></span></button>
 </form>
 </center>
