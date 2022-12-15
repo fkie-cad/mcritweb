@@ -220,12 +220,11 @@ def query():
             base_address = int(request.form['base_address'], 16)
 
         binary_content = f.read()
-        try:
-            minhash_band_range = int(request.args.get('minhashBandRange', "2"))
-            minhash_band_range = min(3, minhash_band_range)
-            minhash_band_range = max(0, minhash_band_range)
-        except:
-            minhash_band_range = 2
+
+        minhash_band_range = int(request.form['minhashBandRange'])
+        minhash_band_range = min(3, minhash_band_range)
+        minhash_band_range = max(0, minhash_band_range)
+
         minhash_band_range = 4 - minhash_band_range
         if is_dump:
             job_id = client.requestMatchesForMappedBinary(binary=binary_content, disassemble_locally=False, base_address=base_address, force_recalculation=True, band_matches_required=minhash_band_range)
