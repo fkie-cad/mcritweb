@@ -67,15 +67,16 @@ Compare
   function createJob() {
     var params = fetchState();
     var samples_string = {{selected_ids|safe}}.join(",")+","+params.cache;
-    var minhashBandRange = document.getElementById('minhashBandRange').value;
-    window.location.href="/analyze/start_cross_compare?samples="+samples_string+"&rematch="+params.rematch+"&minhashBandRange="+minhashBandRange;
+    window.location.href="/analyze/start_cross_compare?samples="+samples_string+"&rematch="+params.rematch+"&minhashBandRange="+params.minhashBandRange;
   }
   function fetchState() {
     var string = selected.join(',');
     var checkedValue = $("#force_rematch").is(":checked");
+    var minhashBandRange = document.getElementById('minhashBandRange').value;
     return {
       "rematch": checkedValue,
-      "cache": string
+      "cache": string,
+      "minhashBandRange": minhashBandRange
     };
   }
 </script>
@@ -167,7 +168,7 @@ Compare
       <label class="form-check-label" for="minhashBandRange">
         Minhash Candidate Fuzziness
       </label>
-      <input type="range" class="form-range" min="0" max="3" value="2" step="1" id="minhashBandRange" />
+      <input type="range" class="form-range" min="0" max="3" value="{{ request.args.get('minhashBandRange', '2') }}" step="1" id="minhashBandRange" />
     </div>
 </div>
       <br>
