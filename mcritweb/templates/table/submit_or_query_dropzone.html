@@ -1,3 +1,6 @@
+
+{% set minhash_slider_mapping = ["Off", "Fast", "Standard", "Complete"] %} 
+
 {% macro submit_or_query_dropzone_js(select_form_type=False) %}
 <link rel="stylesheet" href="{{ url_for('static', filename='dropzone.min.css') }}">
 {{ dropzone.style('border: 2px dashed black; margin: 30%; min-height: 200px;border-radius: 25px; background: rgb(240, 240, 240);') }}
@@ -17,12 +20,14 @@
   function show_submit(x) {
     if (x.checked) {      
       $(document.getElementsByClassName("submit-form-exclusive")).slideDown();   
+      $(document.getElementsByClassName("query-form-exclusive")).slideUp();   
     }
   }
  
   function hide_submit(x) {
     if (x.checked) {
       $(document.getElementsByClassName("submit-form-exclusive")).slideUp();   
+      $(document.getElementsByClassName("query-form-exclusive")).slideDown();   
     }
   }
 
@@ -33,9 +38,11 @@
     {% if select_form_type %}
     if ($("#submit_form").prop("checked")){
       $(document.getElementsByClassName("submit-form-exclusive")).slideDown();   
+      $(document.getElementsByClassName("query-form-exclusive")).slideUp();   
     }
     if ($("#query_form").prop("checked")){
       $(document.getElementsByClassName("submit-form-exclusive")).slideUp();   
+      $(document.getElementsByClassName("query-form-exclusive")).slideDown();   
     }
     {% endif %}
   });
@@ -121,10 +128,17 @@
 
   });
 
+function handleSliderChange_dropzone(val) {
+  const mapping = {{ minhash_slider_mapping | safe }};
+  document.getElementById("minhashBandRange-currentSelection_dropzone").innerHTML = "&nbsp;"+mapping[val];
+}
+
+
 </script>
 {% endmacro %}
 
 {% macro submit_or_query_dropzone(families=[], select_form_type=False, show_submit_fields=False) %}
+{% set show_query_fields = not show_submit_fields %}
 <center>
 
 {% if select_form_type %}
@@ -175,14 +189,18 @@
         <label class="form-check-label" for="dumped">Dumped</label>
     </div>
      <!-- TODO: only show if file available -->
-     <div class="form-group">
-      <div class="d-inline-flex justify-content-center">
-        <label class="form-check-label" for="minhashBandRange">
-          Minhash Candidate Fuzziness
+    <div class="form-group query-form-exclusive" {% if not show_query_fields %}style="display:none"{% endif %}>
+    <div class="col-sm-12 d-inline-flex justify-content-center">
+      <div class="col-sm-3">
+        <label class="form-check-label" for="minhashBandRange_dropzone">
+          Minhash Matching:
         </label>
-        <input type="range" class="form-range" min="0" max="3" value="2" step="1" id="minhashBandRange" />
       </div>
-  </div>
+      <div class="col-sm-3" id="minhashBandRange-currentSelection_dropzone">&nbsp; {{ minhash_slider_mapping[2] }}</div>
+      <div class="col-sm-6">
+        <input type="range" class="form-range" min="0" max="3" value="2" step="1" id="minhashBandRange_dropzone" name="minhashBandRange" oninput="handleSliderChange_dropzone(this.value)"/>
+      </div>
+    </div>
     <button type="submit" class="btn btn-primary" id="submit-dropzone" disabled>Submit <span id="submit-spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display:none"></span></button>
 </form>
 </center>

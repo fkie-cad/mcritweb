@@ -3,6 +3,9 @@
 {% from 'table/pagination_widget.html' import pagination_widget, pagination_js, set_pagination_params %}
 {% from 'table/tabs.html' import add_tab, finalize_tabs %}
 {% extends 'base.html' %}
+
+{% set minhash_slider_mapping = ["Off", "Fast", "Standard", "Complete"] %} 
+
 {% block title%}
 Compare
 {% endblock %}
@@ -87,19 +90,26 @@ $(document).ready(function(){
 });
 
 function createJob() {
-  var checkedValue = $("#force_rematch").is(":checked");
-  var minhashBandRange = document.getElementById('minhashBandRange').value;
-  window.location.href="/analyze/compare/"+selected_a+"/"+selected_b+"?rematch="+checkedValue+"&minhashBandRange="+minhashBandRange;
+  var params = fetchState();
+  window.location.href="/analyze/compare/"+params.selected_a+"/"+params.selected_b+"?rematch="+params.rematch+"&minhashBandRange="+params.minhashBandRange;
 }
 
 function fetchState() {
+  var minhashBandRange = document.getElementById('minhashBandRange').value;
   var checkedValue = $("#force_rematch").is(":checked");
   return {
     "rematch": checkedValue,
     "selected_a": selected_a,
     "selected_b": selected_b,
+    "minhashBandRange": minhashBandRange
   }
 }
+
+function handleSliderChange(val) {
+  const mapping = {{ minhash_slider_mapping | safe }};
+  document.getElementById("minhashBandRange-currentSelection").innerHTML = "&nbsp;"+mapping[val];
+}
+
 </script>
 
 {{ pagination_js() }}
@@ -140,11 +150,16 @@ function fetchState() {
           &nbsp;Force rematch    
         </label>
     </div>
-    <div class="col-sm-6 d-inline-flex justify-content-center">
-      <label class="form-check-label" for="minhashBandRange">
-        Minhash Candidate Fuzziness
-      </label>
-      <input type="range" class="form-range" min="0" max="3" value="2" step="1" id="minhashBandRange" />
+    <div class="col-sm-8 d-inline-flex justify-content-center">
+      <div class="col-sm-2">
+        <label class="form-check-label" for="minhashBandRange">
+          Minhash Matching:
+        </label>
+      </div>
+      <div class="col-sm-2" id="minhashBandRange-currentSelection">&nbsp;{{ minhash_slider_mapping[request.args.get('minhashBandRange', '2')|int] }}</div>
+      <div class="col-sm-4">
+        <input type="range" class="form-range" min="0" max="3" value="{{ request.args.get('minhashBandRange', '2') }}" step="1" id="minhashBandRange" oninput="handleSliderChange(this.value)"/>
+      </div>
     </div>
 </div>
   <input type='submit' hidden>
