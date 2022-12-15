@@ -45,7 +45,7 @@ def cross_compare():
 
     selected = request.args.get('samples', '').strip(',')
     cached = request.args.get('cache','').strip(',')
-    is_forcing_rematch = True if request.args.get('rematch', 'true').lower() == "true" else False
+    is_forcing_rematch = True if request.args.get('rematch', 'false').lower() == "true" else False
 
     cached_list = [int(x) for x in cached.split(',') if x!='']
     selected_list = [int(x) for x in selected.split(',') if x != '']
@@ -67,7 +67,7 @@ def cross_compare():
             "analyze.cross_compare",
             samples = ",".join([str(id) for id in selected_list]),
             cache = ",".join([str(id) for id in cached_list]),
-            rematch = "true" if is_forcing_rematch else "False",
+            rematch = "true" if is_forcing_rematch else "false",
         ))
 
     query = request.args.get('query', "")
@@ -90,7 +90,7 @@ def cross_compare():
         selected_samples=selected_dict.values(),
         pagination_selected=pagination_selected,
         cached=cached_list,
-        is_forcing_rematch=is_forcing_rematch,
+        rematch=is_forcing_rematch,
         query=query,
     )
 
