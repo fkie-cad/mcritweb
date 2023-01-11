@@ -19,7 +19,7 @@ Results for Job: {{ job_info.job_id }}
 <h3>Input Sample</h3>
 {{ sample_column_table(("Reference Sample", matching_result.reference_sample_entry)) }}
 
-<h3 id="family-matches">Best Family Maches</h3>
+<h3 id="family-matches">Best Family Matches</h3>
 <p>total: {{ famp.max_value }}, showing: {{ 1 + famp.start_index }} - {{ famp.end_index }}</p>
 <table class="table table-hover">
     <thead class="thead-light">
@@ -71,6 +71,16 @@ Results for Job: {{ job_info.job_id }}
 
 <h3 id="function-matches">Function Match Statistics</h3>
 <p>total: {{ funp.max_value }}, showing: {{ 1 + funp.start_index }} - {{ funp.end_index }}</p>
+<form class="form-inline" action ="{{ url_for(request.endpoint, **request.view_args) }}" method='GET'>
+    <div class="form-group row">
+      <label class="col-3">Filter results to</label>
+      <input class="col-3" type="text" name='filter_min_score' id="filter_min_score" aria-describedby="filter_min_score" placeholder="min score (0-100)">
+      <input class="col-3" type="text" name='filter_max_num_families' id="filter_max_num_families" aria-describedby="filter_max_num_families" placeholder="max. families">
+      <input class="col-1" type="checkbox" name='filter_exclude_library' id="filter_exclude_library" aria-describedby="filter_exclude_library">
+      <label class="col-2" for="block_count">exclude library hits</label>
+      <button type="submit" class="btn btn-primary">filter</button>
+    </div>
+</form>
 <table class="table table-hover">
     <thead class="thead-light">
       <tr>

@@ -74,6 +74,17 @@ def _parse_integer_query_param(request, query_param:str):
         pass
     return param
 
+
+def _parse_checkbox_query_param(request, query_param:str):
+    """ Try to find query_param in the request and parse it as int """
+    param = False
+    try:
+        value = request.args.get(query_param)
+        param = True if isinstance(value, str) and value.lower() in ["on", "true"] else False
+    except Exception:
+        pass
+    return param
+
 ################################################################
 # Import + Export
 ################################################################
@@ -132,10 +143,10 @@ def export_view():
 @mcrit_server_required
 @contributor_required
 def specific_export(type, item_id):
-    client = McritClient(mcrit_server= get_server_url())
+    client = McritClient(mcrit_server=get_server_url())
     if type == 'family':
         samples = client.getSamplesByFamilyId(item_id)
-        sample_ids = [x.sample_id for x in samples]
+        sample_ids = [x.sample_id for x in samples.values()]
         export_file = json.dumps(client.getExportData(sample_ids))
         return Response(
             export_file,
@@ -342,11 +353,14 @@ def result_unique_blocks(job_info, blocks_result: dict):
 
 def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult):
     score_color_provider = ScoreColorProvider()
-    # TODO think of additional useful query parameters that can be used to filter/shape the result output
     filtered_sample_id = _parse_integer_query_param(request, "samid")
     filtered_family_id = _parse_integer_query_param(request, "famid")
     filtered_function_id = _parse_integer_query_param(request, "funid")
     other_function_id = _parse_integer_query_param(request, "ofunid")
+    filter_min_score = _parse_integer_query_param(request, "filter_min_score")
+    filter_max_num_families = _parse_integer_query_param(request, "filter_max_num_families")
+    filter_max_num_samples = _parse_integer_query_param(request, "filter_max_num_samples")
+    filter_exclude_library = _parse_checkbox_query_param(request, "filter_exclude_library")
     client = McritClient(mcrit_server=get_server_url())
 
     if filtered_family_id is not None and client.isFamilyId(filtered_family_id):
