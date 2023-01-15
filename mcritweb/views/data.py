@@ -357,12 +357,21 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
     filtered_family_id = _parse_integer_query_param(request, "famid")
     filtered_function_id = _parse_integer_query_param(request, "funid")
     other_function_id = _parse_integer_query_param(request, "ofunid")
+    # generic filtering of function results
     filter_min_score = _parse_integer_query_param(request, "filter_min_score")
     filter_max_num_families = _parse_integer_query_param(request, "filter_max_num_families")
     filter_max_num_samples = _parse_integer_query_param(request, "filter_max_num_samples")
     filter_exclude_library = _parse_checkbox_query_param(request, "filter_exclude_library")
-    client = McritClient(mcrit_server=get_server_url())
+    if filter_max_num_families:
+        matching_result.filterToFamilyCount(filter_max_num_families)
+    if filter_max_num_samples:
+        matching_result.filterToSampleCount(filter_max_num_samples)
+    if filter_min_score:
+        matching_result.filterToScore(filter_min_score)
+    if filter_exclude_library:
+        matching_result.excludeLibraryMatches(filter_exclude_library)
 
+    client = McritClient(mcrit_server=get_server_url())
     if filtered_family_id is not None and client.isFamilyId(filtered_family_id):
         matching_result.filterToFamilyId(filtered_family_id)
         create_match_diagram(current_app, job_info.job_id, matching_result, filtered_family_id=filtered_family_id)
