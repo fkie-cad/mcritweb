@@ -39,6 +39,7 @@ Alternatively, we recommend to use the fully packaged [docker-mcrit](https://git
 First and foremost, this will ensure that you have fully compatible versions across all components.
 
 ## Version History
+ * 2023-01-15 v0.9.11: Allow filtering matching results by score, number of family matches, and exclude library matches.
  * 2022-12-15 v0.9.10: Allow setting Minhash fuzziness for candidate selection.
  * 2022-12-13 v0.9.7: Allow matching of arbitrary functions by their IDs.
  * 2022-11-18 v0.9.5: Modify and Delete functions for samples and families.
