@@ -369,7 +369,7 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
     if filter_min_score:
         matching_result.filterToScore(filter_min_score)
     if filter_exclude_library:
-        matching_result.excludeLibraryMatches(filter_exclude_library)
+        matching_result.excludeLibraryMatches()
 
     client = McritClient(mcrit_server=get_server_url())
     if filtered_family_id is not None and client.isFamilyId(filtered_family_id):
