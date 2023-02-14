@@ -154,7 +154,7 @@ class MatchReportRenderer(object):
         else:
             return 1 + int(math.log(cluster_size, 2))
 
-    def _calculateOutputMap(self, instruction_block_size=10, num_top_cluster=3, filtered_family_id=None, filtered_sample_id=None):
+    def _calculateOutputMap(self, instruction_block_size=10, num_top_cluster=3, filtered_family_id=None, filtered_sample_id=None, filtered_function_id=None):
         output_map = {}
         match_class_map = {
             0: " ",
@@ -203,20 +203,36 @@ class MatchReportRenderer(object):
                     if match.matched_sample_id == filtered_sample_id:
                         best_target_sample_score = max(best_target_sample_score, match.matched_score + (1 if match.match_is_pichash else 0))
                     best_score = max(best_score, match.matched_score + (1 if match.match_is_pichash else 0))
-            output_map[function_id] = {
+            if filtered_function_id is not None and function_id != filtered_function_id:
+                output_map[function_id] = {
                 "is_matchable": is_matchable,
-                "best_score": best_score,
-                "best_non_family_score": best_non_family_score,
-                "best_target_family_score": best_target_family_score,
-                "best_target_sample_score": best_target_sample_score,
-                "function_matches_log_score": function_matches_log_score,
-                "family_matches_log_score": family_matches_log_score,
-                "sample_matches_log_score": sample_matches_log_score,
-                "library_match_class": library_match_class,
+                "best_score": 0,
+                "best_non_family_score": 0,
+                "best_target_family_score": 0,
+                "best_target_sample_score": 0,
+                "function_matches_log_score": 0,
+                "family_matches_log_score": 0,
+                "sample_matches_log_score": 0,
+                "library_match_class": 0,
                 "most_common_cluster": [],
                 "num_instructions": function_info.num_instructions,
                 "num_instruction_blocks": round(function_info.num_instructions / instruction_block_size)
             }
+            else:
+                output_map[function_id] = {
+                    "is_matchable": is_matchable,
+                    "best_score": best_score,
+                    "best_non_family_score": best_non_family_score,
+                    "best_target_family_score": best_target_family_score,
+                    "best_target_sample_score": best_target_sample_score,
+                    "function_matches_log_score": function_matches_log_score,
+                    "family_matches_log_score": family_matches_log_score,
+                    "sample_matches_log_score": sample_matches_log_score,
+                    "library_match_class": library_match_class,
+                    "most_common_cluster": [],
+                    "num_instructions": function_info.num_instructions,
+                    "num_instruction_blocks": round(function_info.num_instructions / instruction_block_size)
+                }
         # print(output_map)
         cluster_index = 0
         for family_id, function_ids in sorted(cluster_by_family_id.items(), key=lambda x: len(x[1]), reverse=True)[:num_top_cluster]:
@@ -310,11 +326,11 @@ class MatchReportRenderer(object):
         self.drawBlock(pixels, x + 1, y + 1, 11, self.frequency_color_map[0])
         # draw.text((diagram_x + num_columns * (block_size + 1) + 10, 5), text, fill=border_color_tuple, font=font, align ="left") 
 
-    def renderStackedDiagram(self, filtered_family_id=None, filtered_sample_id=None):
+    def renderStackedDiagram(self, filtered_family_id=None, filtered_sample_id=None, filtered_function_id=None):
         background_color_tuple = (0xff, 0xff, 0xff)
         border_color_tuple = (0x22, 0x22, 0x22)
         # additional line where top X families or family clusters are highlighted in flavors of the same color?
-        output_map = self._calculateOutputMap(filtered_family_id=filtered_family_id, filtered_sample_id=filtered_sample_id)
+        output_map = self._calculateOutputMap(filtered_family_id=filtered_family_id, filtered_sample_id=filtered_sample_id, filtered_function_id=filtered_function_id)
         top_mapping = self._getTopClusterMapping(output_map)
         num_matchable = sum([1 for fid, item in output_map.items() if item["is_matchable"]])
         num_blocks = sum([item["num_instruction_blocks"] for fid, item in output_map.items() if item["is_matchable"]]) + num_matchable - 1
