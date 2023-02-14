@@ -36,10 +36,11 @@ Results for Job: {{ job_info.job_id }}
         <th style="text-align: right;" scope="col">Lib</th>
         <th style="text-align: center;" colspan="2" scope="col">Direct</th>
         <th style="text-align: center;" colspan="2" scope="col">Frequency</th>
+        <th style="text-align: center;" scope="col">Uniq</th>
       </tr>
     </thead>
     <tbody>
-      {% for matched_sample in matching_result.getBestSampleMatchesPerFamily(famp.start_index, famp.limit) %}
+      {% for matched_sample in matching_result.getBestSampleMatchesPerFamily(famp.start_index, famp.limit, malware_only=True) %}
       <tr style="background-color:#{{ scp.getMatchHexColorFromResult(matched_sample, 'matched_percent_score_weighted') }}">
         
         <td valign="middle">{{ format_family_name(matched_sample.family, matched_sample.family_id) }}&nbsp;<a href="{{ url_for(request.endpoint, famid=matched_sample.family_id, samp=1, funp=1, **request.view_args) }}#sample-matches"><i class="fa-solid fa-filter"></i></a></td>
@@ -58,12 +59,61 @@ Results for Job: {{ job_info.job_id }}
         <td style="text-align: right;" valign="middle"><span class="hint--left" data-hint="Weighted Direct Score (Library Excluded): &#10;Bytes: {{ '%5.2f'|format(matched_sample.matched_bytes_nonlib_score_weighted) }} / {{ matching_result.reference_sample_entry.binweight }} &#10;Percent: {{ '%5.2f'|format(matched_sample.matched_percent_nonlib_score_weighted) }}%">{{ "%3d"|format(matched_sample.matched_percent_nonlib_score_weighted) }} </span></td>
         <td style="text-align: right; background-color:#{{ scp.getMatchHexColorFromResult(matched_sample, 'matched_percent_frequency_weighted') }}" valign="middle"><span class="hint--left" data-hint="Frequency Weighted Score: &#10;Bytes: {{ '%5.2f'|format(matched_sample.matched_bytes_frequency_weighted) }} / {{ matching_result.reference_sample_entry.binweight }} &#10;Percent: {{ '%5.2f'|format(matched_sample.matched_percent_frequency_weighted) }}%">{{ "%3d"|format(matched_sample.matched_percent_frequency_weighted) }}</span></td>
         <td style="text-align: right; background-color:#{{ scp.getMatchHexColorFromResult(matched_sample, 'matched_percent_nonlib_frequency_weighted') }}" valign="middle"><span class="hint--left" data-hint="Frequency Weighted Score (Library Excluded): &#10;Bytes: {{ '%5.2f'|format(matched_sample.matched_bytes_nonlib_frequency_weighted) }} / {{ matching_result.reference_sample_entry.binweight }} &#10;Percent: {{ '%5.2f'|format(matched_sample.matched_percent_nonlib_frequency_weighted) }}%">{{ "%3d"|format(matched_sample.matched_percent_nonlib_frequency_weighted) }}</span></td>
+        <td style="text-align: right; background-color:#{{ scp.getUniqueColorScore(matching_result.getUniqueFamilyMatchInfoForSample(matched_sample.sample_id)['unique_score']) }}" valign="middle"><span class="hint--left" data-hint="Unique Matching Score: &#10;Functions: {{ '%4d'|format(matching_result.getUniqueFamilyMatchInfoForSample(matched_sample.sample_id)['functions_matched']) }} &#10;Bytes: {{ '%2d'|format(matching_result.getUniqueFamilyMatchInfoForSample(matched_sample.sample_id)['bytes_matched']) }} &#10;Percent: {{ '%5.2f'|format(matching_result.getUniqueFamilyMatchInfoForSample(matched_sample.sample_id)['unique_score']) }}%">{{ '%5.2f'|format(matching_result.getUniqueFamilyMatchInfoForSample(matched_sample.sample_id)['unique_score']) }}%</span></td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 
   {{ pagination_widget(famp, _anchor="family-matches")}}
+
+  <h3 id="library-matches">Best Library Matches</h3>
+<p>total: {{ libp.max_value }}, showing: {{ 1 + libp.start_index }} - {{ libp.end_index }}</p>
+<table class="table table-hover">
+    <thead class="thead-light">
+      <tr>
+        <th scope="col"><i class="fa-solid fa-bug " title="Family ID"></th>
+        <th scope="col">Version</th>
+        <th style="text-align: right;" scope="col"><i class="fa-solid fa-virus" title="Sample ID"></th>
+        <th style="text-align: right;" scope="col">SHA256</th>
+        <th scope="col">Filename</th>
+        <th style="text-align: right;" scope="col">Bitness</th>
+        <th style="text-align: right;" scope="col">FNs</th>
+        <th style="text-align: right;" scope="col">Min#</th>
+        <th style="text-align: right;" scope="col">Pic#</th>
+        <th style="text-align: right;" scope="col">Lib</th>
+        <th style="text-align: center;" colspan="2" scope="col">Direct</th>
+        <th style="text-align: center;" colspan="2" scope="col">Frequency</th>
+        <th style="text-align: center;" scope="col">Uniq</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for matched_sample in matching_result.getBestSampleMatchesPerFamily(libp.start_index, libp.limit, library_only=True) %}
+      <tr style="background-color:#{{ scp.getMatchHexColorFromResult(matched_sample, 'matched_percent_score_weighted') }}">
+        
+        <td valign="middle">{{ format_family_name(matched_sample.family, matched_sample.family_id) }}&nbsp;<a href="{{ url_for(request.endpoint, famid=matched_sample.family_id, samp=1, funp=1, **request.view_args) }}#sample-matches"><i class="fa-solid fa-filter"></i></a></td>
+        <td valign="middle">{{ matched_sample.version }}</td>
+        <td style="text-align: right;" valign="middle" scope="row" class="id"><a href="{{ url_for('explore.sample_by_id', sample_id=matched_sample.sample_id) }}">{{ matched_sample.sample_id }}</a>&nbsp;<a href="{{ url_for(request.endpoint, samid=matched_sample.sample_id, funp=funp.page, **request.view_args) }}"><i class="fa-solid fa-filter"></i></a></td>
+        <td style="text-align: right;" valign="middle" class="font-monospace">{{ matched_sample.getShortSha256() }}</td>
+        <td valign="middle">{{ matched_sample.getShortFilename(10) }}</td>
+        <td style="text-align: right;" valign="middle">{{ matched_sample.bitness }}</td>
+        <td style="text-align: right;" valign="middle">{{ matched_sample.num_functions }}</td>
+
+        <td style="text-align: right;" valign="middle">{{ matched_sample.matched_functions_minhash }}</td>
+        <td style="text-align: right;" valign="middle">{{ matched_sample.matched_functions_pichash }}</td>
+        <td style="text-align: right;" valign="middle">{{ matched_sample.matched_functions_library }}</td>
+
+        <td style="text-align: right;" valign="middle"><span class="hint--left" data-hint="Weighted Direct Score: &#10;Bytes: {{ '%5.2f'|format(matched_sample.matched_bytes_score_weighted) }} / {{ matching_result.reference_sample_entry.binweight }} &#10;Percent: {{ '%5.2f'|format(matched_sample.matched_percent_score_weighted) }}%">{{ "%3d"|format(matched_sample.matched_percent_score_weighted) }}</span></td>
+        <td style="text-align: right;" valign="middle"><span class="hint--left" data-hint="Weighted Direct Score (Library Excluded): &#10;Bytes: {{ '%5.2f'|format(matched_sample.matched_bytes_nonlib_score_weighted) }} / {{ matching_result.reference_sample_entry.binweight }} &#10;Percent: {{ '%5.2f'|format(matched_sample.matched_percent_nonlib_score_weighted) }}%">{{ "%3d"|format(matched_sample.matched_percent_nonlib_score_weighted) }} </span></td>
+        <td style="text-align: right; background-color:#{{ scp.getMatchHexColorFromResult(matched_sample, 'matched_percent_frequency_weighted') }}" valign="middle"><span class="hint--left" data-hint="Frequency Weighted Score: &#10;Bytes: {{ '%5.2f'|format(matched_sample.matched_bytes_frequency_weighted) }} / {{ matching_result.reference_sample_entry.binweight }} &#10;Percent: {{ '%5.2f'|format(matched_sample.matched_percent_frequency_weighted) }}%">{{ "%3d"|format(matched_sample.matched_percent_frequency_weighted) }}</span></td>
+        <td style="text-align: right; background-color:#{{ scp.getMatchHexColorFromResult(matched_sample, 'matched_percent_nonlib_frequency_weighted') }}" valign="middle"><span class="hint--left" data-hint="Frequency Weighted Score (Library Excluded): &#10;Bytes: {{ '%5.2f'|format(matched_sample.matched_bytes_nonlib_frequency_weighted) }} / {{ matching_result.reference_sample_entry.binweight }} &#10;Percent: {{ '%5.2f'|format(matched_sample.matched_percent_nonlib_frequency_weighted) }}%">{{ "%3d"|format(matched_sample.matched_percent_nonlib_frequency_weighted) }}</span></td>
+        <td style="text-align: right; background-color:#{{ scp.getUniqueColorScore(matching_result.getUniqueFamilyMatchInfoForSample(matched_sample.sample_id)['unique_score']) }}" valign="middle"><span class="hint--left" data-hint="Unique Matching Score: &#10;Functions: {{ '%4d'|format(matching_result.getUniqueFamilyMatchInfoForSample(matched_sample.sample_id)['functions_matched']) }} &#10;Bytes: {{ '%2d'|format(matching_result.getUniqueFamilyMatchInfoForSample(matched_sample.sample_id)['bytes_matched']) }} &#10;Percent: {{ '%5.2f'|format(matching_result.getUniqueFamilyMatchInfoForSample(matched_sample.sample_id)['unique_score']) }}%">{{ '%5.2f'|format(matching_result.getUniqueFamilyMatchInfoForSample(matched_sample.sample_id)['unique_score']) }}%</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {{ pagination_widget(libp, _anchor="library-matches")}}
 
 <h3>MCRIT Diagram</h3>
 <p>Showing: foreign family match frequency, library matches, best foreign family match scores.</p>
@@ -75,9 +125,12 @@ Results for Job: {{ job_info.job_id }}
     <div class="form-group row">
       <label class="col-3">Filter results to</label>
       <input class="col-3" type="text" name='filter_min_score' id="filter_min_score" aria-describedby="filter_min_score" placeholder="min score (0-100)">
+      <input class="col-3" type="text" name='filter_mix_score' id="filter_max_score" aria-describedby="filter_max_score" placeholder="max score (0-100)">
       <input class="col-3" type="text" name='filter_max_num_families' id="filter_max_num_families" aria-describedby="filter_max_num_families" placeholder="max. families">
       <input class="col-1" type="checkbox" name='filter_exclude_library' id="filter_exclude_library" aria-describedby="filter_exclude_library">
       <label class="col-2" for="block_count">exclude library hits</label>
+      <input class="col-1" type="checkbox" name='filter_exclude_pic' id="filter_exclude_pic" aria-describedby="filter_exclude_pic">
+      <label class="col-2" for="block_count">exclude PIC hits</label>
       <button type="submit" class="btn btn-primary">filter</button>
     </div>
 </form>
@@ -102,7 +155,13 @@ Results for Job: {{ job_info.job_id }}
         <td valign="middle" scope="row" class="id"><a href="{{ url_for('explore.function_by_id', function_id=aggregate['function_id']) }}">{{ aggregate["function_id"] }}</a>&nbsp;<a href="{{ url_for(request.endpoint, funid=aggregate['function_id'], samp=1, funp=1, **request.view_args) }}#function-matches"><i class="fa-solid fa-filter"></i></a></td>
         <td style="text-align: right;" valign="middle">0x{{ "%x"|format(aggregate["offset"]) }}</td>
         <td style="text-align: right;" valign="middle">{{ "%d"|format(aggregate["num_bytes"]) }}</td>
-        <td style="text-align: right;" valign="middle">{{ aggregate["num_families_matched"] }}</td>
+        <td style="text-align: right;" valign="middle">
+        {% if aggregate["num_families_matched"] in [1, 2, 3, 4, 5] %}
+          <span class="hint--right" data-hint="{{ join_hint_strings(aggregate['families_matched']) }}">{{ aggregate["num_families_matched"] }}&nbsp;<i class="fa-solid fa-bug " title="Family ID"></i></span>
+        {% else %}
+        {{ aggregate["num_families_matched"] }}
+        {% endif %}
+        </td>
         <td style="text-align: right;" valign="middle">{{ aggregate["num_samples_matched"] }}</td>
         <td style="text-align: right;" valign="middle">{{ aggregate["num_functions_matched"] }}</td>
         <td style="text-align: right;" valign="middle">{{ "%d"|format(aggregate["best_score"]) }}</td>

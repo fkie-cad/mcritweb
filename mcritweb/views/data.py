@@ -43,18 +43,20 @@ def cache_result(app, job_info, matching_result):
             json.dump(matching_result, fout, indent=1)
 
 
-def create_match_diagram(app, job_id, matching_result, filtered_family_id=None, filtered_sample_id=None):
+def create_match_diagram(app, job_id, matching_result, filtered_family_id=None, filtered_sample_id=None, filtered_function_id=None):
     cache_path = os.sep.join([app.instance_path, "cache", "diagrams"])
-    family_sample_suffix = ""
+    filter_suffix = ""
     if filtered_family_id is not None:
-        family_sample_suffix = f"-famid_{filtered_family_id}"
+        filter_suffix = f"-famid_{filtered_family_id}"
     elif filtered_sample_id is not None:
-        family_sample_suffix = f"-samid_{filtered_sample_id}"
-    output_path = cache_path + os.sep + job_id + family_sample_suffix + ".png"
+        filter_suffix = f"-samid_{filtered_sample_id}"
+    elif filtered_function_id is not None:
+        filter_suffix = f"-funid_{filtered_function_id}"
+    output_path = cache_path + os.sep + job_id + filter_suffix + ".png"
     if not os.path.isfile(output_path):
         renderer = MatchReportRenderer()
         renderer.processReport(matching_result)
-        image = renderer.renderStackedDiagram(filtered_family_id=filtered_family_id, filtered_sample_id=filtered_sample_id)
+        image = renderer.renderStackedDiagram(filtered_family_id=filtered_family_id, filtered_sample_id=filtered_sample_id, filtered_function_id=filtered_function_id)
         image.save(output_path)
 
 # https://stackoverflow.com/a/39842765
@@ -350,7 +352,6 @@ def result_unique_blocks(job_info, blocks_result: dict):
     # TODO pass the new result objects as single arguments and then render them in page tabs on the template
     return render_template("result_unique_blocks.html", job_info=job_info, family_entry=family_entry, sample_id=sample_id, yara_rule=yara_rule, statistics=blocks_statistics, results=paginated_blocks, blkp=block_pagination, active_tab=active_tab)
 
-
 def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult):
     score_color_provider = ScoreColorProvider()
     filtered_sample_id = _parse_integer_query_param(request, "samid")
@@ -359,15 +360,22 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
     other_function_id = _parse_integer_query_param(request, "ofunid")
     # generic filtering of function results
     filter_min_score = _parse_integer_query_param(request, "filter_min_score")
+    filter_max_score = _parse_integer_query_param(request, "filter_max_score")
     filter_max_num_families = _parse_integer_query_param(request, "filter_max_num_families")
     filter_max_num_samples = _parse_integer_query_param(request, "filter_max_num_samples")
     filter_exclude_library = _parse_checkbox_query_param(request, "filter_exclude_library")
+    filter_exclude_pic = _parse_checkbox_query_param(request, "filter_exclude_pic")
+    matching_result.getUniqueFamilyMatchInfoForSample(None)
     if filter_max_num_families:
         matching_result.filterToFamilyCount(filter_max_num_families)
     if filter_max_num_samples:
         matching_result.filterToSampleCount(filter_max_num_samples)
     if filter_min_score:
-        matching_result.filterToScore(filter_min_score)
+        matching_result.filterToScore(min_score=filter_min_score)
+    if filter_max_score:
+        matching_result.filterToScore(max_score=filter_max_score)
+    if filter_exclude_pic:
+        matching_result.excludePicMatches()
     if filter_exclude_library:
         matching_result.excludeLibraryMatches()
 
@@ -390,7 +398,7 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         return render_template("result_compare_sample.html", samid=filtered_sample_id, job_info=job_info, samp=sample_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
     # treat family/sample part as if there was no filter
     elif filtered_function_id is not None and client.isFunctionId(filtered_function_id):
-        create_match_diagram(current_app, job_info.job_id, matching_result)
+        create_match_diagram(current_app, job_info.job_id, matching_result, filtered_function_id=filtered_function_id)
         num_families_matched = len(set([sample.family for sample in matching_result.sample_matches]))
         matching_result.filterToFunctionId(filtered_function_id)
         num_functions_matched = len(set([function_match.matched_function_id for function_match in matching_result.function_matches]))
@@ -404,10 +412,12 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         return render_template("result_compare_vs.html", job_info=job_info, matching_result=matching_result, funp=function_pagination, scp=score_color_provider)
     else:
         create_match_diagram(current_app, job_info.job_id, matching_result)
-        num_families_matched = len(set([sample.family for sample in matching_result.sample_matches]))
+        num_families_matched = len(set([sample.family for sample in matching_result.sample_matches if not sample.is_library]))
+        num_libraries_matched = len(set([sample.family for sample in matching_result.sample_matches if sample.is_library]))
         family_pagination = Pagination(request, num_families_matched, limit=10, query_param="famp")
+        library_pagination = Pagination(request, num_libraries_matched, limit=10, query_param="libp")
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), query_param="funp")
-        return render_template("result_compare_all.html", job_info=job_info, famp=family_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
+        return render_template("result_compare_all.html", job_info=job_info, famp=family_pagination, libp=library_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
 
 
 def result_matches_for_cross(job_info, result_json):

@@ -81,6 +81,11 @@ def create_app(test_config=None):
     @app.template_filter('date_time')
     def date_time(input):
         return input[:10] + ' ' + input[11:19]
+    
+
+    @app.template_global()
+    def join_hint_strings(list_of_strings):
+        return "\n".join(sorted(list_of_strings))
 
     @app.route('/', methods=('GET', 'POST'))
     def index():

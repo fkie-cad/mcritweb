@@ -40,6 +40,7 @@ Results for Job: {{ job_info.job_id }}
         <th style="text-align: right;" scope="col">Lib</th>
         <th style="text-align: center;" colspan="2" scope="col">Direct</th>
         <th style="text-align: center;" colspan="2" scope="col">Frequency</th>
+        <th style="text-align: center;" scope="col">Uniq</th>
       </tr>
     </thead>
     <tbody>
@@ -61,6 +62,7 @@ Results for Job: {{ job_info.job_id }}
         <td style="text-align: right;" valign="middle"><span class="hint--left" data-hint="Weighted Direct Score (Library Excluded): &#10;Bytes: {{ '%5.2f'|format(matched_sample.matched_bytes_nonlib_score_weighted) }} / {{ matching_result.reference_sample_entry.binweight }} &#10;Percent: {{ '%5.2f'|format(matched_sample.matched_percent_nonlib_score_weighted) }}%">{{ "%3d"|format(matched_sample.matched_percent_nonlib_score_weighted) }} </span></td>
         <td style="text-align: right; background-color:#{{ scp.getMatchHexColorFromResult(matched_sample, 'matched_percent_frequency_weighted') }}" valign="middle"><span class="hint--left" data-hint="Frequency Weighted Score: &#10;Bytes: {{ '%5.2f'|format(matched_sample.matched_bytes_frequency_weighted) }} / {{ matching_result.reference_sample_entry.binweight }} &#10;Percent: {{ '%5.2f'|format(matched_sample.matched_percent_frequency_weighted) }}%">{{ "%3d"|format(matched_sample.matched_percent_frequency_weighted) }}</span></td>
         <td style="text-align: right; background-color:#{{ scp.getMatchHexColorFromResult(matched_sample, 'matched_percent_nonlib_frequency_weighted') }}" valign="middle"><span class="hint--left" data-hint="Frequency Weighted Score (Library Excluded): &#10;Bytes: {{ '%5.2f'|format(matched_sample.matched_bytes_nonlib_frequency_weighted) }} / {{ matching_result.reference_sample_entry.binweight }} &#10;Percent: {{ '%5.2f'|format(matched_sample.matched_percent_nonlib_frequency_weighted) }}%">{{ "%3d"|format(matched_sample.matched_percent_nonlib_frequency_weighted) }}</span></td>
+        <td style="text-align: right; background-color:#{{ scp.getUniqueColorScore(matching_result.getUniqueFamilyMatchInfoForSample(matched_sample.sample_id)['unique_score']) }}" valign="middle"><span class="hint--left" data-hint="Unique Matching Score: &#10;Functions: {{ '%4d'|format(matching_result.getUniqueFamilyMatchInfoForSample(matched_sample.sample_id)['functions_matched']) }} &#10;Bytes: {{ '%2d'|format(matching_result.getUniqueFamilyMatchInfoForSample(matched_sample.sample_id)['bytes_matched']) }} &#10;Percent: {{ '%5.2f'|format(matching_result.getUniqueFamilyMatchInfoForSample(matched_sample.sample_id)['unique_score']) }}%">{{ '%5.2f'|format(matching_result.getUniqueFamilyMatchInfoForSample(matched_sample.sample_id)['unique_score']) }}%</span></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -77,12 +79,13 @@ Results for Job: {{ job_info.job_id }}
 <p>total: {{ funp.max_value }}, showing: {{ 1 + funp.start_index }} - {{ funp.end_index }}</p>
 <form class="form-inline" action ="{{ url_for(request.endpoint, **request.view_args) }}" method='GET'>
   <div class="form-group row">
-    <label class="col-3">Filter results to</label>
+    <label class="col-6">Filter results to</label>
+    <input type="hidden" id="samid" name="samid" value="{{ samid }}">
+    <input type="hidden" id="funp" name="funp" value="{{ funp.page }}">
     <input class="col-3" type="text" name='filter_min_score' id="filter_min_score" aria-describedby="filter_min_score" placeholder="min score (0-100)">
-    <input class="col-3" type="text" name='filter_max_num_samples' id="filter_max_num_samples" aria-describedby="filter_max_num_samples" placeholder="max. samples">
-    <input class="col-1" type="checkbox" name='filter_exclude_library' id="filter_exclude_library" aria-describedby="filter_exclude_library">
-    <label class="col-2" for="block_count">exclude library hits</label>
-    <input type="hidden" name="samid" value={{samid}}>
+    <input class="col-3" type="text" name='filter_mix_score' id="filter_max_score" aria-describedby="filter_max_score" placeholder="max score (0-100)">
+    <input class="col-1" type="checkbox" name='filter_exclude_pic' id="filter_exclude_pic" aria-describedby="filter_exclude_pic">
+    <label class="col-2" for="block_count">exclude PIC hits</label>
     <button type="submit" class="btn btn-primary">filter</button>
   </div>
 </form>
