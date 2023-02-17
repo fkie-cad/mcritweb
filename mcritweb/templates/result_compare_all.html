@@ -124,13 +124,13 @@ Results for Job: {{ job_info.job_id }}
 <form class="form-inline" action ="{{ url_for(request.endpoint, **request.view_args) }}" method='GET'>
     <div class="form-group row">
       <label class="col-3">Filter results to</label>
-      <input class="col-3" type="text" name='filter_min_score' id="filter_min_score" aria-describedby="filter_min_score" placeholder="min score (0-100)">
-      <input class="col-3" type="text" name='filter_mix_score' id="filter_max_score" aria-describedby="filter_max_score" placeholder="max score (0-100)">
-      <input class="col-3" type="text" name='filter_max_num_families' id="filter_max_num_families" aria-describedby="filter_max_num_families" placeholder="max. families">
-      <input class="col-1" type="checkbox" name='filter_exclude_library' id="filter_exclude_library" aria-describedby="filter_exclude_library">
-      <label class="col-2" for="block_count">exclude library hits</label>
-      <input class="col-1" type="checkbox" name='filter_exclude_pic' id="filter_exclude_pic" aria-describedby="filter_exclude_pic">
-      <label class="col-2" for="block_count">exclude PIC hits</label>
+      <input class="col-3" type="text" name='filter_min_score' id="filter_min_score" aria-describedby="filter_min_score" placeholder="min score (0-100)" {% if matching_result.getFilterValue("filter_min_score") is not none %}value={{matching_result.getFilterValue("filter_min_score")}}{% endif %}>
+      <input class="col-3" type="text" name='filter_max_score' id="filter_max_score" aria-describedby="filter_max_score" placeholder="max score (0-100)" {% if matching_result.getFilterValue("filter_max_score") is not none %}value={{matching_result.getFilterValue("filter_max_score")}}{% endif %}>
+      <input class="col-3" type="text" name='filter_max_num_families' id="filter_max_num_families" aria-describedby="filter_max_num_families" placeholder="max. families" {% if matching_result.getFilterValue("filter_max_num_families") is not none %}value={{matching_result.getFilterValue("filter_max_num_families")}}{% endif %}>
+      <input class="col-1" type="checkbox" name='filter_exclude_library' id="filter_exclude_library" aria-describedby="filter_exclude_library" {% if matching_result.getFilterValue("filter_exclude_library") %}checked{% endif %}>
+      <label class="col-3" for="block_count">exclude functions with library hits</label>
+      <input class="col-1" type="checkbox" name='filter_exclude_pic' id="filter_exclude_pic" aria-describedby="filter_exclude_pic" {% if matching_result.getFilterValue("filter_exclude_pic") %}checked{% endif %}>
+      <label class="col-3" for="block_count">exclude PIC hits</label>
       <button type="submit" class="btn btn-primary">filter</button>
     </div>
 </form>

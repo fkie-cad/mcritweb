@@ -365,7 +365,18 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
     filter_max_num_samples = _parse_integer_query_param(request, "filter_max_num_samples")
     filter_exclude_library = _parse_checkbox_query_param(request, "filter_exclude_library")
     filter_exclude_pic = _parse_checkbox_query_param(request, "filter_exclude_pic")
+    filter_values = {
+        "filter_min_score": filter_min_score,
+        "filter_max_score": filter_max_score,
+        "filter_max_num_families": filter_max_num_families,
+        "filter_max_num_samples": filter_max_num_samples,
+        "filter_exclude_library": filter_exclude_library,
+        "filter_exclude_pic": filter_exclude_pic,
+    }
+    matching_result.setFilterValues(filter_values)
     matching_result.getUniqueFamilyMatchInfoForSample(None)
+    if filter_exclude_library:
+        matching_result.excludeLibraryMatches()
     if filter_max_num_families:
         matching_result.filterToFamilyCount(filter_max_num_families)
     if filter_max_num_samples:
@@ -376,8 +387,6 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         matching_result.filterToScore(max_score=filter_max_score)
     if filter_exclude_pic:
         matching_result.excludePicMatches()
-    if filter_exclude_library:
-        matching_result.excludeLibraryMatches()
 
     client = McritClient(mcrit_server=get_server_url())
     if filtered_family_id is not None and client.isFamilyId(filtered_family_id):
