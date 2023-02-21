@@ -71,9 +71,9 @@ Results for Job: {{ job_info.job_id }}
 <p>Showing: foreign family match frequency, library matches, best foreign family match scores.</p>
 <img src="{{ url_for('data.diagram_file', filename=job_info.job_id + '-famid_%d' % famid + '.png') }}" class="img-fluid" />
 
-<h3 id="function-matches">Function Match Statistics</h3>
-<p>total: {{ funp.max_value }}, showing: {{ 1 + funp.start_index }} - {{ funp.end_index }}</p>
-<form class="form-inline" action ="{{ url_for(request.endpoint, **request.view_args) }}" method='GET'>
+<h3 id="function-matches">Function Matches in Family: {{ matching_result.getFamilyNameByFamilyId(famid) }} ({{ famid }})</h3>
+<p>selection: {{ funp.max_value }}, showing: {{ 1 + funp.start_index }} - {{ funp.end_index }} (filtered: {{ matching_result.num_original_function_matches - funp.max_value}})</p>
+<form class="form-inline" action ="{{ url_for(request.endpoint, **request.view_args) }}#function-matches" method='GET'>
   <div class="form-group row">
     <input type="hidden" id="famid" name="famid" value="{{ famid }}">
     <input type="hidden" id="samp" name="samp" value="{{ samp.page }}">
@@ -107,7 +107,7 @@ Results for Job: {{ job_info.job_id }}
     <tbody>
       {% for aggregate in matching_result.getAggregatedFunctionMatches(funp.start_index, funp.limit) %}
       <tr style="background-color:#{{ scp.getMatchHexColorByScore50(aggregate['best_score'] + aggregate['pichash_matches'], 0.4) }}">
-        <td valign="middle" scope="row" class="id"><a href="{{ url_for('explore.function_by_id', function_id=aggregate['function_id']) }}">{{ aggregate["function_id"] }}</a>&nbsp;<a href="{{ url_for(request.endpoint, funid=aggregate['function_id'], samp=1, funp=1, **request.view_args) }}#function-matches"><i class="fa-solid fa-filter"></i></a></td>
+        <td valign="middle" scope="row" class="id"><a href="{{ url_for('explore.function_by_id', function_id=aggregate['function_id'] * -1 if matching_result.is_query else aggregate['function_id']) }}">{% if matching_result.is_query %}*{% endif %}{{ aggregate["function_id"] }}</a>&nbsp;<a href="{{ url_for(request.endpoint, funid=aggregate['function_id'], samp=1, funp=1, **request.view_args) }}#function-matches"><i class="fa-solid fa-filter"></i></a></td>
         <td style="text-align: right;" valign="middle">0x{{ "%x"|format(aggregate["offset"]) }}</td>
         <td style="text-align: right;" valign="middle">{{ "%d"|format(aggregate["num_bytes"]) }}</td>
         <td style="text-align: right;" valign="middle">{{ aggregate["num_families_matched"] }}</td>
@@ -116,7 +116,8 @@ Results for Job: {{ job_info.job_id }}
         <td style="text-align: right;" valign="middle">{{ "%d"|format(aggregate["best_score"]) }}</td>
         <td style="text-align: right;" valign="middle">{{ aggregate["minhash_matches"] }}</td>
         <td style="text-align: right;" valign="middle">{{ aggregate["pichash_matches"] }}</td>
-        <td style="text-align: right;" valign="middle">{{ aggregate["library_matches"] }}</td>
+        <td style="text-align: right;" valign="middle"><i {% if matching_result.hasLibraryMatch(aggregate['function_id']) %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
+        
      </tr>
       {% endfor %}
     </tbody>

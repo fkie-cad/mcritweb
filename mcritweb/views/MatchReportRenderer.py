@@ -204,7 +204,7 @@ class MatchReportRenderer(object):
                         best_target_sample_score = max(best_target_sample_score, match.matched_score + (1 if match.match_is_pichash else 0))
                     best_score = max(best_score, match.matched_score + (1 if match.match_is_pichash else 0))
             if filtered_function_id is not None and function_id != filtered_function_id:
-                output_map[function_id] = {
+                output_map[abs(function_id)] = {
                 "is_matchable": is_matchable,
                 "best_score": 0,
                 "best_non_family_score": 0,
@@ -219,7 +219,7 @@ class MatchReportRenderer(object):
                 "num_instruction_blocks": round(function_info.num_instructions / instruction_block_size)
             }
             else:
-                output_map[function_id] = {
+                output_map[abs(function_id)] = {
                     "is_matchable": is_matchable,
                     "best_score": best_score,
                     "best_non_family_score": best_non_family_score,
@@ -238,7 +238,7 @@ class MatchReportRenderer(object):
         for family_id, function_ids in sorted(cluster_by_family_id.items(), key=lambda x: len(x[1]), reverse=True)[:num_top_cluster]:
             # print(family_id, len(function_ids))
             for function_id in function_ids:
-                output_map[function_id]["most_common_cluster"].append(cluster_index)
+                output_map[abs(function_id)]["most_common_cluster"].append(cluster_index)
             cluster_index += 1
         return output_map
 

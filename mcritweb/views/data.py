@@ -179,8 +179,6 @@ def match_functions(function_id_a, function_id_b):
     if client.isFunctionId(function_id_a) and client.isFunctionId(function_id_b):
         match_info = client.getMatchFunctionVs(function_id_a, function_id_b)
         function_entry = FunctionEntry.fromDict(match_info["function_entry_a"])
-        print(function_entry)
-        print(function_entry.pichash)
         pichash_matches_a = client.getMatchesForPicHash(function_entry.pichash, summary=True)
         sample_entry_a = SampleEntry.fromDict(match_info["sample_entry_a"])
         other_function_entry = FunctionEntry.fromDict(match_info["function_entry_b"])
