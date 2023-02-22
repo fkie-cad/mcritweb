@@ -142,7 +142,7 @@ class ScoreColorProvider(object):
                 return self.getMatchHexColorByScore100(score, opacity=opacity)
             
     def getUniqueColorScore(self, score, opacity=0.4):
-        if score > 0:
+        if score is not None and score > 0:
             return self.getMatchHexColorByScore100(60, opacity=opacity)
         return "FFFFFF"
 
