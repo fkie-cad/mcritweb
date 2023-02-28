@@ -147,6 +147,7 @@ Results for Job: {{ job_info.job_id }}
         <th style="text-align: right;" scope="col">Min</th>
         <th style="text-align: right;" scope="col">Pic</th>
         <th style="text-align: right;" scope="col">Lib</th>
+        <th style="text-align: right;" scope="col">Uniq</th>
       </tr>
     </thead>
     <tbody>
@@ -168,6 +169,7 @@ Results for Job: {{ job_info.job_id }}
         <td style="text-align: right;" valign="middle">{{ aggregate["minhash_matches"] }}</td>
         <td style="text-align: right;" valign="middle">{{ aggregate["pichash_matches"] }}</td>
         <td style="text-align: right;" valign="middle">{{ aggregate["library_matches"] }}</td>
+        <td style="text-align: right;" valign="middle"><i {% if aggregate["is_family_unique"] %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
      </tr>
       {% endfor %}
     </tbody>

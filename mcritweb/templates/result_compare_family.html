@@ -101,7 +101,8 @@ Results for Job: {{ job_info.job_id }}
         <th style="text-align: right;" scope="col">Best Score</th>
         <th style="text-align: right;" scope="col">Min</th>
         <th style="text-align: right;" scope="col">Pic</th>
-        <th style="text-align: right;" scope="col">Lib</th>
+        <th style="text-align: center;" scope="col">Lib</th>
+        <th style="text-align: center;" scope="col">Uniq</th>
       </tr>
     </thead>
     <tbody>
@@ -116,8 +117,8 @@ Results for Job: {{ job_info.job_id }}
         <td style="text-align: right;" valign="middle">{{ "%d"|format(aggregate["best_score"]) }}</td>
         <td style="text-align: right;" valign="middle">{{ aggregate["minhash_matches"] }}</td>
         <td style="text-align: right;" valign="middle">{{ aggregate["pichash_matches"] }}</td>
-        <td style="text-align: right;" valign="middle"><i {% if matching_result.hasLibraryMatch(aggregate['function_id']) %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
-        
+        <td style="text-align: center;" valign="middle"><i {% if matching_result.hasLibraryMatch(aggregate['function_id']) %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
+        <td style="text-align: center;" valign="middle"><i {% if matching_result.getFamilyIdsMatchedByFunctionId(aggregate['function_id'])|length == 1 %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
      </tr>
       {% endfor %}
     </tbody>
