@@ -23,7 +23,7 @@ Results for Job: {{ job_info.job_id }}
     ("Other Sample", matching_result.other_sample_entry),
   ) }}
 
-<h3 id="sample-matches">All Matches in Family: {{ matching_result.getFamilyNameByFamilyId(famid) }}</h3>
+<h3 id="sample-matches">Sample Match Statistics</h3>
 <p>total: {{ samp.max_value }}, showing: {{ 1 + samp.start_index }} - {{ samp.end_index }}</p>
 <table class="table table-hover">
     <thead class="thead-light">
@@ -82,8 +82,8 @@ Results for Job: {{ job_info.job_id }}
     <input type="hidden" id="samid" name="samid" value="{{ samid }}">
     <input type="hidden" id="funp" name="funp" value="{{ funp.page }}">
     <label class="col-6">Filter results to</label>
-    <input class="col-3" type="text" name='filter_min_score' id="filter_min_score" aria-describedby="filter_min_score" placeholder="min score (0-100)" {% if matching_result.getFilterValue("filter_min_score") is not none %}value={{matching_result.getFilterValue("filter_min_score")}}{% endif %}>
-    <input class="col-3" type="text" name='filter_max_score' id="filter_max_score" aria-describedby="filter_max_score" placeholder="max score (0-100)" {% if matching_result.getFilterValue("filter_max_score") is not none %}value={{matching_result.getFilterValue("filter_max_score")}}{% endif %}>
+    <input class="col-3" type="text" name='filter_function_min_score' id="filter_function_min_score" aria-describedby="filter_function_min_score" placeholder="min score (0-100)" {% if matching_result.getFilterValue("filter_function_min_score") is not none %}value={{matching_result.getFilterValue("filter_function_min_score")}}{% endif %}>
+    <input class="col-3" type="text" name='filter_function_max_score' id="filter_function_max_score" aria-describedby="filter_function_max_score" placeholder="max score (0-100)" {% if matching_result.getFilterValue("filter_function_max_score") is not none %}value={{matching_result.getFilterValue("filter_function_max_score")}}{% endif %}>
     <input class="col-1" type="checkbox" name='filter_exclude_library' id="filter_exclude_library" aria-describedby="filter_exclude_library" {% if matching_result.getFilterValue("filter_exclude_library") %}checked{% endif %}>
     <label class="col-3" for="block_count">exclude functions with library hits</label>
     <input class="col-1" type="checkbox" name='filter_exclude_pic' id="filter_exclude_pic" aria-describedby="filter_exclude_pic" {% if matching_result.getFilterValue("filter_exclude_pic") %}checked{% endif %}>
@@ -104,6 +104,7 @@ Results for Job: {{ job_info.job_id }}
         <th style="text-align: center;" scope="col">Min</th>
         <th style="text-align: center;" scope="col">Pic</th>
         <th style="text-align: center;" scope="col">Lib</th>
+        <th style="text-align: center;" scope="col">Uniq</th>
       </tr>
     </thead>
     <tbody>
@@ -119,6 +120,7 @@ Results for Job: {{ job_info.job_id }}
         <td style="text-align: center;" valign="middle"><i {% if matched_function.match_is_minhash %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
         <td style="text-align: center;" valign="middle"><i {% if matched_function.match_is_pichash %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
         <td style="text-align: center;" valign="middle"><i {% if matching_result.hasLibraryMatch(matched_function.function_id) %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
+        <td style="text-align: center;" valign="middle"><i {% if matching_result.getFamilyIdsMatchedByFunctionId(matched_function.function_id)|length == 1 %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
      </tr>
       {% endfor %}
     </tbody>

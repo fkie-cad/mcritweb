@@ -20,7 +20,20 @@ Results for Job: {{ job_info.job_id }}
 {{ sample_column_table(("Reference Sample", matching_result.reference_sample_entry)) }}
 
 <h3 id="family-matches">Best Family Matches</h3>
-<p>total: {{ famp.max_value }}, showing: {{ 1 + famp.start_index }} - {{ famp.end_index }}</p>
+<p>total: {{ famp.max_value }}{% if famp.max_value > 0 %}, showing: {{ 1 + famp.start_index }} - {{ famp.end_index }}{% endif %} (filtered: {{ matching_result.num_original_family_matches - famp.max_value}})</p>
+<form class="form-inline" action ="{{ url_for(request.endpoint, **request.view_args) }}#family-matches" method='GET'>
+  <div class="form-group row">
+    <label class="col-6">Filter results to (nonlib) direct score</label>
+    <input class="col-6" type="text" name='filter_direct_min_score' id="filter_direct_min_score" aria-describedby="filter_direct_min_score" placeholder="min score (0-100)" {% if matching_result.getFilterValue("filter_direct_min_score") is not none %}value={{matching_result.getFilterValue("filter_direct_min_score")}}{% endif %}>
+    <label class="col-6">Filter results to (nonlib) frequency score</label>
+    <input class="col-6" type="text" name='filter_frequency_min_score' id="filter_frequency_min_score" aria-describedby="filter_frequency_min_score" placeholder="min score (0-100)" {% if matching_result.getFilterValue("filter_frequency_min_score") is not none %}value={{matching_result.getFilterValue("filter_frequency_min_score")}}{% endif %}>
+    <input class="col-1" type="checkbox" name='filter_unique_only' id="filter_unique_only" aria-describedby="filter_unique_only" {% if matching_result.getFilterValue("filter_unique_only") %}checked{% endif %}>
+    <label class="col-5" for="block_count">only show families with unique matches</label>
+    <input class="col-1" type="checkbox" name='filter_exclude_own_family' id="filter_exclude_own_family" aria-describedby="filter_exclude_own_family" {% if matching_result.getFilterValue("filter_exclude_own_family") %}checked{% endif %}>
+    <label class="col-5" for="block_count">exclude own family</label>
+    <button type="submit" class="btn btn-primary">filter</button>
+  </div>
+</form>
 <table class="table table-hover">
     <thead class="thead-light">
       <tr>
@@ -68,7 +81,7 @@ Results for Job: {{ job_info.job_id }}
   {{ pagination_widget(famp, _anchor="family-matches")}}
 
   <h3 id="library-matches">Best Library Matches</h3>
-<p>total: {{ libp.max_value }}, showing: {{ 1 + libp.start_index }} - {{ libp.end_index }}</p>
+<p>total: {{ libp.max_value }}{% if libp.max_value > 0 %}, showing: {{ 1 + libp.start_index }} - {{ libp.end_index }}{% endif %} (filtered: {{ matching_result.num_original_library_matches - libp.max_value}})</p>
 <table class="table table-hover">
     <thead class="thead-light">
       <tr>
@@ -124,8 +137,8 @@ Results for Job: {{ job_info.job_id }}
 <form class="form-inline" action ="{{ url_for(request.endpoint, **request.view_args) }}#function-matches" method='GET'>
     <div class="form-group row">
       <label class="col-3">Filter results to</label>
-      <input class="col-3" type="text" name='filter_min_score' id="filter_min_score" aria-describedby="filter_min_score" placeholder="min score (0-100)" {% if matching_result.getFilterValue("filter_min_score") is not none %}value={{matching_result.getFilterValue("filter_min_score")}}{% endif %}>
-      <input class="col-3" type="text" name='filter_max_score' id="filter_max_score" aria-describedby="filter_max_score" placeholder="max score (0-100)" {% if matching_result.getFilterValue("filter_max_score") is not none %}value={{matching_result.getFilterValue("filter_max_score")}}{% endif %}>
+      <input class="col-3" type="text" name='filter_function_min_score' id="filter_function_min_score" aria-describedby="filter_function_min_score" placeholder="min score (0-100)" {% if matching_result.getFilterValue("filter_function_min_score") is not none %}value={{matching_result.getFilterValue("filter_function_min_score")}}{% endif %}>
+      <input class="col-3" type="text" name='filter_function_max_score' id="filter_function_max_score" aria-describedby="filter_function_max_score" placeholder="max score (0-100)" {% if matching_result.getFilterValue("filter_function_max_score") is not none %}value={{matching_result.getFilterValue("filter_function_max_score")}}{% endif %}>
       <input class="col-3" type="text" name='filter_max_num_families' id="filter_max_num_families" aria-describedby="filter_max_num_families" placeholder="max. families" {% if matching_result.getFilterValue("filter_max_num_families") is not none %}value={{matching_result.getFilterValue("filter_max_num_families")}}{% endif %}>
       <input class="col-1" type="checkbox" name='filter_exclude_library' id="filter_exclude_library" aria-describedby="filter_exclude_library" {% if matching_result.getFilterValue("filter_exclude_library") %}checked{% endif %}>
       <label class="col-3" for="block_count">exclude functions with library hits</label>
@@ -147,6 +160,7 @@ Results for Job: {{ job_info.job_id }}
         <th style="text-align: right;" scope="col">Min</th>
         <th style="text-align: right;" scope="col">Pic</th>
         <th style="text-align: right;" scope="col">Lib</th>
+        <th style="text-align: right;" scope="col">Uniq</th>
       </tr>
     </thead>
     <tbody>
@@ -168,6 +182,7 @@ Results for Job: {{ job_info.job_id }}
         <td style="text-align: right;" valign="middle">{{ aggregate["minhash_matches"] }}</td>
         <td style="text-align: right;" valign="middle">{{ aggregate["pichash_matches"] }}</td>
         <td style="text-align: right;" valign="middle">{{ aggregate["library_matches"] }}</td>
+        <td style="text-align: right;" valign="middle"><i {% if aggregate["is_family_unique"] %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
      </tr>
       {% endfor %}
     </tbody>
