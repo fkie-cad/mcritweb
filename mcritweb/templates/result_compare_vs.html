@@ -19,7 +19,7 @@ Results for Job: {{ job_info.job_id }}
     ("Other Sample", matching_result.other_sample_entry),
   ) }}
 
-<h3>Similarity Scores </h3>
+<h3>Similarity Scores</h3>
 <table class="table table-hover">
     <thead class="thead-light">
       <tr>
@@ -64,8 +64,8 @@ Results for Job: {{ job_info.job_id }}
 <form class="form-inline" action ="{{ url_for(request.endpoint, **request.view_args) }}#function-matches" method='GET'>
   <div class="form-group row">
     <label class="col-3">Filter results to</label>
-    <input class="col-3" type="text" name='filter_min_score' id="filter_min_score" aria-describedby="filter_min_score" placeholder="min score (0-100)" {% if matching_result.getFilterValue("filter_min_score") is not none %}value={{matching_result.getFilterValue("filter_min_score")}}{% endif %}>
-    <input class="col-3" type="text" name='filter_max_score' id="filter_max_score" aria-describedby="filter_max_score" placeholder="max score (0-100)" {% if matching_result.getFilterValue("filter_max_score") is not none %}value={{matching_result.getFilterValue("filter_max_score")}}{% endif %}>
+    <input class="col-3" type="text" name='filter_function_min_score' id="filter_function_min_score" aria-describedby="filter_function_min_score" placeholder="min score (0-100)" {% if matching_result.getFilterValue("filter_function_min_score") is not none %}value={{matching_result.getFilterValue("filter_function_min_score")}}{% endif %}>
+    <input class="col-3" type="text" name='filter_function_max_score' id="filter_function_max_score" aria-describedby="filter_function_max_score" placeholder="max score (0-100)" {% if matching_result.getFilterValue("filter_function_max_score") is not none %}value={{matching_result.getFilterValue("filter_function_max_score")}}{% endif %}>
     <input class="col-1" type="checkbox" name='filter_exclude_library' id="filter_exclude_library" aria-describedby="filter_exclude_library" {% if matching_result.getFilterValue("filter_exclude_library") %}checked{% endif %}>
     <label class="col-3" for="block_count">exclude functions with library hits</label>
     <input class="col-1" type="checkbox" name='filter_exclude_pic' id="filter_exclude_pic" aria-describedby="filter_exclude_pic" {% if matching_result.getFilterValue("filter_exclude_pic") %}checked{% endif %}>

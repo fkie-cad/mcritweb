@@ -356,16 +356,25 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
     filtered_family_id = _parse_integer_query_param(request, "famid")
     filtered_function_id = _parse_integer_query_param(request, "funid")
     other_function_id = _parse_integer_query_param(request, "ofunid")
+    # generic filtering on family/sample results
+    filter_direct_min_score = _parse_integer_query_param(request, "filter_direct_min_score")
+    filter_frequency_min_score = _parse_integer_query_param(request, "filter_frequency_min_score")
+    filter_unique_only = _parse_checkbox_query_param(request, "filter_unique_only")
+    filter_exclude_own_family = _parse_checkbox_query_param(request, "filter_exclude_own_family")
     # generic filtering of function results
-    filter_min_score = _parse_integer_query_param(request, "filter_min_score")
-    filter_max_score = _parse_integer_query_param(request, "filter_max_score")
+    filter_function_min_score = _parse_integer_query_param(request, "filter_function_min_score")
+    filter_function_max_score = _parse_integer_query_param(request, "filter_function_max_score")
     filter_max_num_families = _parse_integer_query_param(request, "filter_max_num_families")
     filter_max_num_samples = _parse_integer_query_param(request, "filter_max_num_samples")
     filter_exclude_library = _parse_checkbox_query_param(request, "filter_exclude_library")
     filter_exclude_pic = _parse_checkbox_query_param(request, "filter_exclude_pic")
     filter_values = {
-        "filter_min_score": filter_min_score,
-        "filter_max_score": filter_max_score,
+        "filter_direct_min_score": filter_direct_min_score,
+        "filter_frequency_min_score": filter_frequency_min_score,
+        "filter_unique_only": filter_unique_only,
+        "filter_exclude_own_family": filter_exclude_own_family,
+        "filter_function_min_score": filter_function_min_score,
+        "filter_function_max_score": filter_function_max_score,
         "filter_max_num_families": filter_max_num_families,
         "filter_max_num_samples": filter_max_num_samples,
         "filter_exclude_library": filter_exclude_library,
@@ -373,16 +382,26 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
     }
     matching_result.setFilterValues(filter_values)
     matching_result.getUniqueFamilyMatchInfoForSample(None)
+    # filter family/sample
+    if filter_direct_min_score:
+        matching_result.filterToDirectMinScore(filter_direct_min_score)
+    if filter_frequency_min_score:
+        matching_result.filterToFrequencyMinScore(filter_frequency_min_score)
+    if filter_unique_only:
+        matching_result.filterToUniqueMatchesOnly()
+    if filter_exclude_own_family:
+        matching_result.excludeOwnFamily()
+    # filter functions
     if filter_exclude_library:
         matching_result.excludeLibraryMatches()
     if filter_max_num_families:
         matching_result.filterToFamilyCount(filter_max_num_families)
     if filter_max_num_samples:
         matching_result.filterToSampleCount(filter_max_num_samples)
-    if filter_min_score:
-        matching_result.filterToScore(min_score=filter_min_score)
-    if filter_max_score:
-        matching_result.filterToScore(max_score=filter_max_score)
+    if filter_function_min_score:
+        matching_result.filterToFunctionScore(min_score=filter_function_min_score)
+    if filter_function_max_score:
+        matching_result.filterToFunctionScore(max_score=filter_function_max_score)
     if filter_exclude_pic:
         matching_result.excludePicMatches()
 
@@ -419,8 +438,8 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         return render_template("result_compare_vs.html", job_info=job_info, matching_result=matching_result, funp=function_pagination, scp=score_color_provider)
     else:
         create_match_diagram(current_app, job_info.job_id, matching_result)
-        num_families_matched = len(set([sample.family for sample in matching_result.sample_matches if not sample.is_library]))
-        num_libraries_matched = len(set([sample.family for sample in matching_result.sample_matches if sample.is_library]))
+        num_families_matched = len(set([sample.family_id for sample in matching_result.sample_matches if not sample.is_library]))
+        num_libraries_matched = len(set([sample.family_id for sample in matching_result.sample_matches if sample.is_library]))
         family_pagination = Pagination(request, num_families_matched, limit=10, query_param="famp")
         library_pagination = Pagination(request, num_libraries_matched, limit=10, query_param="libp")
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), query_param="funp")
