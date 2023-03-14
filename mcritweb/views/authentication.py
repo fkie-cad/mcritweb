@@ -8,6 +8,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 
 from mcritweb import db
+from mcritweb.views.utility import parse_integer_query_param, parse_checkbox_query_param, get_session_user_id
 
 
 bp = Blueprint('authentication', __name__, url_prefix='/')
@@ -158,7 +159,11 @@ def login_required(view):
 @login_required
 @bp.route('/settings')
 def settings():
-    return render_template('settings.html')
+    user_id = get_session_user_id()
+    if user_id is None:
+        return redirect(url_for('index'))
+    filter_values = db.get_user_result_filters(user_id)
+    return render_template('settings.html', filters=filter_values)
     
     
 def admin_required(view):

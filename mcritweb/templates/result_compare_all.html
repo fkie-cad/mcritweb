@@ -24,14 +24,19 @@ Results for Job: {{ job_info.job_id }}
 <form class="form-inline" action ="{{ url_for(request.endpoint, **request.view_args) }}#family-matches" method='GET'>
   <div class="form-group row">
     <label class="col-6">Filter results to (nonlib) direct score</label>
-    <input class="col-6" type="text" name='filter_direct_min_score' id="filter_direct_min_score" aria-describedby="filter_direct_min_score" placeholder="min score (0-100)" {% if matching_result.getFilterValue("filter_direct_min_score") is not none %}value={{matching_result.getFilterValue("filter_direct_min_score")}}{% endif %}>
+    <input class="col-3" type="text" name='filter_direct_min_score' id="filter_direct_min_score" aria-describedby="filter_direct_min_score" placeholder="regular (0-100)" {% if matching_result.getFilterValue("filter_direct_min_score") is not none %}value={{matching_result.getFilterValue("filter_direct_min_score")}}{% endif %}>
+    <input class="col-3" type="text" name='filter_direct_nonlib_min_score' id="filter_direct_nonlib_min_score" aria-describedby="filter_direct_nonlib_min_score" placeholder="nonlib (0-100)" {% if matching_result.getFilterValue("filter_direct_nonlib_min_score") is not none %}value={{matching_result.getFilterValue("filter_direct_nonlib_min_score")}}{% endif %}>
     <label class="col-6">Filter results to (nonlib) frequency score</label>
-    <input class="col-6" type="text" name='filter_frequency_min_score' id="filter_frequency_min_score" aria-describedby="filter_frequency_min_score" placeholder="min score (0-100)" {% if matching_result.getFilterValue("filter_frequency_min_score") is not none %}value={{matching_result.getFilterValue("filter_frequency_min_score")}}{% endif %}>
+    <input class="col-3" type="text" name='filter_frequency_min_score' id="filter_frequency_min_score" aria-describedby="filter_frequency_min_score" placeholder="regular (0-100)" {% if matching_result.getFilterValue("filter_frequency_min_score") is not none %}value={{matching_result.getFilterValue("filter_frequency_min_score")}}{% endif %}>
+    <input class="col-3" type="text" name='filter_frequency_nonlib_min_score' id="filter_frequency_nonlib_min_score" aria-describedby="filter_frequency_nonlib_min_score" placeholder="nonlib (0-100)" {% if matching_result.getFilterValue("filter_frequency_nonlib_min_score") is not none %}value={{matching_result.getFilterValue("filter_frequency_nonlib_min_score")}}{% endif %}>
     <input class="col-1" type="checkbox" name='filter_unique_only' id="filter_unique_only" aria-describedby="filter_unique_only" {% if matching_result.getFilterValue("filter_unique_only") %}checked{% endif %}>
     <label class="col-5" for="block_count">only show families with unique matches</label>
     <input class="col-1" type="checkbox" name='filter_exclude_own_family' id="filter_exclude_own_family" aria-describedby="filter_exclude_own_family" {% if matching_result.getFilterValue("filter_exclude_own_family") %}checked{% endif %}>
     <label class="col-5" for="block_count">exclude own family</label>
-    <button type="submit" class="btn btn-primary">filter</button>
+    <div class="d-grid gap-4 d-md-block">
+      <button class="btn btn-primary" type="submit" name="filter_button_action" value="filter">filter</button>
+      <button class="btn btn-secondary" type="submit" name="filter_button_action" value="clear">clear</button>
+    </div>
   </div>
 </form>
 <table class="table table-hover">
@@ -144,7 +149,10 @@ Results for Job: {{ job_info.job_id }}
       <label class="col-3" for="block_count">exclude functions with library hits</label>
       <input class="col-1" type="checkbox" name='filter_exclude_pic' id="filter_exclude_pic" aria-describedby="filter_exclude_pic" {% if matching_result.getFilterValue("filter_exclude_pic") %}checked{% endif %}>
       <label class="col-3" for="block_count">exclude PIC hits</label>
-      <button type="submit" class="btn btn-primary">filter</button>
+      <div class="d-grid gap-4 d-md-block">
+        <button class="btn btn-primary" type="submit" name="filter_button_action" value="filter">filter</button>
+        <button class="btn btn-secondary" type="submit" name="filter_button_action" value="clear">clear</button>
+      </div>
     </div>
 </form>
 <table class="table table-hover">

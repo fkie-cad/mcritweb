@@ -7,7 +7,7 @@ import logging
 import requests
 import functools 
 
-from flask import redirect, url_for, flash
+from flask import redirect, url_for, flash, session
 from rapidfuzz.distance import Levenshtein
 from smda.intel.IntelInstructionEscaper import IntelInstructionEscaper
 from mcrit.client.McritClient import McritClient
@@ -37,6 +37,66 @@ def mcrit_server_required(view):
             return redirect(url_for('index'))
         return view(**kwargs)
     return wrapped_view
+
+
+def get_session_user_id():
+    try:
+        user_id = int(session['user_id'])
+        if user_id > 0:
+            return user_id
+    except:
+        return None
+
+
+def parse_integer_query_param(request, query_param:str):
+    """ Try to find query_param in the request and parse it as int """
+    param = None
+    try:
+        param = int(request.args.get(query_param))
+    except Exception:
+        pass
+    return param
+
+def parse_str_query_param(request, query_param:str):
+    """ Try to find query_param in the request and parse it as str """
+    param = None
+    try:
+        param = request.args.get(query_param)
+    except Exception:
+        pass
+    return param
+
+
+def parse_checkbox_query_param(request, query_param:str):
+    """ Try to find query_param in the request and parse it as checkbox """
+    param = False
+    try:
+        value = request.args.get(query_param)
+        param = True if isinstance(value, str) and value.lower() in ["on", "true"] else False
+    except Exception:
+        pass
+    return param
+
+
+def parse_integer_post_param(request, query_param:str):
+    """ Try to find query_param in the request and parse it as int """
+    param = None
+    try:
+        param = int(request.form.get(query_param))
+    except Exception:
+        pass
+    return param
+
+
+def parse_checkbox_post_param(request, query_param:str):
+    """ Try to find query_param in the request and parse it as checkbox """
+    param = False
+    try:
+        value = request.form.get(query_param)
+        param = True if isinstance(value, str) and value.lower() in ["on", "true"] else False
+    except Exception:
+        pass
+    return param
 
 
 def parseBaseAddrFromFilename(filename):

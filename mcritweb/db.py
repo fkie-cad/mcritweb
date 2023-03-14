@@ -81,3 +81,66 @@ def get_operation_mode():
     if record:  
         operation_mode = record["operation_mode"]
     return operation_mode
+
+def set_user_result_filters(user_id, filter_values):
+    # init db usage
+    db = get_db()
+    cursor = db.cursor()
+    # check existing entry
+    current_filters = get_user_result_filters(user_id)
+    print(filter_values)
+    if current_filters is None:
+        # insert inital values
+        db.execute(
+            "INSERT INTO user_filters (user_id, filter_direct_min_score, filter_direct_nonlib_min_score, filter_frequency_min_score, filter_frequency_nonlib_min_score, filter_unique_only, filter_exclude_own_family, filter_function_min_score, filter_function_max_score, filter_max_num_families, filter_exclude_library, filter_exclude_pic) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (user_id,
+             min(100, max(0, filter_values["filter_direct_min_score"])),
+             min(100, max(0, filter_values["filter_direct_nonlib_min_score"])),
+             min(100, max(0, filter_values["filter_frequency_min_score"])), 
+             min(100, max(0, filter_values["filter_frequency_nonlib_min_score"])), 
+             1 if filter_values["filter_unique_only"] else 0, 
+             1 if filter_values["filter_exclude_own_family"] else 0, 
+             min(100, max(0, filter_values["filter_function_min_score"])),
+             min(100, max(0, filter_values["filter_function_max_score"])), 
+             max(0, filter_values["filter_max_num_families"]), 
+             1 if filter_values["filter_exclude_library"] else 0, 
+             1 if filter_values["filter_exclude_pic"] else 0,
+             ))
+        db.commit()
+    else:
+        # update values
+        db.execute("UPDATE user_filters SET filter_direct_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_direct_min_score"])), user_id))
+        db.execute("UPDATE user_filters SET filter_direct_nonlib_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_direct_nonlib_min_score"])), user_id))
+        db.execute("UPDATE user_filters SET filter_frequency_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_frequency_min_score"])), user_id))
+        db.execute("UPDATE user_filters SET filter_frequency_nonlib_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_frequency_nonlib_min_score"])), user_id))
+        db.execute("UPDATE user_filters SET filter_unique_only = ? WHERE user_id = ?", (1 if filter_values["filter_unique_only"] else 0, user_id))
+        db.execute("UPDATE user_filters SET filter_exclude_own_family = ? WHERE user_id = ?", (1 if filter_values["filter_exclude_own_family"] else 0, user_id))
+        db.execute("UPDATE user_filters SET filter_function_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_function_min_score"])), user_id))
+        db.execute("UPDATE user_filters SET filter_function_max_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_function_max_score"])), user_id))
+        db.execute("UPDATE user_filters SET filter_max_num_families = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_max_num_families"])), user_id))
+        db.execute("UPDATE user_filters SET filter_exclude_library = ? WHERE user_id = ?", (1 if filter_values["filter_exclude_library"] else 0, user_id))
+        db.execute("UPDATE user_filters SET filter_exclude_pic = ? WHERE user_id = ?", (1 if filter_values["filter_exclude_pic"] else 0, user_id))
+        db.commit()
+
+def get_user_result_filters(user_id):
+    filter_values = None
+    db = get_db()
+    cursor = db.cursor()
+    record = cursor.execute("SELECT * FROM user_filters WHERE user_id = ?;", (user_id,)).fetchone()
+    if record:
+        filter_values = {
+        "filter_direct_min_score": None if record["filter_direct_min_score"] == 0 else record["filter_direct_min_score"],
+        "filter_direct_nonlib_min_score": None if record["filter_direct_nonlib_min_score"] == 0 else record["filter_direct_nonlib_min_score"],
+        "filter_frequency_min_score": None if record["filter_frequency_min_score"] == 0 else record["filter_frequency_min_score"],
+        "filter_frequency_nonlib_min_score": None if record["filter_frequency_nonlib_min_score"] == 0 else record["filter_frequency_nonlib_min_score"],
+        "filter_unique_only": True if record["filter_unique_only"] else False,
+        "filter_exclude_own_family": True if record["filter_exclude_own_family"] else False,
+        "filter_function_min_score": None if record["filter_function_min_score"] == 0 else record["filter_function_min_score"],
+        "filter_function_max_score": None if record["filter_function_max_score"] == 100 else record["filter_function_max_score"],
+        "filter_max_num_families": None if record["filter_max_num_families"] == 0 else record["filter_max_num_families"],
+        # we don't store filter_max_num_samples separately but instead duplicate from family value
+        "filter_max_num_samples": None if record["filter_max_num_families"] == 0 else record["filter_max_num_families"],
+        "filter_exclude_library": True if record["filter_exclude_library"] else False,
+        "filter_exclude_pic": True if record["filter_exclude_pic"] else False
+    }
+    return filter_values

@@ -10,13 +10,14 @@ from mcrit.storage.FunctionEntry import FunctionEntry
 from mcrit.storage.SampleEntry import SampleEntry
 from flask import current_app, Blueprint, render_template, request, redirect, url_for, Response, flash, session, send_from_directory, json
 
-from mcritweb.views.authentication import visitor_required, contributor_required
-from mcritweb.views.cross_compare import get_sample_to_job_id, score_to_color
-from mcritweb.views.utility import get_server_url, mcrit_server_required, parseBitnessFromFilename, parseBaseAddrFromFilename, get_matches_node_colors
-from mcritweb.views.pagination import Pagination
-from mcritweb.views.MatchReportRenderer import MatchReportRenderer
-from mcritweb.views.ScoreColorProvider import ScoreColorProvider
+from mcritweb.db import get_user_result_filters
 from mcritweb.views.analyze import query as analyze_query
+from mcritweb.views.utility import get_server_url, mcrit_server_required, parseBitnessFromFilename, parseBaseAddrFromFilename, get_matches_node_colors, parse_integer_query_param, parse_checkbox_query_param, parse_str_query_param, get_session_user_id
+from mcritweb.views.pagination import Pagination
+from mcritweb.views.cross_compare import get_sample_to_job_id, score_to_color
+from mcritweb.views.authentication import visitor_required, contributor_required
+from mcritweb.views.ScoreColorProvider import ScoreColorProvider
+from mcritweb.views.MatchReportRenderer import MatchReportRenderer
 
 bp = Blueprint('data', __name__, url_prefix='/data')
 
@@ -67,25 +68,6 @@ def diagram_file(filename):
     cache_path = os.sep.join([current_app.instance_path, "cache", "diagrams"])
     return send_from_directory(cache_path, filename)
 
-def _parse_integer_query_param(request, query_param:str):
-    """ Try to find query_param in the request and parse it as int """
-    param = None
-    try:
-        param = int(request.args.get(query_param))
-    except Exception:
-        pass
-    return param
-
-
-def _parse_checkbox_query_param(request, query_param:str):
-    """ Try to find query_param in the request and parse it as int """
-    param = False
-    try:
-        value = request.args.get(query_param)
-        param = True if isinstance(value, str) and value.lower() in ["on", "true"] else False
-    except Exception:
-        pass
-    return param
 
 ################################################################
 # Import + Export
@@ -315,9 +297,9 @@ def result_unique_blocks(job_info, blocks_result: dict):
     paginated_blocks = []
     # TODO this result object has changed, we should split it into stats/blocks/yara and process further
     if unique_blocks is not None:
-        min_score = _parse_integer_query_param(request, "min_score")
-        min_block_length = _parse_integer_query_param(request, "min_block_length")
-        max_block_length = _parse_integer_query_param(request, "max_block_length")
+        min_score = parse_integer_query_param(request, "min_score")
+        min_block_length = parse_integer_query_param(request, "min_block_length")
+        max_block_length = parse_integer_query_param(request, "max_block_length")
         active_tab = request.args.get('tab','stats')
         active_tab = active_tab if active_tab in ["stats", "yara", "blocks"] else "stats"
         filtered_blocks = unique_blocks
@@ -352,57 +334,96 @@ def result_unique_blocks(job_info, blocks_result: dict):
 
 def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult):
     score_color_provider = ScoreColorProvider()
-    filtered_sample_id = _parse_integer_query_param(request, "samid")
-    filtered_family_id = _parse_integer_query_param(request, "famid")
-    filtered_function_id = _parse_integer_query_param(request, "funid")
-    other_function_id = _parse_integer_query_param(request, "ofunid")
+    filtered_family_id = parse_integer_query_param(request, "famid")
+    filtered_sample_id = parse_integer_query_param(request, "samid")
+    filtered_function_id = parse_integer_query_param(request, "funid")
+    other_function_id = parse_integer_query_param(request, "ofunid")
+    filter_action = parse_str_query_param(request, "filter_button_action")
     # generic filtering on family/sample results
-    filter_direct_min_score = _parse_integer_query_param(request, "filter_direct_min_score")
-    filter_frequency_min_score = _parse_integer_query_param(request, "filter_frequency_min_score")
-    filter_unique_only = _parse_checkbox_query_param(request, "filter_unique_only")
-    filter_exclude_own_family = _parse_checkbox_query_param(request, "filter_exclude_own_family")
+    filter_direct_min_score = parse_integer_query_param(request, "filter_direct_min_score")
+    filter_direct_nonlib_min_score = parse_integer_query_param(request, "filter_direct_nonlib_min_score")
+    filter_frequency_min_score = parse_integer_query_param(request, "filter_frequency_min_score")
+    filter_frequency_nonlib_min_score = parse_integer_query_param(request, "filter_frequency_nonlib_min_score")
+    filter_unique_only = parse_checkbox_query_param(request, "filter_unique_only")
+    filter_exclude_own_family = parse_checkbox_query_param(request, "filter_exclude_own_family")
     # generic filtering of function results
-    filter_function_min_score = _parse_integer_query_param(request, "filter_function_min_score")
-    filter_function_max_score = _parse_integer_query_param(request, "filter_function_max_score")
-    filter_max_num_families = _parse_integer_query_param(request, "filter_max_num_families")
-    filter_max_num_samples = _parse_integer_query_param(request, "filter_max_num_samples")
-    filter_exclude_library = _parse_checkbox_query_param(request, "filter_exclude_library")
-    filter_exclude_pic = _parse_checkbox_query_param(request, "filter_exclude_pic")
-    filter_values = {
-        "filter_direct_min_score": filter_direct_min_score,
-        "filter_frequency_min_score": filter_frequency_min_score,
-        "filter_unique_only": filter_unique_only,
-        "filter_exclude_own_family": filter_exclude_own_family,
-        "filter_function_min_score": filter_function_min_score,
-        "filter_function_max_score": filter_function_max_score,
-        "filter_max_num_families": filter_max_num_families,
-        "filter_max_num_samples": filter_max_num_samples,
-        "filter_exclude_library": filter_exclude_library,
-        "filter_exclude_pic": filter_exclude_pic,
-    }
+    filter_function_min_score = parse_integer_query_param(request, "filter_function_min_score")
+    filter_function_max_score = parse_integer_query_param(request, "filter_function_max_score")
+    filter_max_num_families = parse_integer_query_param(request, "filter_max_num_families")
+    filter_max_num_samples = parse_integer_query_param(request, "filter_max_num_samples")
+    filter_exclude_library = parse_checkbox_query_param(request, "filter_exclude_library")
+    filter_exclude_pic = parse_checkbox_query_param(request, "filter_exclude_pic")
+    if not any([filter_direct_min_score, filter_frequency_min_score, filter_unique_only, filter_exclude_own_family, 
+                filter_function_min_score, filter_function_max_score, filter_max_num_families, 
+                filter_exclude_library, filter_exclude_pic]) and not filter_action == "clear":
+        # load default filters
+        user_id = get_session_user_id()
+        filter_values = get_user_result_filters(user_id)
+        # adjust filters based on family/sample filtering
+        if filtered_family_id is None and filtered_sample_id is None and filtered_function_id is None:
+            filter_values["filter_max_num_samples"] = None
+        elif filtered_family_id is not None:
+            filter_values["filter_max_num_families"] = None
+        elif filtered_sample_id is not None:
+            filter_values["filter_max_num_families"] = None
+            filter_values["filter_max_num_samples"] = None
+    elif filter_action == "clear":
+        filter_values = {
+            "filter_direct_min_score": None,
+            "filter_direct_nonlib_min_score": None,
+            "filter_frequency_min_score": None,
+            "filter_frequency_nonlib_min_score": None,
+            "filter_unique_only": None,
+            "filter_exclude_own_family": None,
+            "filter_function_min_score": None,
+            "filter_function_max_score": None,
+            "filter_max_num_families": None,
+            "filter_max_num_samples": None,
+            "filter_exclude_library": None,
+            "filter_exclude_pic": None,
+        }
+    else:
+        filter_values = {
+            "filter_direct_min_score": filter_direct_min_score,
+            "filter_direct_nonlib_min_score": filter_direct_nonlib_min_score,
+            "filter_frequency_min_score": filter_frequency_min_score,
+            "filter_frequency_nonlib_min_score": filter_frequency_nonlib_min_score,
+            "filter_unique_only": filter_unique_only,
+            "filter_exclude_own_family": filter_exclude_own_family,
+            "filter_function_min_score": filter_function_min_score,
+            "filter_function_max_score": filter_function_max_score,
+            "filter_max_num_families": filter_max_num_families,
+            "filter_max_num_samples": filter_max_num_samples,
+            "filter_exclude_library": filter_exclude_library,
+            "filter_exclude_pic": filter_exclude_pic,
+        }
     matching_result.setFilterValues(filter_values)
     matching_result.getUniqueFamilyMatchInfoForSample(None)
     # filter family/sample
-    if filter_direct_min_score:
-        matching_result.filterToDirectMinScore(filter_direct_min_score)
-    if filter_frequency_min_score:
-        matching_result.filterToFrequencyMinScore(filter_frequency_min_score)
-    if filter_unique_only:
+    if filter_values.get("filter_direct_min_score", None):
+        matching_result.filterToDirectMinScore(filter_values["filter_direct_min_score"])
+    if filter_values.get("filter_direct_nonlib_min_score", None):
+        matching_result.filterToDirectMinScore(filter_values["filter_direct_nonlib_min_score"], nonlib=True)
+    if filter_values.get("filter_frequency_min_score", None):
+        matching_result.filterToFrequencyMinScore(filter_values["filter_frequency_min_score"])
+    if filter_values.get("filter_frequency_nonlib_min_score", None):
+        matching_result.filterToFrequencyMinScore(filter_values["filter_frequency_nonlib_min_score"], nonlib=True)
+    if filter_values.get("filter_unique_only", None):
         matching_result.filterToUniqueMatchesOnly()
-    if filter_exclude_own_family:
+    if filter_values.get("filter_exclude_own_family", None):
         matching_result.excludeOwnFamily()
     # filter functions
-    if filter_exclude_library:
+    if filter_values.get("filter_exclude_library", None):
         matching_result.excludeLibraryMatches()
-    if filter_max_num_families:
-        matching_result.filterToFamilyCount(filter_max_num_families)
-    if filter_max_num_samples:
-        matching_result.filterToSampleCount(filter_max_num_samples)
-    if filter_function_min_score:
-        matching_result.filterToFunctionScore(min_score=filter_function_min_score)
-    if filter_function_max_score:
-        matching_result.filterToFunctionScore(max_score=filter_function_max_score)
-    if filter_exclude_pic:
+    if filter_values.get("filter_max_num_families", None):
+        matching_result.filterToFamilyCount(filter_values["filter_max_num_families"])
+    if filter_values.get("filter_max_num_samples", None):
+        matching_result.filterToSampleCount(filter_values["filter_max_num_samples"])
+    if filter_values.get("filter_function_min_score", None):
+        matching_result.filterToFunctionScore(min_score=filter_values["filter_function_min_score"])
+    if filter_values.get("filter_function_max_score", None):
+        matching_result.filterToFunctionScore(max_score=filter_values["filter_function_max_score"])
+    if filter_values.get("filter_exclude_pic", None):
         matching_result.excludePicMatches()
 
     client = McritClient(mcrit_server=get_server_url())

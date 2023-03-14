@@ -7,7 +7,7 @@ from mcrit.client.McritClient import McritClient
 from mcritweb.views.utility import get_server_url
 from mcritweb import db
 from mcritweb.views.authentication import admin_required, login_required, multi_user
-from mcritweb.views.utility import get_server_url, set_server_url, get_mcritweb_version_from_setup
+from mcritweb.views.utility import get_server_url, set_server_url, get_mcritweb_version_from_setup, parse_integer_post_param, parse_checkbox_post_param, get_session_user_id
 
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -70,6 +70,44 @@ def change_password():
     flash(error, category='error')
     return render_template('settings.html')
 
+
+@bp.route('/change_default_filter' , methods=('GET', 'POST'))
+@login_required
+def change_default_filter():
+    user_id = get_session_user_id()
+    if user_id is None:
+        flash('User ID was not recognized', category='error') 
+        return redirect(url_for('index'))
+    # generic filtering on family/sample results
+    filter_direct_min_score = parse_integer_post_param(request, "filter_direct_min_score")
+    filter_direct_nonlib_min_score = parse_integer_post_param(request, "filter_direct_nonlib_min_score")
+    filter_frequency_min_score = parse_integer_post_param(request, "filter_frequency_min_score")
+    filter_frequency_nonlib_min_score = parse_integer_post_param(request, "filter_frequency_nonlib_min_score")
+    filter_unique_only = parse_checkbox_post_param(request, "filter_unique_only")
+    filter_exclude_own_family = parse_checkbox_post_param(request, "filter_exclude_own_family")
+    # generic filtering of function results
+    filter_function_min_score = parse_integer_post_param(request, "filter_function_min_score")
+    filter_function_max_score = parse_integer_post_param(request, "filter_function_max_score")
+    filter_max_num_families = parse_integer_post_param(request, "filter_max_num_families")
+    filter_exclude_library = parse_checkbox_post_param(request, "filter_exclude_library")
+    filter_exclude_pic = parse_checkbox_post_param(request, "filter_exclude_pic")
+    filter_values = {
+        "filter_direct_min_score": 0 if filter_direct_min_score is None else filter_direct_min_score,
+        "filter_direct_nonlib_min_score": 0 if filter_direct_nonlib_min_score is None else filter_direct_nonlib_min_score,
+        "filter_frequency_min_score": 0 if filter_frequency_min_score is None else filter_frequency_min_score,
+        "filter_frequency_nonlib_min_score": 0 if filter_frequency_nonlib_min_score is None else filter_frequency_nonlib_min_score,
+        "filter_unique_only": filter_unique_only,
+        "filter_exclude_own_family": filter_exclude_own_family,
+        "filter_function_min_score": 0 if filter_function_min_score is None else filter_function_min_score,
+        "filter_function_max_score": 100 if filter_function_max_score is None else filter_function_max_score,
+        "filter_max_num_families": 0 if filter_max_num_families is None else filter_max_num_families,
+        "filter_exclude_library": filter_exclude_library,
+        "filter_exclude_pic": filter_exclude_pic,
+    }
+    # store user filter values in database
+    db.set_user_result_filters(user_id, filter_values)
+    flash('Default filters successfully changed', category='success') 
+    return render_template('settings.html', filters=filter_values)
 
 @bp.route('/users/')
 @bp.route('/users/<tab>')

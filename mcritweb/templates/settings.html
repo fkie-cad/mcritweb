@@ -4,41 +4,75 @@ Settings
 {% endblock %}
 {% block content %}
 <center>
-    <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
-        <li class="nav-item" role="presentation">
-          <button class="nav-link active" id="pills-username-tab" data-bs-toggle="pill" data-bs-target="#pills-username" type="button" role="tab" aria-controls="pills-username" aria-selected="true">Change username</button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="pills-password-tab" data-bs-toggle="pill" data-bs-target="#pills-password" type="button" role="tab" aria-controls="pills-password" aria-selected="false">Change password</button>
-        </li>
-      </ul>
-      <div class="tab-content" id="pills-tabContent">
-        <div class="tab-pane fade show active"id="pills-username" role="tabpanel" aria-labelledby="pills-username-tab">
-            <form action = "{{ url_for('admin.change_username') }}" method='post'>
-                <div class="form-group">
-                  <input name='username' class="form-control" id="username" aria-describedby="usernameHelp" placeholder="Enter new username" autofocus required >
-                </div>
-                <div class="form-group">
-                  <input type="password" name='inputPassword1' class="form-control" id="inputPassword1" placeholder="Enter password" required>
-                </div>
-                <button type="submit" class="btn btn-primary">Confirm change</button>
-            </form>
+<ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="pills-username-tab" data-bs-toggle="pill" data-bs-target="#pills-username" type="button" role="tab" aria-controls="pills-username" aria-selected="true">Change username</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="pills-password-tab" data-bs-toggle="pill" data-bs-target="#pills-password" type="button" role="tab" aria-controls="pills-password" aria-selected="false">Change password</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="pills-default-filter-tab" data-bs-toggle="pill" data-bs-target="#pills-default-filter" type="button" role="tab" aria-controls="pills-default-filter" aria-selected="false">Change default result filter</button>
+  </li>
+</ul>
+<div class="tab-content" id="pills-tabContent">
+  <div class="tab-pane fade show active"id="pills-username" role="tabpanel" aria-labelledby="pills-username-tab">
+      <form action = "{{ url_for('admin.change_username') }}" method='post'>
+          <div class="form-group">
+            <input name='username' class="form-control" id="username" aria-describedby="usernameHelp" placeholder="Enter new username" autofocus required >
+          </div>
+          <div class="form-group">
+            <input type="password" name='inputPassword1' class="form-control" id="inputPassword1" placeholder="Enter password" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Confirm change</button>
+      </form>
+  </div>
+  <div class="tab-pane fade"id="pills-password" role="tabpanel" aria-labelledby="pills-password-tab">
+      <form action = "{{ url_for('admin.change_password') }}" method='post'>
+          <div class="form-group">
+            <input type="password" name='inputPassword2' class="form-control" id="inputPassword2" placeholder="Enter old password" required>
+          </div>
+          <div class="form-group">
+              <input type="password" class="form-control" name="inputPassword3" id="inputPassword3" placeholder="Enter new password" >
+            </div>
+          <div class="form-group">
+              <input type="password" class="form-control" name="inputPassword4" id="inputPassword4" placeholder="Confirm new password" >
+            </div>
+          <button type="submit" class="btn btn-primary">Confirm change</button>
+      </form>
+  </div>
+  <div class="tab-pane fade" id="pills-default-filter" role="tabpanel" aria-labelledby="pills-default-filter-tab">
+    <form class="form-inline" action = "{{ url_for('admin.change_default_filter') }}" method='post'>
+        <div class="form-group row text-start">
+          <h3>Family / Sample result filter</h3> 
+          <label class="col-8">Filter results to (nonlib) direct score</label>
+          <input class="col-2" type="text" name='filter_direct_min_score' id="filter_direct_min_score" placeholder="regular" {% if filters["filter_direct_min_score"] is not none %}value={{filters["filter_direct_min_score"]}}{% endif %}>
+          <input class="col-2" type="text" name='filter_direct_nonlib_min_score' id="filter_direct_nonlib_min_score" placeholder="nonlib" {% if filters["filter_direct_nonlib_min_score"] is not none %}value={{filters["filter_direct_nonlib_min_score"]}}{% endif %}>
+          <label class="col-8">Filter results to (nonlib) frequency score</label>
+          <input class="col-2" type="text" name='filter_frequency_min_score' id="filter_frequency_min_score" placeholder="regular" {% if filters["filter_frequency_min_score"] is not none %}value={{filters["filter_frequency_min_score"]}}{% endif %}>
+          <input class="col-2" type="text" name='filter_frequency_nonlib_min_score' id="filter_frequency_nonlib_min_score" placeholder="nonlib" {% if filters["filter_frequency_nonlib_min_score"] is not none %}value={{filters["filter_frequency_nonlib_min_score"]}}{% endif %}>
+          <label class="col-8" for="block_count">only show families/samples with unique matches</label>
+          <input class="col-4" type="checkbox" name='filter_unique_only' id="filter_unique_only" aria-describedby="filter_unique_only" {% if filters["filter_unique_only"] %}checked{% endif %}>
+          <label class="col-8" for="block_count">exclude own family</label>
+          <input class="col-4" type="checkbox" name='filter_exclude_own_family' id="filter_exclude_own_family" aria-describedby="filter_exclude_own_family" {% if filters["filter_exclude_own_family"] %}checked{% endif %}>
+          <h3>Function result filter</h3> 
+          <label class="col-8">Filter results to min score</label>
+          <input class="col-4" type="text" name='filter_function_min_score' id="filter_function_min_score" aria-describedby="filter_function_min_score" placeholder="min score (0-100)" {% if filters["filter_function_min_score"] is not none %}value={{filters["filter_function_min_score"]}}{% endif %}>
+          <label class="col-8">Filter results to max score</label>
+          <input class="col-4" type="text" name='filter_function_max_score' id="filter_function_max_score" aria-describedby="filter_function_max_score" placeholder="max score (0-100)" {% if filters["filter_function_max_score"] is not none %}value={{filters["filter_function_max_score"]}}{% endif %}>
+          <label class="col-8">Filter results to max num families/samples</label>
+          <input class="col-4" type="text" name='filter_max_num_families' id="filter_max_num_families" aria-describedby="filter_max_num_families" placeholder="max. families" {% if filters["filter_max_num_families"] is not none %}value={{filters["filter_max_num_families"]}}{% endif %}>
+          <label class="col-8" for="block_count">exclude functions with library hits</label>
+          <input class="col-4" type="checkbox" name='filter_exclude_library' id="filter_exclude_library" aria-describedby="filter_exclude_library" {% if filters["filter_exclude_library"] %}checked{% endif %}>
+          <label class="col-8" for="block_count">exclude PIC hits</label>
+          <input class="col-4" type="checkbox" name='filter_exclude_pic' id="filter_exclude_pic" aria-describedby="filter_exclude_pic" {% if filters["filter_exclude_pic"] %}checked{% endif %}>
         </div>
-        <div class="tab-pane fade"id="pills-password" role="tabpanel" aria-labelledby="pills-password-tab">
-            <form action = "{{ url_for('admin.change_password') }}" method='post'>
-                <div class="form-group">
-                  <input type="password" name='inputPassword2' class="form-control" id="inputPassword2" placeholder="Enter old password" required>
-                </div>
-                <div class="form-group">
-                    <input type="password" class="form-control" name="inputPassword3" id="inputPassword3" placeholder="Enter new password" >
-                  </div>
-                <div class="form-group">
-                    <input type="password" class="form-control" name="inputPassword4" id="inputPassword4" placeholder="Confirm new password" >
-                  </div>
-                <button type="submit" class="btn btn-primary">Confirm change</button>
-            </form>
-        </div>
-    </div>
+        <button type="submit" class="btn btn-primary">Confirm change</button>
+    </form>
+  </div>
+</div>
 </center>
+
+
 
 {% endblock %}
