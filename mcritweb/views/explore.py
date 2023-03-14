@@ -231,7 +231,9 @@ def sample_by_id(sample_id):
             filtered_jobs = [job for job in jobs if '('+str(sample_id)+')' in job.parameters or '('+str(sample_id)+',' in job.parameters or ','+str(sample_id)+',' in job.parameters or ','+str(sample_id)+')' in job.parameters]
             for function_dict in results['search_results'].values():
                 functions.append(FunctionEntry.fromDict(function_dict))
-        return render_template("single_sample.html", entry=sample_entry, functions=functions, pagination=pagination, query=original_query, jobs=filtered_jobs)
+        all_families = client.getFamilies()
+        family_names = [family_entry.family_name for family_entry in all_families.values()]
+        return render_template("single_sample.html", entry=sample_entry, functions=functions, pagination=pagination, query=original_query, jobs=filtered_jobs, family_names=family_names)
     else:
         flash("The given Sample ID doesn't exist", category='error')
         return redirect(url_for('explore.samples'))
@@ -260,7 +262,7 @@ def fetchDotGraph(function_id):
     function_entry = client.getFunctionById(function_id, with_xcfg=True)
     if function_entry:
         smda_function = function_entry.toSmdaFunction()
-        dot_graph = smda_function.toDotGraph()
+        dot_graph = smda_function.toDotGraph(with_api=True)
         # TODO can possibly do this fixup in a better place
         pbh_by_offset = {pbh["offset"]: pbh for pbh in function_entry.picblockhashes}
         for smda_block in smda_function.getBlocks():

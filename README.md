@@ -39,7 +39,8 @@ Alternatively, we recommend to use the fully packaged [docker-mcrit](https://git
 First and foremost, this will ensure that you have fully compatible versions across all components.
 
 ## Version History
- * 2023-03-14 v0.11.0: Users may now store a preference for default result filters.
+ * 2023-03-14 v0.11.1: API calls are now shown on rendered graphs
+ * 2023-03-14 v0.11.0: Users may now store a preference for default result filters (BREAKS DB -> create table user_filters).
  * 2023-03-13 v0.10.6: Filtering of family/sample result table is now possible.
  * 2023-02-27 v0.10.5: Now showing if function matches are unique in a family.
  * 2023-02-21 v0.10.4: More fixes and usability improvements on match result pages.

@@ -125,7 +125,7 @@
             <i class="fa-solid fa-flask"></i>
           </button>
           <div class="dropdown-menu dropdown-menu-end" id="dropdown-menu">
-            <a class="dropdown-item" href="{{ url_for('analyze.compare') + '/' + sample.sample_id|string }}">1 vs N</a>
+            <a class="dropdown-item" href="{{ url_for('analyze.compare', query='sha256:'+sample.sha256) }}">1 vs N</a>
             <a class="dropdown-item" href="{{ url_for('analyze.compare_versus', selected_a=sample.sample_id, query_a='sha256:'+sample.sha256) }}">1 vs 1</a>
             <a class="dropdown-item" href="{{ url_for('analyze.cross_compare', samples=sample.sample_id) }}">Cross Compare</a>
           </div>
