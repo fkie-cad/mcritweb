@@ -8,7 +8,8 @@ CREATE TABLE user (
   password TEXT NOT NULL,
   role VARCHAR NOT NULL,
   registered VARCHAR NOT NULL,
-  last_login VARCHAR
+  last_login VARCHAR,
+  apitoken VARCHAR
 );
 
 CREATE TABLE user_filters (

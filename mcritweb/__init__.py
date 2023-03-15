@@ -1,6 +1,6 @@
 import os
 from . import db
-from .views import explore, analyze, authentication, administration, data
+from .views import explore, analyze, authentication, administration, data, api
 from flask import Flask, render_template, g, redirect, url_for, request
 from flask_dropzone import Dropzone
 
@@ -51,6 +51,7 @@ def create_app(test_config=None):
     app.register_blueprint(authentication.bp)
     app.register_blueprint(administration.bp)
     app.register_blueprint(data.bp)
+    app.register_blueprint(api.bp)
     app.config['MCRITWEB_VERSION'] = get_mcritweb_version_from_setup()
     app.config['DROPZONE_DEFAULT_MESSAGE'] = "Drop file or click here to import"
     app.config['DROPZONE_REDIRECT_VIEW'] = 'data.import_complete'

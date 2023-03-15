@@ -144,3 +144,12 @@ def get_user_result_filters(user_id):
         "filter_exclude_pic": True if record["filter_exclude_pic"] else False
     }
     return filter_values
+
+def get_user_by_apitoken(apitoken):
+    user_id = None
+    db = get_db()
+    cursor = db.cursor()
+    record = cursor.execute("SELECT * FROM user WHERE apitoken = ?;", (apitoken,)).fetchone()
+    if record is not None:
+        user_id = record["id"]
+    return user_id
