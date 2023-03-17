@@ -142,7 +142,23 @@ def get_user_result_filters(user_id):
         "filter_max_num_samples": None if record["filter_max_num_families"] == 0 else record["filter_max_num_families"],
         "filter_exclude_library": True if record["filter_exclude_library"] else False,
         "filter_exclude_pic": True if record["filter_exclude_pic"] else False
-    }
+        }
+    # we appear to not have default filter values stored due to DB migration, so return empty filter dict instead
+    elif user_id:
+        filter_values = {
+        "filter_direct_min_score": None,
+        "filter_direct_nonlib_min_score": None,
+        "filter_frequency_min_score": None,
+        "filter_frequency_nonlib_min_score": None,
+        "filter_unique_only": False,
+        "filter_exclude_own_family": False,
+        "filter_function_min_score": None,
+        "filter_function_max_score": None,
+        "filter_max_num_families": None,
+        "filter_max_num_samples": None,
+        "filter_exclude_library": False,
+        "filter_exclude_pic": False,
+        }
     return filter_values
 
 def get_user_by_apitoken(apitoken):
