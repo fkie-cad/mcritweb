@@ -5,6 +5,7 @@ import json
 import re
 from flask import Blueprint, request, Response
 from mcrit.client.McritClient import McritClient
+from smda.common.SmdaReport import SmdaReport
 
 from mcritweb.views.authentication import token_required
 from mcritweb.views.utility import get_server_url, mcrit_server_required
@@ -86,7 +87,8 @@ def api_router(api_path):
     elif re_match := re.match("query/function$", api_path):
         print("getMatchesForSmdaFunction")
         smda_report_body = request.get_json(force=True)
-        return handle_raw_response(client.getMatchesForPicHash(pichash, summary=forward_as_summary))
+        smda_report = SmdaReport.fromDict(smda_report_body)
+        return handle_raw_response(client.getMatchesForSmdaFunction(smda_report))
     # getMatchesForPicHash
     elif re_match := re.match("query/pichash/(?P<pichash>[0-9a-fA-F]{16})(?P<as_summary>/summary)?$", api_path):
         print("getMatchesForPicHash")
