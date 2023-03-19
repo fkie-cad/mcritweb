@@ -127,7 +127,6 @@ def get_roots(graph):
     # only ever case we noted like this so far is if we somehow loop to our entry block
     # in that case, we return the block with lowest address as entry node
     elif len(roots) == 0:
-        print(graph.nodes())
         return [min(graph.nodes())]
 
     return list(set(graph.nodes()) -

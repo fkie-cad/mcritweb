@@ -82,6 +82,11 @@ def api_router(api_path):
         except:
             pass
         return handle_raw_response(client.getFunctions(forward_start, forward_limit))
+    # getMatchesForSmdaFunction
+    elif re_match := re.match("query/function$", api_path):
+        print("getMatchesForSmdaFunction")
+        smda_report_body = request.get_json(force=True)
+        return handle_raw_response(client.getMatchesForPicHash(pichash, summary=forward_as_summary))
     # getMatchesForPicHash
     elif re_match := re.match("query/pichash/(?P<pichash>[0-9a-fA-F]{16})(?P<as_summary>/summary)?$", api_path):
         print("getMatchesForPicHash")

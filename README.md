@@ -39,6 +39,7 @@ Alternatively, we recommend to use the fully packaged [docker-mcrit](https://git
 First and foremost, this will ensure that you have fully compatible versions across all components.
 
 ## Version History
+ * 2023-03-19 v0.12.2: API forward for single SmdaFunction queries.
  * 2023-03-17 v0.12.1: Fix for special case of not rendering function graph, fix for default filters if no DB entry found.
  * 2023-03-15 v0.12.0: User now have apitokens that can be used to interact with the MCRIT instance behind mcritweb via api-passthrough (BREAKS DB -> ALTER TABLE user ADD apitoken VARCHAR).
  * 2023-03-14 v0.11.1: API calls are now shown on rendered graphs
