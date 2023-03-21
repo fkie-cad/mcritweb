@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="mcritweb",
-    version="0.12.3",
+    version="0.14.0",
     packages=["mcritweb"],
     include_package_data=True,
     install_requires=[

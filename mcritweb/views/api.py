@@ -74,15 +74,20 @@ def api_router(api_path):
         return handle_raw_response(client.getFunctionById(function_id, with_xcfg=forward_with_xcfg))
     # getFunctions
     elif re_match := re.match("functions$", api_path):
-        print("getFunctions")
-        forward_start = 0
-        forward_limit = 0
-        try:
-            forward_start = int(request.args.get("start", 0))
-            forward_limit = int(request.args.get("limit", 0))
-        except:
-            pass
-        return handle_raw_response(client.getFunctions(forward_start, forward_limit))
+        if request.method == "GET":
+            forward_start = 0
+            forward_limit = 0
+            try:
+                forward_start = int(request.args.get("start", 0))
+                forward_limit = int(request.args.get("limit", 0))
+            except:
+                pass
+            return handle_raw_response(client.getFunctions(forward_start, forward_limit))
+        elif request.method == 'POST':
+            if re.match(b"^\d+(?:[\s]*,[\s]*\d+)*$", request.data):
+                target_function_ids = [int(function_id) for function_id in request.data.split(b",")]
+                return handle_raw_response(client.getFunctionsByIds(target_function_ids))
+            return handle_raw_response(client.getFunctionsByIds([]))
     # getMatchesForSmdaFunction
     elif re_match := re.match("query/function$", api_path):
         print("getMatchesForSmdaFunction")
