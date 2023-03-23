@@ -1,12 +1,21 @@
+{% from 'table/links.html' import clipboard_btn, clipboard_js %}
 {% extends 'base.html' %}
 {% block title%}
 Settings
 {% endblock %}
+
+{% block style %}
+{{ clipboard_js() }}
+{% endblock %}
+
 {% block content %}
 <center>
 <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
   <li class="nav-item" role="presentation">
-    <button class="nav-link active" id="pills-username-tab" data-bs-toggle="pill" data-bs-target="#pills-username" type="button" role="tab" aria-controls="pills-username" aria-selected="true">Change username</button>
+    <button class="nav-link active" id="pills-info-tab" data-bs-toggle="pill" data-bs-target="#pills-info" type="button" role="tab" aria-controls="pills-info" aria-selected="true">User Information</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="pills-username-tab" data-bs-toggle="pill" data-bs-target="#pills-username" type="button" role="tab" aria-controls="pills-username" aria-selected="false">Change username</button>
   </li>
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="pills-password-tab" data-bs-toggle="pill" data-bs-target="#pills-password" type="button" role="tab" aria-controls="pills-password" aria-selected="false">Change password</button>
@@ -16,7 +25,31 @@ Settings
   </li>
 </ul>
 <div class="tab-content" id="pills-tabContent">
-  <div class="tab-pane fade show active"id="pills-username" role="tabpanel" aria-labelledby="pills-username-tab">
+  <div class="tab-pane fade show active" id="pills-info" role="tabpanel" aria-labelledby="pills-info-tab">
+    <table class="table table-striped w-auto">
+      <tr>
+        <th>Entity</th>
+        <th>Value</th>
+      </tr>
+      <tr>
+        <td>Username:</td>
+        <td>{{user_info.username}}</td>
+      </tr>
+      <tr>
+        <td>Role:</td>
+        <td>{{user_info.role}}</td>
+      </tr>
+      <tr>
+        <td>Registration:</td>
+        <td>{{user_info.registration_date}}</td>
+      </tr>
+      <tr>
+        <td>apitoken:</td>
+        <td>{{user_info.apitoken}} {{ clipboard_btn(user_info.apitoken) }}</td>
+      </tr>
+    </table>
+</div>
+  <div class="tab-pane fade" id="pills-username" role="tabpanel" aria-labelledby="pills-username-tab">
       <form action = "{{ url_for('admin.change_username') }}" method='post'>
           <div class="form-group">
             <input name='username' class="form-control" id="username" aria-describedby="usernameHelp" placeholder="Enter new username" autofocus required >
@@ -27,7 +60,7 @@ Settings
           <button type="submit" class="btn btn-primary">Confirm change</button>
       </form>
   </div>
-  <div class="tab-pane fade"id="pills-password" role="tabpanel" aria-labelledby="pills-password-tab">
+  <div class="tab-pane fade" id="pills-password" role="tabpanel" aria-labelledby="pills-password-tab">
       <form action = "{{ url_for('admin.change_password') }}" method='post'>
           <div class="form-group">
             <input type="password" name='inputPassword2' class="form-control" id="inputPassword2" placeholder="Enter old password" required>

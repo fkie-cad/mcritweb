@@ -9,6 +9,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 
 from mcritweb import db
+from mcritweb.db import UserInfo
 from mcritweb.views.utility import parse_integer_query_param, parse_checkbox_query_param, get_session_user_id
 
 
@@ -72,7 +73,7 @@ def register():
                 if g.first_user:
                     database.execute(
                         "INSERT INTO user (username, password, role, registered, last_login, apitoken) VALUES (?,?,?,?,?,?)",
-                        (username, generate_password_hash(password), 'admin', datetime.now(), 'no login', apitoken),
+                        (username, generate_password_hash(password), 'admin', datetime.utcnow(), 'no login', apitoken),
                     )
                     server_url = request.form['url']
                     operation_mode = request.form['operationMode']
@@ -86,7 +87,7 @@ def register():
                 else:
                     database.execute(
                         "INSERT INTO user (username, password, role, registered, last_login, apitoken) VALUES (?,?,?,?,?,?)",
-                        (username, generate_password_hash(password), 'pending', datetime.now(), 'no login', apitoken),
+                        (username, generate_password_hash(password), 'pending', datetime.utcnow(), 'no login', apitoken),
                     )
                 database.commit()
             except database.IntegrityError:
@@ -159,8 +160,9 @@ def settings():
     user_id = get_session_user_id()
     if user_id is None:
         return redirect(url_for('index'))
+    user_info = UserInfo.fromDb(user_id)
     filter_values = db.get_user_result_filters(user_id)
-    return render_template('settings.html', filters=filter_values)
+    return render_template('settings.html', user_info=user_info, filters=filter_values)
     
     
 def admin_required(view):

@@ -1,8 +1,39 @@
 import click
 import sqlite3
+import datetime
 from flask import current_app, g
 from flask.cli import with_appcontext
 
+
+class UserInfo(object):
+
+    def __init__(self) -> None:
+        self.user_id = None
+        self.username = None
+        self.role = None
+        self.registered = None
+        self.apitoken = None
+
+    @classmethod
+    def fromDb(cls, user_id):
+        db = get_db()
+        cursor = db.cursor()
+        record = cursor.execute("SELECT * FROM user WHERE id = ?;", (user_id,)).fetchone()
+        if record:
+            user_info = cls()
+            user_info.user_id = record["id"]
+            user_info.username = record["username"]
+            user_info.role = record["role"]
+            user_info.registered = datetime.datetime.strptime(record["registered"], "%Y-%m-%d %H:%M:%S.%f")
+            user_info.apitoken = record["apitoken"]
+        else:
+            user_info = None
+        return user_info
+    
+    @property
+    def registration_date(self):
+        return self.registered.strftime("%Y-%m-%d")
+            
 
 def get_db():
     if 'db' not in g:
@@ -23,7 +54,6 @@ def close_db(e=None):
 
 def init_db():
     db = get_db()
-
     with current_app.open_resource('create_table.sql') as f:
         db.executescript(f.read().decode('utf8'))
 

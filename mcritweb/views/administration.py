@@ -6,6 +6,7 @@ from mcrit.client.McritClient import McritClient
 
 from mcritweb.views.utility import get_server_url
 from mcritweb import db
+from mcritweb.db import UserInfo
 from mcritweb.views.authentication import admin_required, login_required, multi_user
 from mcritweb.views.utility import get_server_url, set_server_url, get_mcritweb_version_from_setup, parse_integer_post_param, parse_checkbox_post_param, get_session_user_id
 
@@ -40,7 +41,8 @@ def change_username():
         flash('Username successfully changed', category='success')
         return redirect(url_for('index'))
     flash(error, category='error')
-    return render_template('settings.html')
+    user_info = UserInfo.fromDb(user_id)
+    return render_template('settings.html', user_info=user_info)
 
 
 @bp.route('/change_password' , methods=('GET', 'POST'))
@@ -68,7 +70,8 @@ def change_password():
         flash('Password successfully changed', category='success') 
         return redirect(url_for('index'))
     flash(error, category='error')
-    return render_template('settings.html')
+    user_info = UserInfo.fromDb(user_id)
+    return render_template('settings.html', user_info=user_info)
 
 
 @bp.route('/change_default_filter' , methods=('GET', 'POST'))
@@ -107,7 +110,8 @@ def change_default_filter():
     # store user filter values in database
     db.set_user_result_filters(user_id, filter_values)
     flash('Default filters successfully changed', category='success') 
-    return render_template('settings.html', filters=filter_values)
+    user_info = UserInfo.fromDb(user_id)
+    return render_template('settings.html', user_info=user_info, filters=filter_values)
 
 @bp.route('/users/')
 @bp.route('/users/<tab>')
