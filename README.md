@@ -39,6 +39,7 @@ Alternatively, we recommend to use the fully packaged [docker-mcrit](https://git
 First and foremost, this will ensure that you have fully compatible versions across all components.
 
 ## Version History
+ * 2023-03-24 v0.14.2: API forward for adding / updating SmdaReports.
  * 2023-03-23 v0.14.1: UserInfo database object introduced and exposing apitoken in the UI.
  * 2023-03-21 v0.14.0: API forward for querying multiple function_entries by function_id.
  * 2023-03-19 v0.12.3: API forward for single SmdaFunction queries.

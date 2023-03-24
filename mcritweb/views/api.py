@@ -47,15 +47,21 @@ def api_router(api_path):
         return handle_raw_response(client.getSampleBySha256(sample_sha256))
     # getSamples
     elif re_match := re.match("samples$", api_path):
-        print("getSamples")
-        forward_start = 0
-        forward_limit = 0
-        try:
-            forward_start = int(request.args.get("start", 0))
-            forward_limit = int(request.args.get("limit", 0))
-        except:
-            pass
-        return handle_raw_response(client.getSamples(forward_start, forward_limit))
+        if request.method == "GET":
+            print("getSamples")
+            forward_start = 0
+            forward_limit = 0
+            try:
+                forward_start = int(request.args.get("start", 0))
+                forward_limit = int(request.args.get("limit", 0))
+            except:
+                pass
+            return handle_raw_response(client.getSamples(forward_start, forward_limit))
+        elif request.method == 'POST':
+            print("addReportJson")
+            smda_report_body = request.get_json(force=True)
+            smda_report = SmdaReport.fromDict(smda_report_body)
+            return handle_raw_response(client.addReport(smda_report))
     # getFamily, isFamilyId
     elif re_match := re.match("families/(?P<family_id>\d+)$", api_path):
         print("getFamily, isFamilyId")
