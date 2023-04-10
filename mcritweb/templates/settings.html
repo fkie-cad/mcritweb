@@ -14,12 +14,14 @@ Settings
   <li class="nav-item" role="presentation">
     <button class="nav-link active" id="pills-info-tab" data-bs-toggle="pill" data-bs-target="#pills-info" type="button" role="tab" aria-controls="pills-info" aria-selected="true">User Information</button>
   </li>
+  {% if g.user['role'] == 'admin' or g.user['role'] == 'contributor' %}
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="pills-username-tab" data-bs-toggle="pill" data-bs-target="#pills-username" type="button" role="tab" aria-controls="pills-username" aria-selected="false">Change username</button>
   </li>
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="pills-password-tab" data-bs-toggle="pill" data-bs-target="#pills-password" type="button" role="tab" aria-controls="pills-password" aria-selected="false">Change password</button>
   </li>
+  {% endif %}
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="pills-default-filter-tab" data-bs-toggle="pill" data-bs-target="#pills-default-filter" type="button" role="tab" aria-controls="pills-default-filter" aria-selected="false">Change default result filter</button>
   </li>
@@ -43,12 +45,15 @@ Settings
         <td>Registration:</td>
         <td>{{user_info.registration_date}}</td>
       </tr>
+      {% if user_info.role == "admin" or user_info.role == "contributor" %}
       <tr>
         <td>apitoken:</td>
         <td>{{user_info.apitoken}} {{ clipboard_btn(user_info.apitoken) }}</td>
       </tr>
+      {% endif %}
     </table>
 </div>
+{% if g.user['role'] == 'admin' or g.user['role'] == 'contributor' %}
   <div class="tab-pane fade" id="pills-username" role="tabpanel" aria-labelledby="pills-username-tab">
       <form action = "{{ url_for('admin.change_username') }}" method='post'>
           <div class="form-group">
@@ -74,6 +79,7 @@ Settings
           <button type="submit" class="btn btn-primary">Confirm change</button>
       </form>
   </div>
+  {% endif %}
   <div class="tab-pane fade" id="pills-default-filter" role="tabpanel" aria-labelledby="pills-default-filter-tab">
     <form class="form-inline" action = "{{ url_for('admin.change_default_filter') }}" method='post'>
         <div class="form-group row text-start">

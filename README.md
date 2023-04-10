@@ -39,6 +39,7 @@ Alternatively, we recommend to use the fully packaged [docker-mcrit](https://git
 First and foremost, this will ensure that you have fully compatible versions across all components.
 
 ## Version History
+ * 2023-04-10 v0.15.0: Shaping user role visitor more towards a demo account: limited visibility of menus/content, disallowed username/password change, but allowing them to upload files for query, up to size 1MB.
  * 2023-03-24 v0.14.2: API forward for adding / updating SmdaReports.
  * 2023-03-23 v0.14.1: UserInfo database object introduced and exposing apitoken in the UI.
  * 2023-03-21 v0.14.0: API forward for querying multiple function_entries by function_id.

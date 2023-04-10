@@ -94,10 +94,12 @@
         Data
       </a>
       <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownData">
+        {% if g.user['role'] == 'admin' or g.user['role'] == 'contributor' %}
         <a class="dropdown-item" href="{{ url_for('data.import_view') }}">Import</a>
         <a class="dropdown-item" href="{{ url_for('data.export_view') }}">Export</a>
         <a class="dropdown-item" href="{{ url_for('data.submit') }}">Submit binary</a>
         <div class="dropdown-divider"></div>
+        {% endif %}
         <a class="dropdown-item" href="{{ url_for('data.jobs') }}">Jobs/Results</a>
       </div>
     </li>

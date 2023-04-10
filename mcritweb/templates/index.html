@@ -3,10 +3,6 @@
 Home
 {% endblock %}
 {% block content %}
-<form style="width:100%" method="POST" required>
-  <input type="text" class="form-control shadow-none" name="Search" id="Search" placeholder="Search" autofocus autocomplete="on" required>
-  <input type='submit' hidden>
-</form>
 
 {% if g.user %}
   <h1>Welcome {{g.user['username']}}</h1>

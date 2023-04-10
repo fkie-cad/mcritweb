@@ -1,7 +1,7 @@
 import re
 import os
 from hashlib import sha256
-from flask import Blueprint, render_template, request, redirect, session, url_for, current_app, json, flash
+from flask import Blueprint, g, render_template, request, redirect, session, url_for, current_app, json, flash
 from mcrit.client.McritClient import McritClient
 from mcrit.storage.SampleEntry import SampleEntry
 
@@ -205,7 +205,7 @@ def compare_vs(sample_id_a, sample_id_b):
 
 @bp.route('/query',methods=('GET', 'POST'))
 @mcrit_server_required
-@contributor_required
+@visitor_required
 def query():
     client = McritClient(mcrit_server=get_server_url())
     if request.method == 'POST':
@@ -220,6 +220,9 @@ def query():
             base_address = int(request.form['base_address'], 16)
 
         binary_content = f.read()
+        if g.user['role'] == 'visitor' and len(binary_content) > 1 * 2**20:
+            flash(f'Your account may only upload files for query that are up to {1 * 2**20} bytes in size.', category='error')
+            return "", 403 # Bad Request
 
         minhash_band_range = int(request.form['minhashBandRange'])
         minhash_band_range = min(3, minhash_band_range)
