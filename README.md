@@ -1,14 +1,14 @@
 # MCRITweb
 
-MCRITweb is a Flask-based user interface for [MCRIT, the MinHash-based Code Recognition & Investigation Toolkit](https://github.com/danielplohmann/mcrit).  
-It has been developed by Daniel Enders, Manuel Blatt, and Daniel Plohmann.
+MCRITweb is a Flask-based user interface for [MCRIT](https://github.com/danielplohmann/mcrit), the MinHash-based Code Recognition & Investigation Toolkit.  
+MCRITweb has been developed by Daniel Enders, Manuel Blatt, and Daniel Plohmann.
 
 ## Installation
 
 We highly recommend using the dockerized deployment available at [docker-mcrit](https://github.com/danielplohmann/docker-mcrit).
 
-If you instead want to go for a direct installation (e.g. to simplify development), a few dependencies have to be installed.  
-First, ensure that Python is available, then simply use pip to cover the requirements:
+If you instead want to go for a direct installation, a few dependencies have to be installed.  
+First, ensure that Python 3.8+ is available, then simply use pip to cover the requirements:
 ```bash
 # install python and MCRIT dependencies
 $ sudo apt install python3 python3-pip
@@ -20,9 +20,14 @@ Obviously, also make sure that the backend [MCRIT](https://github.com/danielploh
 
 ## Usage
 
+### Dockerized Usage
+
+We highly recommend to use the fully packaged [docker-mcrit](https://github.com/danielplohmann/docker-mcrit) for trivial deployment and usage.  
+First and foremost, this will ensure that you have fully compatible versions across all components.
+
 ### Standalone Usage
 
-If you want to run MCRITweb as a standalone tool, the following steps will enable this:
+If you instead want to run MCRITweb as a standalone tool, the following steps will enable this:
 
 Running flask commands requires you to set environment variables in your shell:  
 `$ source ./flask_env.sh`
@@ -33,12 +38,11 @@ before the first usage, create an empty database:
 and then to run MCRITweb, execute:  
 `$ flask run`
 
-### Dockerized Usage
+Note that most functionality of MCRITweb will only work if an MCRIT backend is configured and available.
 
-Alternatively, we recommend to use the fully packaged [docker-mcrit](https://github.com/danielplohmann/docker-mcrit) for trivial deployment and usage.  
-First and foremost, this will ensure that you have fully compatible versions across all components.
 
 ## Version History
+ * 2023-04-10 v1.0.0: Milestone release for Botconf 2023.
  * 2023-04-10 v0.15.0: Shaping user role visitor more towards a demo account: limited visibility of menus/content, disallowed username/password change, but allowing them to upload files for query, up to size 1MB.
  * 2023-03-24 v0.14.2: API forward for adding / updating SmdaReports.
  * 2023-03-23 v0.14.1: UserInfo database object introduced and exposing apitoken in the UI.
@@ -63,7 +67,7 @@ First and foremost, this will ensure that you have fully compatible versions acr
 ## Credits & Notes
 
 MCRITweb uses the following projects:  
-* the awesome [CFGExplorer](https://github.com/hdc-arizona/cfgexplorer) library published by the Humans, Data, and Computers Lab at CS Arizona in order to visualize disassembly.  
+* the awesome [CFGExplorer](https://github.com/hdc-arizona/cfgexplorer) library, published by the Humans, Data, and Computers Lab at CS Arizona, is used to visualize disassembly.  
 * `bootstrap`, `jquery`, and `font-awesome` for its appearence. 
 
 Pull requests welcome! :)
