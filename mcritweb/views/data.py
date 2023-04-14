@@ -5,15 +5,19 @@ import hashlib
 from datetime import datetime
 from mcrit.client.McritClient import McritClient
 from mcrit.storage.MatchingResult import MatchingResult
+from mcrit.storage.MatchedFunctionEntry import MatchedFunctionEntry
+from mcrit.storage.FunctionEntry import FunctionEntry
+from mcrit.storage.SampleEntry import SampleEntry
 from flask import current_app, Blueprint, render_template, request, redirect, url_for, Response, flash, session, send_from_directory, json
 
-from mcritweb.views.authentication import visitor_required, contributor_required
-from mcritweb.views.cross_compare import get_sample_to_job_id, score_to_color
-from mcritweb.views.utility import get_server_url, mcrit_server_required, parseBitnessFromFilename, parseBaseAddrFromFilename, get_matches_node_colors
-from mcritweb.views.pagination import Pagination
-from mcritweb.views.MatchReportRenderer import MatchReportRenderer
-from mcritweb.views.ScoreColorProvider import ScoreColorProvider
+from mcritweb.db import get_user_result_filters
 from mcritweb.views.analyze import query as analyze_query
+from mcritweb.views.utility import get_server_url, mcrit_server_required, parseBitnessFromFilename, parseBaseAddrFromFilename, get_matches_node_colors, parse_integer_query_param, parse_checkbox_query_param, parse_str_query_param, get_session_user_id
+from mcritweb.views.pagination import Pagination
+from mcritweb.views.cross_compare import get_sample_to_job_id, score_to_color
+from mcritweb.views.authentication import visitor_required, contributor_required
+from mcritweb.views.ScoreColorProvider import ScoreColorProvider
+from mcritweb.views.MatchReportRenderer import MatchReportRenderer
 
 bp = Blueprint('data', __name__, url_prefix='/data')
 
@@ -40,18 +44,20 @@ def cache_result(app, job_info, matching_result):
             json.dump(matching_result, fout, indent=1)
 
 
-def create_match_diagram(app, job_id, matching_result, filtered_family_id=None, filtered_sample_id=None):
+def create_match_diagram(app, job_id, matching_result, filtered_family_id=None, filtered_sample_id=None, filtered_function_id=None):
     cache_path = os.sep.join([app.instance_path, "cache", "diagrams"])
-    family_sample_suffix = ""
+    filter_suffix = ""
     if filtered_family_id is not None:
-        family_sample_suffix = f"-famid_{filtered_family_id}"
+        filter_suffix = f"-famid_{filtered_family_id}"
     elif filtered_sample_id is not None:
-        family_sample_suffix = f"-samid_{filtered_sample_id}"
-    output_path = cache_path + os.sep + job_id + family_sample_suffix + ".png"
+        filter_suffix = f"-samid_{filtered_sample_id}"
+    elif filtered_function_id is not None:
+        filter_suffix = f"-funid_{filtered_function_id}"
+    output_path = cache_path + os.sep + job_id + filter_suffix + ".png"
     if not os.path.isfile(output_path):
         renderer = MatchReportRenderer()
         renderer.processReport(matching_result)
-        image = renderer.renderStackedDiagram(filtered_family_id=filtered_family_id, filtered_sample_id=filtered_sample_id)
+        image = renderer.renderStackedDiagram(filtered_family_id=filtered_family_id, filtered_sample_id=filtered_sample_id, filtered_function_id=filtered_function_id)
         image.save(output_path)
 
 # https://stackoverflow.com/a/39842765
@@ -62,14 +68,6 @@ def diagram_file(filename):
     cache_path = os.sep.join([current_app.instance_path, "cache", "diagrams"])
     return send_from_directory(cache_path, filename)
 
-def _parse_integer_query_param(request, query_param:str):
-    """ Try to find query_param in the request and parse it as int """
-    param = None
-    try:
-        param = int(request.args.get(query_param))
-    except Exception:
-        pass
-    return param
 
 ################################################################
 # Import + Export
@@ -129,10 +127,10 @@ def export_view():
 @mcrit_server_required
 @contributor_required
 def specific_export(type, item_id):
-    client = McritClient(mcrit_server= get_server_url())
+    client = McritClient(mcrit_server=get_server_url())
     if type == 'family':
         samples = client.getSamplesByFamilyId(item_id)
-        sample_ids = [x.sample_id for x in samples]
+        sample_ids = [x.sample_id for x in samples.values()]
         export_file = json.dumps(client.getExportData(sample_ids))
         return Response(
             export_file,
@@ -152,10 +150,41 @@ def specific_export(type, item_id):
                     "attachment; filename=export_samples.json"})
 
 ################################################################
-# Result presentation
+# Direct Function Matching
 ################################################################
 
+@bp.route('/matches/function/<function_id_a>/<function_id_b>')
+@mcrit_server_required
+@visitor_required
+def match_functions(function_id_a, function_id_b):
+    client = McritClient(mcrit_server=get_server_url())
+    if client.isFunctionId(function_id_a) and client.isFunctionId(function_id_b):
+        match_info = client.getMatchFunctionVs(function_id_a, function_id_b)
+        function_entry = FunctionEntry.fromDict(match_info["function_entry_a"])
+        pichash_matches_a = client.getMatchesForPicHash(function_entry.pichash, summary=True)
+        sample_entry_a = SampleEntry.fromDict(match_info["sample_entry_a"])
+        other_function_entry = FunctionEntry.fromDict(match_info["function_entry_b"])
+        sample_entry_b = SampleEntry.fromDict(match_info["sample_entry_b"])
+        pichash_matches_b = client.getMatchesForPicHash(other_function_entry.pichash, summary=True)
+        matched_function_entry = MatchedFunctionEntry(match_info["match_entry"]["fid"], match_info["match_entry"]["num_bytes"], match_info["match_entry"]["offset"], match_info["match_entry"]["matches"])
+        node_colors = get_matches_node_colors(function_id_a, function_id_b)
+        return render_template(
+            "result_compare_function_vs.html",
+            entry_a=function_entry,
+            entry_b=other_function_entry,
+            sample_entry_a=sample_entry_a,
+            sample_entry_b=sample_entry_b,
+            pichash_matches_a=pichash_matches_a,
+            pichash_matches_b=pichash_matches_b,
+            match_result=matched_function_entry,
+            node_colors=json.dumps(node_colors)
+        )
+    flash("One of the function_ids is not valid.", category='error')
+    return render_template("index.html")
 
+################################################################
+# Result presentation
+################################################################
 
 @bp.route('/result/<job_id>')
 @mcrit_server_required
@@ -204,6 +233,15 @@ def result(job_id):
             return result_unique_blocks(job_info, result_json)
         elif job_info.parameters.startswith("addBinarySample"):
             return redirect(url_for('explore.sample_by_id', sample_id=result_json['sample_info']['sample_id']))
+        # modify and delete samples and families
+        elif job_info.parameters.startswith("deleteSample"):
+            return redirect(url_for('explore.samples'))
+        elif job_info.parameters.startswith("modifySample"):
+            return redirect(url_for('explore.samples'))
+        elif job_info.parameters.startswith("deleteFamily"):
+            return redirect(url_for('explore.families'))
+        elif job_info.parameters.startswith("modifyFamily"):
+            return redirect(url_for('explore.families'))
     elif job_info:
         # if we are not done processing, list job data
         return render_template("job_in_progress.html", job_info=job_info)
@@ -211,64 +249,71 @@ def result(job_id):
         # if we can't find job or result, we have to assume the job_id was invalid
         return render_template("result_invalid.html", job_id=job_id)
 
-@bp.route('/yarafication/<job_id>', methods=['POST'])
-@mcrit_server_required
-@visitor_required
-def yarafication(job_id):
-    client = McritClient(mcrit_server=get_server_url())
-    # check if we have the respective report already locally cached
-    result_json = load_cached_result(current_app, job_id)
-    job_info = client.getJobData(job_id)
-    if not result_json:
-        # otherwise obtain result report from remote
-            result_json = client.getResultForJob(job_id)
-            if result_json:
-                cache_result(current_app, job_info, result_json)
-    if result_json:
-        # TODO validation - only parse to matching_result if this data type is appropriate 
-        # re-format result report for visualization and choose respective template
-        if job_info is None:
-            return render_template("result_invalid.html", job_id=job_id)
-    query = None
-    if request.method == 'POST' and "block_count" in request.form:
-        query = request.form['block_count']
-    selected_picblocks = []
-    if query:
-        # TODO build rule with greedy algorithm
-        pass
-    yara_rule = query
-    return render_template("result_blocks_yara.html", job_info=job_info, yara_rule=yara_rule)
+def build_yara_rule(job_info, blocks_result, blocks_statistics):
+    unique_blocks = blocks_result["unique_blocks"]
+    yara_blocks = blocks_result["yara_rule"]
+    yara_rule = f"rule mcrit_{job_info.job_id} {{\n"
+    yara_rule += "    meta:\n"
+    yara_rule += "        author = \"MCRIT YARA Generator\"\n"
+    yara_rule += f"        description = \"Code-based YARA rule composed from potentially unique basic blocks for the selected set of samples/family.\"\n"
+    rule_date = datetime.utcnow().strftime("%Y-%m-%d")
+    yara_rule += f"        date = \"{rule_date}\"\n"
+    yara_rule += "    strings:\n"
+    yara_rule += f"        // Rule generation selected {len(yara_blocks)} picblocks, covering {blocks_statistics['num_samples_covered']}/{blocks_statistics['num_samples']} input sample(s).\n"
+    for pichash, result in unique_blocks.items():
+        if pichash not in yara_blocks:
+            continue
+        yarafied = f"        /* picblockhash: {pichash} - coverage: {len(result['samples'])}/{blocks_statistics['num_samples_covered']} samples.\n"
+        maxlen_ins = max([len(ins[1]) for ins in result["instructions"]])
+        for ins in result["instructions"]:
+            yarafied += f"         * {ins[1]:{maxlen_ins}} | {ins[2]} {ins[3]}\n"
+        yarafied += "         */\n"
+        yarafied += f"        $blockhash_{pichash} = {{ " + re.sub("(.{80})", "\\1\n", result["escaped_sequence"], 0, re.DOTALL) + " }\n"
+        yara_rule += yarafied + "\n"
+    yara_rule += "    condition:\n"
+    yara_rule += "        7 of them\n"
+    yara_rule += "}"
+    return yara_rule
 
 def result_unique_blocks(job_info, blocks_result: dict):
+    client = McritClient(mcrit_server=get_server_url())
     payload_params = json.loads(job_info.payload["params"])
     sample_ids = payload_params["0"]
     sample_id = sample_ids[0]
     family_id = None
+    family_entry = None
     if "family_id" in payload_params:
         family_id = payload_params["family_id"]
+        family_entry = client.getFamily(family_id)
     if blocks_result is None:
         if family_id is not None:
-            flash(f"Ups, no results for unique blocks in family with id {family_id}", category="error")
+            flash(f"No results for unique blocks in family with id {family_id}", category="error")
         else:
-            flash(f"Ups, no results for unique blocks in family with id {sample_id}", category="error")
-    number_of_unique_blocks = 0
+            flash(f"No results for unique blocks in family with id {sample_id}", category="error")
+    blocks_statistics = blocks_result["statistics"]
+    yara_rule = build_yara_rule(job_info, blocks_result, blocks_statistics)
+    unique_blocks = blocks_result["unique_blocks"]
+
     paginated_blocks = []
-    if blocks_result is not None:
-        min_score = _parse_integer_query_param(request, "min_score")
-        min_block_length = _parse_integer_query_param(request, "min_block_length")
-        max_block_length = _parse_integer_query_param(request, "max_block_length")
-        filtered_blocks = blocks_result
+    # TODO this result object has changed, we should split it into stats/blocks/yara and process further
+    if unique_blocks is not None:
+        min_score = parse_integer_query_param(request, "min_score")
+        min_block_length = parse_integer_query_param(request, "min_block_length")
+        max_block_length = parse_integer_query_param(request, "max_block_length")
+        active_tab = request.args.get('tab','stats')
+        active_tab = active_tab if active_tab in ["stats", "yara", "blocks"] else "stats"
+        filtered_blocks = unique_blocks
         if min_score:
-            filtered_blocks = {pichash: block for pichash, block in blocks_result.items() if block["score"] >= min_score}
+            filtered_blocks = {pichash: block for pichash, block in unique_blocks.items() if block["score"] >= min_score}
         if min_block_length or max_block_length:
             min_block_length = 0 if min_block_length is None else min_block_length
             max_block_length = 0xFFFFFFFF if max_block_length is None else max_block_length
             filtered_blocks = {pichash: block for pichash, block in filtered_blocks.items() if max_block_length >= block["length"] >= min_block_length}
-        blocks_result = filtered_blocks
-        number_of_unique_blocks = len(blocks_result)
+        unique_blocks = filtered_blocks
+        number_of_unique_blocks = len(filtered_blocks)
         block_pagination = Pagination(request, number_of_unique_blocks, limit=100, query_param="blkp")
         index = 0
-        for pichash, result in sorted(blocks_result.items(), key=lambda x: x[1]["score"], reverse=True):
+        for pichash, result in sorted(unique_blocks.items(), key=lambda x: x[1]["score"], reverse=True):
             if index >= block_pagination.end_index:
                 break
             if index >= block_pagination.start_index:
@@ -278,26 +323,110 @@ def result_unique_blocks(job_info, blocks_result: dict):
                     yarafied += f" * {ins[1]:{maxlen_ins}} | {ins[2]} {ins[3]}\n"
                 yarafied += " */\n"
                 yarafied += "{ " + re.sub("(.{80})", "\\1\n", result["escaped_sequence"], 0, re.DOTALL) + " }"
-                blocks_result[pichash]["yarafied"] = yarafied
+                unique_blocks[pichash]["yarafied"] = yarafied
                 paginated_block = result
                 paginated_block["key"] = pichash
                 paginated_block["yarafied"] = yarafied
                 paginated_blocks.append(paginated_block)
             index += 1
-    if family_id is not None:
-        return render_template("result_blocks_family.html", job_info=job_info, family_id=family_id, number_of_unique_blocks=number_of_unique_blocks, results=paginated_blocks, blkp=block_pagination)
-    else:
-        return render_template("result_blocks_sample.html", job_info=job_info, sample_id=sample_id, number_of_unique_blocks=number_of_unique_blocks, results=paginated_blocks, blkp=block_pagination)
+    # TODO pass the new result objects as single arguments and then render them in page tabs on the template
+    return render_template("result_unique_blocks.html", job_info=job_info, family_entry=family_entry, sample_id=sample_id, yara_rule=yara_rule, statistics=blocks_statistics, results=paginated_blocks, blkp=block_pagination, active_tab=active_tab)
 
 def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult):
     score_color_provider = ScoreColorProvider()
-    # TODO think of additional useful query parameters that can be used to filter/shape the result output
-    filtered_sample_id = _parse_integer_query_param(request, "samid")
-    filtered_family_id = _parse_integer_query_param(request, "famid")
-    filtered_function_id = _parse_integer_query_param(request, "funid")
-    other_function_id = _parse_integer_query_param(request, "ofunid")
-    client = McritClient(mcrit_server=get_server_url())
+    filtered_family_id = parse_integer_query_param(request, "famid")
+    filtered_sample_id = parse_integer_query_param(request, "samid")
+    filtered_function_id = parse_integer_query_param(request, "funid")
+    other_function_id = parse_integer_query_param(request, "ofunid")
+    filter_action = parse_str_query_param(request, "filter_button_action")
+    # generic filtering on family/sample results
+    filter_direct_min_score = parse_integer_query_param(request, "filter_direct_min_score")
+    filter_direct_nonlib_min_score = parse_integer_query_param(request, "filter_direct_nonlib_min_score")
+    filter_frequency_min_score = parse_integer_query_param(request, "filter_frequency_min_score")
+    filter_frequency_nonlib_min_score = parse_integer_query_param(request, "filter_frequency_nonlib_min_score")
+    filter_unique_only = parse_checkbox_query_param(request, "filter_unique_only")
+    filter_exclude_own_family = parse_checkbox_query_param(request, "filter_exclude_own_family")
+    # generic filtering of function results
+    filter_function_min_score = parse_integer_query_param(request, "filter_function_min_score")
+    filter_function_max_score = parse_integer_query_param(request, "filter_function_max_score")
+    filter_max_num_families = parse_integer_query_param(request, "filter_max_num_families")
+    filter_max_num_samples = parse_integer_query_param(request, "filter_max_num_samples")
+    filter_exclude_library = parse_checkbox_query_param(request, "filter_exclude_library")
+    filter_exclude_pic = parse_checkbox_query_param(request, "filter_exclude_pic")
+    if not any([filter_direct_min_score, filter_frequency_min_score, filter_unique_only, filter_exclude_own_family, 
+                filter_function_min_score, filter_function_max_score, filter_max_num_families, 
+                filter_exclude_library, filter_exclude_pic]) and not filter_action == "clear":
+        # load default filters
+        user_id = get_session_user_id()
+        filter_values = get_user_result_filters(user_id)
+        # adjust filters based on family/sample filtering
+        if filtered_family_id is None and filtered_sample_id is None and filtered_function_id is None:
+            filter_values["filter_max_num_samples"] = None
+        elif filtered_family_id is not None:
+            filter_values["filter_max_num_families"] = None
+        elif filtered_sample_id is not None:
+            filter_values["filter_max_num_families"] = None
+            filter_values["filter_max_num_samples"] = None
+    elif filter_action == "clear":
+        filter_values = {
+            "filter_direct_min_score": None,
+            "filter_direct_nonlib_min_score": None,
+            "filter_frequency_min_score": None,
+            "filter_frequency_nonlib_min_score": None,
+            "filter_unique_only": None,
+            "filter_exclude_own_family": None,
+            "filter_function_min_score": None,
+            "filter_function_max_score": None,
+            "filter_max_num_families": None,
+            "filter_max_num_samples": None,
+            "filter_exclude_library": None,
+            "filter_exclude_pic": None,
+        }
+    else:
+        filter_values = {
+            "filter_direct_min_score": filter_direct_min_score,
+            "filter_direct_nonlib_min_score": filter_direct_nonlib_min_score,
+            "filter_frequency_min_score": filter_frequency_min_score,
+            "filter_frequency_nonlib_min_score": filter_frequency_nonlib_min_score,
+            "filter_unique_only": filter_unique_only,
+            "filter_exclude_own_family": filter_exclude_own_family,
+            "filter_function_min_score": filter_function_min_score,
+            "filter_function_max_score": filter_function_max_score,
+            "filter_max_num_families": filter_max_num_families,
+            "filter_max_num_samples": filter_max_num_samples,
+            "filter_exclude_library": filter_exclude_library,
+            "filter_exclude_pic": filter_exclude_pic,
+        }
+    matching_result.setFilterValues(filter_values)
+    matching_result.getUniqueFamilyMatchInfoForSample(None)
+    # filter family/sample
+    if filter_values.get("filter_direct_min_score", None):
+        matching_result.filterToDirectMinScore(filter_values["filter_direct_min_score"])
+    if filter_values.get("filter_direct_nonlib_min_score", None):
+        matching_result.filterToDirectMinScore(filter_values["filter_direct_nonlib_min_score"], nonlib=True)
+    if filter_values.get("filter_frequency_min_score", None):
+        matching_result.filterToFrequencyMinScore(filter_values["filter_frequency_min_score"])
+    if filter_values.get("filter_frequency_nonlib_min_score", None):
+        matching_result.filterToFrequencyMinScore(filter_values["filter_frequency_nonlib_min_score"], nonlib=True)
+    if filter_values.get("filter_unique_only", None):
+        matching_result.filterToUniqueMatchesOnly()
+    if filter_values.get("filter_exclude_own_family", None):
+        matching_result.excludeOwnFamily()
+    # filter functions
+    if filter_values.get("filter_exclude_library", None):
+        matching_result.excludeLibraryMatches()
+    if filter_values.get("filter_max_num_families", None):
+        matching_result.filterToFamilyCount(filter_values["filter_max_num_families"])
+    if filter_values.get("filter_max_num_samples", None):
+        matching_result.filterToSampleCount(filter_values["filter_max_num_samples"])
+    if filter_values.get("filter_function_min_score", None):
+        matching_result.filterToFunctionScore(min_score=filter_values["filter_function_min_score"])
+    if filter_values.get("filter_function_max_score", None):
+        matching_result.filterToFunctionScore(max_score=filter_values["filter_function_max_score"])
+    if filter_values.get("filter_exclude_pic", None):
+        matching_result.excludePicMatches()
 
+    client = McritClient(mcrit_server=get_server_url())
     if filtered_family_id is not None and client.isFamilyId(filtered_family_id):
         matching_result.filterToFamilyId(filtered_family_id)
         create_match_diagram(current_app, job_info.job_id, matching_result, filtered_family_id=filtered_family_id)
@@ -315,17 +444,8 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), query_param="funp")
         return render_template("result_compare_sample.html", samid=filtered_sample_id, job_info=job_info, samp=sample_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
     # treat family/sample part as if there was no filter
-    elif filtered_function_id is not None and other_function_id is not None and client.isFunctionId(filtered_function_id) and client.isFunctionId(other_function_id):
-        # TODO: get minhash matching score and also show in resulting HTML
-        function_entry = client.getFunctionById(filtered_function_id, with_xcfg=True)
-        pichash_matches_a = client.getMatchesForPicHash(function_entry.pichash, summary=True)
-        other_function_entry = client.getFunctionById(other_function_id, with_xcfg=True)
-        pichash_matches_b = client.getMatchesForPicHash(other_function_entry.pichash, summary=True)
-        node_colors = get_matches_node_colors(filtered_function_id, other_function_id)
-        return render_template("result_compare_function_vs.html", entry_a=function_entry, entry_b=other_function_entry, pichash_matches_a=pichash_matches_a, pichash_matches_b=pichash_matches_b, node_colors=json.dumps(node_colors)) 
-    # treat family/sample part as if there was no filter
     elif filtered_function_id is not None and client.isFunctionId(filtered_function_id):
-        create_match_diagram(current_app, job_info.job_id, matching_result)
+        create_match_diagram(current_app, job_info.job_id, matching_result, filtered_function_id=filtered_function_id)
         num_families_matched = len(set([sample.family for sample in matching_result.sample_matches]))
         matching_result.filterToFunctionId(filtered_function_id)
         num_functions_matched = len(set([function_match.matched_function_id for function_match in matching_result.function_matches]))
@@ -339,10 +459,12 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         return render_template("result_compare_vs.html", job_info=job_info, matching_result=matching_result, funp=function_pagination, scp=score_color_provider)
     else:
         create_match_diagram(current_app, job_info.job_id, matching_result)
-        num_families_matched = len(set([sample.family for sample in matching_result.sample_matches]))
+        num_families_matched = len(set([sample.family_id for sample in matching_result.sample_matches if not sample.is_library]))
+        num_libraries_matched = len(set([sample.family_id for sample in matching_result.sample_matches if sample.is_library]))
         family_pagination = Pagination(request, num_families_matched, limit=10, query_param="famp")
+        library_pagination = Pagination(request, num_libraries_matched, limit=10, query_param="libp")
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), query_param="funp")
-        return render_template("result_compare_all.html", job_info=job_info, famp=family_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
+        return render_template("result_compare_all.html", job_info=job_info, famp=family_pagination, libp=library_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
 
 
 def result_matches_for_cross(job_info, result_json):
@@ -411,13 +533,15 @@ def jobs():
     pagination_vs1 = Pagination(request, client.getJobCount('Vs'), query_param="p_1")
     pagination_vsN = Pagination(request, client.getJobCount('getMatchesForSample'), query_param="p_n")
     pagination_cross = Pagination(request, client.getJobCount('combineMatchesToCross'), query_param="p_c")
+    pagination_blocks = Pagination(request, client.getJobCount('getUniqueBlocks'), query_param="p_b")
     others = client.getQueueData(start=pagination_others.start_index, limit=pagination_others.limit, filter=query)
     # NOTE: the filter is not just 'Vs' anymore. It is longer to prevent false matches. E.g. if a filename contains 'Vs'.
     vs1 = client.getQueueData(start=pagination_vs1.start_index, limit=pagination_vs1.limit, filter='getMatchesForSampleVs(')
     # NOTE: this includes '(', because otherwise vsN would also contain all vs1 jobs.
     vsN = client.getQueueData(start=pagination_vsN.start_index, limit=pagination_vsN.limit, filter='getMatchesForSample(')
     cross = client.getQueueData(start=pagination_vsN.start_index, limit=pagination_vsN.limit, filter='combineMatchesToCross(')
-    return render_template('jobs.html', active=active, others=others, cross=cross, vs1=vs1, vsN=vsN, p_o=pagination_others, p_1=pagination_vs1, p_n=pagination_vsN, p_c=pagination_cross, query=query)
+    blocks = client.getQueueData(start=pagination_blocks.start_index, limit=pagination_blocks.limit, filter='getUniqueBlocks(')
+    return render_template('jobs.html', active=active, others=others, cross=cross, vs1=vs1, vsN=vsN, blocks=blocks, p_o=pagination_others, p_1=pagination_vs1, p_n=pagination_vsN, p_c=pagination_cross, p_b=pagination_blocks, query=query)
 
 @bp.route('/jobs/<job_id>')
 @mcrit_server_required
@@ -530,6 +654,8 @@ def submit():
         if sample_entry is None:
             # NOTE: This flash is done on redirect target
             # flash('We received your sample, currently processing!', category='info')
+            with open(os.sep.join([current_app.instance_path, "cache", hash]), "wb") as fout:
+                fout.write(binary_content)
             job_id = client.addBinarySample(binary_content, filename=f.filename, family=family, version=version, is_dump=is_dump, base_addr=base_address, bitness=bitness)
             return url_for('data.job_by_id', job_id=job_id, refresh=3, forward=1), 202 # Accepted
         else:
