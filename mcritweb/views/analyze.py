@@ -1,6 +1,6 @@
 import re
 import os
-from hashlib import sha256
+import hashlib
 from flask import Blueprint, g, render_template, request, redirect, session, url_for, current_app, json, flash
 from mcrit.client.McritClient import McritClient
 from mcrit.storage.SampleEntry import SampleEntry
@@ -223,6 +223,10 @@ def query():
         if g.user['role'] == 'visitor' and len(binary_content) > 1 * 2**20:
             flash(f'Your account may only upload files for query that are up to {1 * 2**20} bytes in size.', category='error')
             return "", 403 # Bad Request
+        # persist the upload in binary format
+        upload_sha256 = hashlib.sha256(binary_content).hexdigest()
+        with open(os.sep.join([current_app.instance_path, "temp", "uploads", upload_sha256]), "wb") as fout:
+            fout.write(binary_content)
 
         minhash_band_range = int(request.form['minhashBandRange'])
         minhash_band_range = min(3, minhash_band_range)

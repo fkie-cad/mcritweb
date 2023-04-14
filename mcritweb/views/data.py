@@ -649,12 +649,12 @@ def submit():
 
         binary_content = f.read()
         # check here if it is already part of corpus
-        hash = hashlib.sha256(binary_content).hexdigest()
-        sample_entry = client.getSampleBySha256(hash)
+        upload_sha256 = hashlib.sha256(binary_content).hexdigest()
+        sample_entry = client.getSampleBySha256(upload_sha256)
         if sample_entry is None:
             # NOTE: This flash is done on redirect target
             # flash('We received your sample, currently processing!', category='info')
-            with open(os.sep.join([current_app.instance_path, "cache", hash]), "wb") as fout:
+            with open(os.sep.join([current_app.instance_path, "temp", "uploads", upload_sha256]), "wb") as fout:
                 fout.write(binary_content)
             job_id = client.addBinarySample(binary_content, filename=f.filename, family=family, version=version, is_dump=is_dump, base_addr=base_address, bitness=bitness)
             return url_for('data.job_by_id', job_id=job_id, refresh=3, forward=1), 202 # Accepted
