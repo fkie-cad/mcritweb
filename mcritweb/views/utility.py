@@ -133,7 +133,7 @@ def ensure_local_data_paths(app, clear_data=False):
         app.instance_path + os.sep + "cache" + os.sep + "diagrams",
         app.instance_path + os.sep + "cache" + os.sep + "results",
         app.instance_path + os.sep + "temp" + os.sep + "reports",
-        app.instance_path + os.sep + "temp" + os.sep + "diagrams"
+        app.instance_path + os.sep + "temp" + os.sep + "diagrams",
         app.instance_path + os.sep + "temp" + os.sep + "uploads",
     ]
     if clear_data:

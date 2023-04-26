@@ -2,6 +2,7 @@ import os
 import re
 import datetime
 import hashlib
+import logging
 from datetime import datetime
 from mcrit.client.McritClient import McritClient
 from mcrit.storage.MatchingResult import MatchingResult
@@ -59,6 +60,7 @@ def create_match_diagram(app, job_id, matching_result, filtered_family_id=None, 
         renderer.processReport(matching_result)
         image = renderer.renderStackedDiagram(filtered_family_id=filtered_family_id, filtered_sample_id=filtered_sample_id, filtered_function_id=filtered_function_id)
         image.save(output_path)
+        print("stored new MCRIT diagram:", output_path)
 
 # https://stackoverflow.com/a/39842765
 # https://stackoverflow.com/a/26972238
@@ -444,8 +446,9 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), query_param="funp")
         return render_template("result_compare_sample.html", samid=filtered_sample_id, job_info=job_info, samp=sample_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
     # treat family/sample part as if there was no filter
-    elif filtered_function_id is not None and client.isFunctionId(filtered_function_id):
-        create_match_diagram(current_app, job_info.job_id, matching_result, filtered_function_id=filtered_function_id)
+    elif filtered_function_id is not None and filtered_function_id in matching_result.function_id_to_family_ids_matched:
+        if not matching_result.is_query:
+            create_match_diagram(current_app, job_info.job_id, matching_result, filtered_function_id=filtered_function_id)
         num_families_matched = len(set([sample.family for sample in matching_result.sample_matches]))
         matching_result.filterToFunctionId(filtered_function_id)
         num_functions_matched = len(set([function_match.matched_function_id for function_match in matching_result.function_matches]))

@@ -21,9 +21,11 @@ Results for Job: {{ job_info.job_id }}
 
 <p><a href="{{ url_for(request.endpoint, **request.view_args) }}#family-matches">back to all family overview</a></p>
 
+{% if not matching_result.is_query %}
 <h3>MCRIT Diagram</h3>
 <p>Showing: foreign family match frequency, library matches, best foreign family match scores.</p>
 <img src="{{ url_for('data.diagram_file', filename=job_info.job_id + '-funid_%d' % funid + '.png') }}" class="img-fluid" />
+{% endif %}
 
 <h3 id="function-matches">Matches for Function: {{ funid }}</h3>
 <p>selection: {{ funp.max_value }}, showing: {{ 1 + funp.start_index }} - {{ funp.end_index }} (filtered: {{ matching_result.num_original_function_matches - funp.max_value}})</p>
