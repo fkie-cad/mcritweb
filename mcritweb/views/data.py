@@ -355,9 +355,10 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
     filter_max_num_samples = parse_integer_query_param(request, "filter_max_num_samples")
     filter_exclude_library = parse_checkbox_query_param(request, "filter_exclude_library")
     filter_exclude_pic = parse_checkbox_query_param(request, "filter_exclude_pic")
-    if not any([filter_direct_min_score, filter_frequency_min_score, filter_unique_only, filter_exclude_own_family, 
-                filter_function_min_score, filter_function_max_score, filter_max_num_families, 
-                filter_exclude_library, filter_exclude_pic]) and not filter_action == "clear":
+    if (all(flag is None for flag in [filter_direct_min_score, filter_frequency_min_score, 
+                filter_function_min_score, filter_function_max_score, filter_max_num_families])
+            and not any([filter_unique_only, filter_exclude_own_family, filter_exclude_library, filter_exclude_pic])
+            and not filter_action == "clear"):
         # load default filters
         user_id = get_session_user_id()
         filter_values = get_user_result_filters(user_id)

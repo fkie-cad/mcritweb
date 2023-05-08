@@ -42,6 +42,7 @@ Note that most functionality of MCRITweb will only work if an MCRIT backend is c
 
 
 ## Version History
+ * 2023-05-08 v1.0.3: More consistent result filter behavior.
  * 2023-04-14 v1.0.2: Started working on documentation. Fixed minor things.
  * 2023-04-10 v1.0.0: Milestone release for Botconf 2023.
  * 2023-04-10 v0.15.0: Shaping user role visitor more towards a demo account: limited visibility of menus/content, disallowed username/password change, but allowing them to upload files for query, up to size 1MB.

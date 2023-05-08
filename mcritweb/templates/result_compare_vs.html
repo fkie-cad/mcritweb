@@ -100,7 +100,7 @@ Results for Job: {{ job_info.job_id }}
         <td style="text-align: right;" valign="middle">{{ "%d"|format(matched_function.matched_score) }}</td>
         <td style="text-align: center;" valign="middle"><i {% if matched_function.match_is_minhash %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
         <td style="text-align: center;" valign="middle"><i {% if matched_function.match_is_pichash %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
-        <td style="text-align: center;" valign="middle"><i {% if matched_function.match_is_library %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
+        <td style="text-align: center;" valign="middle"><i {% if matching_result.hasLibraryMatch(matched_function.function_id) %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
      </tr>
       {% endfor %}
     </tbody>

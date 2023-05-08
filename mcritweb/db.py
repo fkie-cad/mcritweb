@@ -118,8 +118,21 @@ def set_user_result_filters(user_id, filter_values):
     cursor = db.cursor()
     # check existing entry
     current_filters = get_user_result_filters(user_id)
-    print(filter_values)
-    if current_filters is None:
+    if has_user_result_filters(user_id):
+        # update values
+        db.execute("UPDATE user_filters SET filter_direct_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_direct_min_score"])), user_id))
+        db.execute("UPDATE user_filters SET filter_direct_nonlib_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_direct_nonlib_min_score"])), user_id))
+        db.execute("UPDATE user_filters SET filter_frequency_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_frequency_min_score"])), user_id))
+        db.execute("UPDATE user_filters SET filter_frequency_nonlib_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_frequency_nonlib_min_score"])), user_id))
+        db.execute("UPDATE user_filters SET filter_unique_only = ? WHERE user_id = ?", (1 if filter_values["filter_unique_only"] else 0, user_id))
+        db.execute("UPDATE user_filters SET filter_exclude_own_family = ? WHERE user_id = ?", (1 if filter_values["filter_exclude_own_family"] else 0, user_id))
+        db.execute("UPDATE user_filters SET filter_function_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_function_min_score"])), user_id))
+        db.execute("UPDATE user_filters SET filter_function_max_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_function_max_score"])), user_id))
+        db.execute("UPDATE user_filters SET filter_max_num_families = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_max_num_families"])), user_id))
+        db.execute("UPDATE user_filters SET filter_exclude_library = ? WHERE user_id = ?", (1 if filter_values["filter_exclude_library"] else 0, user_id))
+        db.execute("UPDATE user_filters SET filter_exclude_pic = ? WHERE user_id = ?", (1 if filter_values["filter_exclude_pic"] else 0, user_id))
+        db.commit()
+    else:
         # insert inital values
         db.execute(
             "INSERT INTO user_filters (user_id, filter_direct_min_score, filter_direct_nonlib_min_score, filter_frequency_min_score, filter_frequency_nonlib_min_score, filter_unique_only, filter_exclude_own_family, filter_function_min_score, filter_function_max_score, filter_max_num_families, filter_exclude_library, filter_exclude_pic) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -137,20 +150,12 @@ def set_user_result_filters(user_id, filter_values):
              1 if filter_values["filter_exclude_pic"] else 0,
              ))
         db.commit()
-    else:
-        # update values
-        db.execute("UPDATE user_filters SET filter_direct_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_direct_min_score"])), user_id))
-        db.execute("UPDATE user_filters SET filter_direct_nonlib_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_direct_nonlib_min_score"])), user_id))
-        db.execute("UPDATE user_filters SET filter_frequency_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_frequency_min_score"])), user_id))
-        db.execute("UPDATE user_filters SET filter_frequency_nonlib_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_frequency_nonlib_min_score"])), user_id))
-        db.execute("UPDATE user_filters SET filter_unique_only = ? WHERE user_id = ?", (1 if filter_values["filter_unique_only"] else 0, user_id))
-        db.execute("UPDATE user_filters SET filter_exclude_own_family = ? WHERE user_id = ?", (1 if filter_values["filter_exclude_own_family"] else 0, user_id))
-        db.execute("UPDATE user_filters SET filter_function_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_function_min_score"])), user_id))
-        db.execute("UPDATE user_filters SET filter_function_max_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_function_max_score"])), user_id))
-        db.execute("UPDATE user_filters SET filter_max_num_families = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_max_num_families"])), user_id))
-        db.execute("UPDATE user_filters SET filter_exclude_library = ? WHERE user_id = ?", (1 if filter_values["filter_exclude_library"] else 0, user_id))
-        db.execute("UPDATE user_filters SET filter_exclude_pic = ? WHERE user_id = ?", (1 if filter_values["filter_exclude_pic"] else 0, user_id))
-        db.commit()
+
+def has_user_result_filters(user_id):
+    db = get_db()
+    cursor = db.cursor()
+    record = cursor.execute("SELECT * FROM user_filters WHERE user_id = ?;", (user_id,)).fetchone()
+    return True if record else False
 
 def get_user_result_filters(user_id):
     filter_values = None
