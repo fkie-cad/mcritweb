@@ -142,6 +142,21 @@ def api_router(api_path):
             return handle_raw_response(client.getJobForResult(result_id))
         else:
             return handle_raw_response(client.getResult(result_id))
+    # requestMatchesForSample, requestMatchesForSampleVs
+    elif re_match := re.match("matches/sample/(?P<sample_id>\d+)(/(?P<other_sample_id>\d+))?", api_path):
+        print("requestMatchesForSample, requestMatchesForSampleVs")
+        sample_id = re_match.group("sample_id")
+        other_sample_id = re_match.group("other_sample_id")
+        if other_sample_id is not None:
+            return handle_raw_response(client.requestMatchesForSampleVs(sample_id, other_sample_id))
+        else:
+            return handle_raw_response(client.requestMatchesForSample(sample_id))
+    # getMatchFunctionVs
+    elif re_match := re.match("matches/function/(?P<function_id>\d+)(/(?P<other_function_id>\d+))?", api_path):
+        print("getMatchFunctionVs")
+        function_id = re_match.group("function_id")
+        other_function_id = re_match.group("other_function_id")
+        return handle_raw_response(client.getMatchFunctionVs(function_id, other_function_id))
     # getVersion
     elif re_match := re.match("version$", api_path):
         print("getVersion")
