@@ -42,7 +42,8 @@ Note that most functionality of MCRITweb will only work if an MCRIT backend is c
 
 
 ## Version History
- * 2023-05-12 v1.0.4: Extended API passthrough for creation of matcing jobs in MCRIT.
+ * 2023-06-02 v1.0.5: Fixed ResultView for Query results. Slight improvement to Jobs table. Adjusted API passthrough for function collections.
+ * 2023-05-12 v1.0.4: Extended API passthrough for creation of matching jobs in MCRIT.
  * 2023-05-08 v1.0.3: More consistent result filter behavior.
  * 2023-04-14 v1.0.2: Started working on documentation. Fixed minor things.
  * 2023-04-10 v1.0.0: Milestone release for Botconf 2023.
