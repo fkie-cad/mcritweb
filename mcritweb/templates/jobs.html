@@ -42,35 +42,42 @@ Jobs
 {% set tabs = [] %}
 
 {% call add_tab(tabs, title="1vsN", id="vsN", default=True) %}
-  {{ job_table(vsN) }}
+  {{ job_table(vsN, table_id="table_vsN") }}
   {% if p_n and vsN %}
     {{ pagination_widget(p_n, active="vsN") }}
   {% endif %}
 {% endcall %}
 
 {% call add_tab(tabs, title="1vs1", id="vs1") %}
-  {{ job_table(vs1) }}
+  {{ job_table(vs1, table_id="table_vs1") }}
   {% if p_1 and vs1 %}
     {{ pagination_widget(p_1, active="vs1") }}
   {% endif %}
 {% endcall %}
 
 {% call add_tab(tabs, title="Cross", id="cross") %}
-  {{ job_table(cross) }}
+  {{ job_table(cross, table_id="table_cross") }}
   {% if p_c and cross %}
     {{ pagination_widget(p_c, active="cross") }}
   {% endif %}
 {% endcall %}
 
+{% call add_tab(tabs, title="Queries", id="queries") %}
+  {{ job_table(queries, table_id="table_queries") }}
+  {% if p_q and queries %}
+    {{ pagination_widget(p_c, active="queries") }}
+  {% endif %}
+{% endcall %}
+
 {% call add_tab(tabs, title="Blocks", id="blocks") %}
-  {{ job_table(blocks) }}
+  {{ job_table(blocks, table_id="table_blocks") }}
   {% if p_b and blocks %}
     {{ pagination_widget(p_b, active="blocks") }}
   {% endif %}
 {% endcall %}
 
 {% call add_tab(tabs, title="Others", id="others") %}
-  {{ job_table(others) }}
+  {{ job_table(others, table_id="table_others") }}
   {% if p_o and others %}
     {{ pagination_widget(p_o, active="others") }}
   {% endif %}

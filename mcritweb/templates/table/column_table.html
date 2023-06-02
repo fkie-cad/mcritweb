@@ -14,7 +14,7 @@
       <tr>
         <td valign="middle">Sample ID: </td>
         {% for name_and_sample in varargs %}
-          <td valign="middle">{{ name_and_sample[1].sample_id }}</td>
+          <td valign="middle">{% if name_and_sample[1].sample_id < 0 %}*{% endif %}{{ name_and_sample[1].sample_id|abs }}</td>
         {% endfor %}
       </tr>
       <tr>

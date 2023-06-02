@@ -226,7 +226,7 @@ def result(job_id):
         elif job_info.parameters.startswith("combineMatchesToCross"):
             return result_matches_for_cross(job_info, result_json)
         # NOTE: 'updateMinHashes' is the start of 'updateMinHashesForSample'.
-        # For this reason, these two elif clauses may not be reordered
+        # For this reason, these two elif clauses should not be reordered
         elif job_info.parameters.startswith("updateMinHashesForSample"):
             return render_template("result_empty.html", job_id=job_id)
         elif job_info.parameters.startswith("updateMinHashes"):
@@ -402,71 +402,43 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         }
     matching_result.setFilterValues(filter_values)
     matching_result.getUniqueFamilyMatchInfoForSample(None)
-    # filter family/sample
-    if filter_values.get("filter_direct_min_score", None):
-        matching_result.filterToDirectMinScore(filter_values["filter_direct_min_score"])
-    if filter_values.get("filter_direct_nonlib_min_score", None):
-        matching_result.filterToDirectMinScore(filter_values["filter_direct_nonlib_min_score"], nonlib=True)
-    if filter_values.get("filter_frequency_min_score", None):
-        matching_result.filterToFrequencyMinScore(filter_values["filter_frequency_min_score"])
-    if filter_values.get("filter_frequency_nonlib_min_score", None):
-        matching_result.filterToFrequencyMinScore(filter_values["filter_frequency_nonlib_min_score"], nonlib=True)
-    if filter_values.get("filter_unique_only", None):
-        matching_result.filterToUniqueMatchesOnly()
-    if filter_values.get("filter_exclude_own_family", None):
-        matching_result.excludeOwnFamily()
-    # filter functions
-    if filter_values.get("filter_exclude_library", None):
-        matching_result.excludeLibraryMatches()
-    if filter_values.get("filter_max_num_families", None):
-        matching_result.filterToFamilyCount(filter_values["filter_max_num_families"])
-    if filter_values.get("filter_max_num_samples", None):
-        matching_result.filterToSampleCount(filter_values["filter_max_num_samples"])
-    if filter_values.get("filter_function_min_score", None):
-        matching_result.filterToFunctionScore(min_score=filter_values["filter_function_min_score"])
-    if filter_values.get("filter_function_max_score", None):
-        matching_result.filterToFunctionScore(max_score=filter_values["filter_function_max_score"])
-    if filter_values.get("filter_exclude_pic", None):
-        matching_result.excludePicMatches()
+    matching_result.applyFilterValues()
 
     client = McritClient(mcrit_server=get_server_url())
+    # filtered for family
     if filtered_family_id is not None and client.isFamilyId(filtered_family_id):
         matching_result.filterToFamilyId(filtered_family_id)
         create_match_diagram(current_app, job_info.job_id, matching_result, filtered_family_id=filtered_family_id)
-        num_samples_matched = len(matching_result.sample_matches)
-        sample_pagination = Pagination(request, num_samples_matched, limit=10, query_param="samp")
+        sample_pagination = Pagination(request, matching_result.num_sample_matches, limit=10, query_param="samp")
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), query_param="funp")
         return render_template("result_compare_family.html", famid=filtered_family_id, job_info=job_info, samp=sample_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
+    # filtered for sample
     elif filtered_sample_id is not None and client.isSampleId(filtered_sample_id):
         matching_result.filterToSampleId(filtered_sample_id)
         create_match_diagram(current_app, job_info.job_id, matching_result, filtered_sample_id=filtered_sample_id)
         filtered_sample_entry = client.getSampleById(filtered_sample_id)
         matching_result.other_sample_entry = filtered_sample_entry
-        num_functions_matched = len(matching_result.function_matches)
         sample_pagination = Pagination(request, 1, limit=10, query_param="samp")
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), query_param="funp")
         return render_template("result_compare_sample.html", samid=filtered_sample_id, job_info=job_info, samp=sample_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
-    # treat family/sample part as if there was no filter
+    # filter for function - treat family/sample part as if there was no filter
     elif filtered_function_id is not None and filtered_function_id in matching_result.function_id_to_family_ids_matched:
         if not matching_result.is_query:
             create_match_diagram(current_app, job_info.job_id, matching_result, filtered_function_id=filtered_function_id)
-        num_families_matched = len(set([sample.family for sample in matching_result.sample_matches]))
         matching_result.filterToFunctionId(filtered_function_id)
-        num_functions_matched = len(set([function_match.matched_function_id for function_match in matching_result.function_matches]))
-        family_pagination = Pagination(request, num_families_matched, limit=10, query_param="famp")
-        function_pagination = Pagination(request, num_functions_matched, query_param="funp")
+        family_pagination = Pagination(request, matching_result.num_family_matches, limit=10, query_param="famp")
+        function_pagination = Pagination(request, matching_result.num_function_matches, query_param="funp")
         return render_template("result_compare_function.html", funid=filtered_function_id, job_info=job_info, famp=family_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
+    # 1vs1 result
     elif job_info.parameters.startswith("getMatchesForSampleVs"):
         # we need to slice function matches ourselves based on pagination
-        function_pagination = Pagination(request, len(matching_result.function_matches), query_param="funp")
-        matching_result.function_matches = matching_result.function_matches[function_pagination.start_index:function_pagination.start_index+function_pagination.limit]
+        function_pagination = Pagination(request, matching_result.num_function_matches, query_param="funp")
         return render_template("result_compare_vs.html", job_info=job_info, matching_result=matching_result, funp=function_pagination, scp=score_color_provider)
+    # unfiltered / default
     else:
         create_match_diagram(current_app, job_info.job_id, matching_result)
-        num_families_matched = len(set([sample.family_id for sample in matching_result.sample_matches if not sample.is_library]))
-        num_libraries_matched = len(set([sample.family_id for sample in matching_result.sample_matches if sample.is_library]))
-        family_pagination = Pagination(request, num_families_matched, limit=10, query_param="famp")
-        library_pagination = Pagination(request, num_libraries_matched, limit=10, query_param="libp")
+        family_pagination = Pagination(request, matching_result.num_family_matches, limit=10, query_param="famp")
+        library_pagination = Pagination(request, matching_result.num_library_matches, limit=10, query_param="libp")
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), query_param="funp")
         return render_template("result_compare_all.html", job_info=job_info, famp=family_pagination, libp=library_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
 
@@ -536,16 +508,37 @@ def jobs():
     pagination_others = Pagination(request, client.getJobCount(query), query_param="p_o")
     pagination_vs1 = Pagination(request, client.getJobCount('Vs'), query_param="p_1")
     pagination_vsN = Pagination(request, client.getJobCount('getMatchesForSample'), query_param="p_n")
+    pagination_query_count = client.getJobCount('getMatchesForUnmappedBinary')
+    pagination_query_count += client.getJobCount('getMatchesForMappedBinary')
+    pagination_query_count += client.getJobCount('getMatchesForSmdaReport')
+    pagination_queries = Pagination(request, pagination_query_count, query_param="p_q")
     pagination_cross = Pagination(request, client.getJobCount('combineMatchesToCross'), query_param="p_c")
     pagination_blocks = Pagination(request, client.getJobCount('getUniqueBlocks'), query_param="p_b")
     others = client.getQueueData(start=pagination_others.start_index, limit=pagination_others.limit, filter=query)
+    # filter out all that are covered in other categories
+    filtered_others = []
+    for j in others:
+        if "getMatchesForSample" in j.parameters or "Vs" in j.parameters:
+            continue
+        if "getMatchesForUnmappedBinary" in j.parameters or"getMatchesForMappedBinary" in j.parameters or "getMatchesForSmdaReport" in j.parameters:
+            continue
+        if "combineMatchesToCross" in j.parameters:
+            continue
+        if "getUniqueBlocks" in j.parameters:
+            continue
+        filtered_others.append(j)
+    others = filtered_others
     # NOTE: the filter is not just 'Vs' anymore. It is longer to prevent false matches. E.g. if a filename contains 'Vs'.
     vs1 = client.getQueueData(start=pagination_vs1.start_index, limit=pagination_vs1.limit, filter='getMatchesForSampleVs(')
     # NOTE: this includes '(', because otherwise vsN would also contain all vs1 jobs.
     vsN = client.getQueueData(start=pagination_vsN.start_index, limit=pagination_vsN.limit, filter='getMatchesForSample(')
+    queries = []
+    queries.extend(client.getQueueData(start=pagination_queries.start_index, limit=pagination_queries.limit, filter='getMatchesForUnmappedBinary('))
+    queries.extend(client.getQueueData(start=pagination_queries.start_index, limit=pagination_queries.limit, filter='getMatchesForMappedBinary('))
+    queries.extend(client.getQueueData(start=pagination_queries.start_index, limit=pagination_queries.limit, filter='getMatchesForSmdaReport('))
     cross = client.getQueueData(start=pagination_vsN.start_index, limit=pagination_vsN.limit, filter='combineMatchesToCross(')
     blocks = client.getQueueData(start=pagination_blocks.start_index, limit=pagination_blocks.limit, filter='getUniqueBlocks(')
-    return render_template('jobs.html', active=active, others=others, cross=cross, vs1=vs1, vsN=vsN, blocks=blocks, p_o=pagination_others, p_1=pagination_vs1, p_n=pagination_vsN, p_c=pagination_cross, p_b=pagination_blocks, query=query)
+    return render_template('jobs.html', active=active, others=others, cross=cross, queries=queries, vs1=vs1, vsN=vsN, blocks=blocks, p_o=pagination_others, p_q=pagination_queries, p_1=pagination_vs1, p_n=pagination_vsN, p_c=pagination_cross, p_b=pagination_blocks, query=query)
 
 @bp.route('/jobs/<job_id>')
 @mcrit_server_required

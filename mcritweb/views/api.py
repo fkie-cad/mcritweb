@@ -91,9 +91,10 @@ def api_router(api_path):
             return handle_raw_response(client.getFunctions(forward_start, forward_limit))
         elif request.method == 'POST':
             if re.match(b"^\d+(?:[\s]*,[\s]*\d+)*$", request.data):
+                forward_with_label_only = request.args.get("with_label_only", "").lower() in ["1", "true"]
                 target_function_ids = [int(function_id) for function_id in request.data.split(b",")]
-                return handle_raw_response(client.getFunctionsByIds(target_function_ids))
-            return handle_raw_response(client.getFunctionsByIds([]))
+                return handle_raw_response(client.getFunctionsByIds(target_function_ids, with_label_only=forward_with_label_only))
+            return handle_raw_response(client.getFunctionsByIds([], with_label_only=forward_with_label_only))
     # getMatchesForSmdaFunction
     elif re_match := re.match("query/function$", api_path):
         print("getMatchesForSmdaFunction")

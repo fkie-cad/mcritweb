@@ -83,7 +83,7 @@ class MatchReportRenderer(object):
         self.match_report = match_report
         client = McritClient(mcrit_server= get_server_url())
         self.sample_info = self.match_report.reference_sample_entry
-        self.sample_infos = {matched_sample.sample_id: matched_sample for matched_sample in self.match_report.sample_matches}
+        self.sample_infos = {matched_sample.sample_id: matched_sample for matched_sample in self.match_report.getSampleMatches()}
         if client.isSampleId(self.sample_info.sample_id):
             self.function_infos = {function_info.function_id: function_info for function_info in client.getFunctionsBySampleId(self.match_report.reference_sample_entry.sample_id)}
         else:
