@@ -105,6 +105,8 @@ Results for Job: {{ job_info.job_id }}
     <label class="col-3" for="block_count">exclude functions with library hits</label>
     <input class="col-1" type="checkbox" name='filter_exclude_pic' id="filter_exclude_pic" aria-describedby="filter_exclude_pic" {% if matching_result.getFilterValue("filter_exclude_pic") %}checked{% endif %}>
     <label class="col-3" for="block_count">exclude PIC hits</label>
+    <input class="col-1" type="checkbox" name='filter_func_unique' id="filter_func_unique" aria-describedby="filter_func_unique" {% if matching_result.getFilterValue("filter_func_unique") %}checked{% endif %}>
+    <label class="col-3" for="block_count">unique only</label>
     <div class="d-grid gap-4 d-md-block">
       <button class="btn btn-primary" type="submit" name="filter_button_action" value="filter">filter</button>
       <button class="btn btn-secondary" type="submit" name="filter_button_action" value="clear">clear</button>

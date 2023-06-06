@@ -348,16 +348,19 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
     filter_frequency_nonlib_min_score = parse_integer_query_param(request, "filter_frequency_nonlib_min_score")
     filter_unique_only = parse_checkbox_query_param(request, "filter_unique_only")
     filter_exclude_own_family = parse_checkbox_query_param(request, "filter_exclude_own_family")
+    filter_family_name = parse_str_query_param(request, "filter_family_name")
     # generic filtering of function results
     filter_function_min_score = parse_integer_query_param(request, "filter_function_min_score")
     filter_function_max_score = parse_integer_query_param(request, "filter_function_max_score")
+    filter_function_offset = parse_integer_query_param(request, "filter_function_offset")
     filter_max_num_families = parse_integer_query_param(request, "filter_max_num_families")
     filter_max_num_samples = parse_integer_query_param(request, "filter_max_num_samples")
     filter_exclude_library = parse_checkbox_query_param(request, "filter_exclude_library")
     filter_exclude_pic = parse_checkbox_query_param(request, "filter_exclude_pic")
-    if (all(flag is None for flag in [filter_direct_min_score, filter_frequency_min_score, 
-                filter_function_min_score, filter_function_max_score, filter_max_num_families])
-            and not any([filter_unique_only, filter_exclude_own_family, filter_exclude_library, filter_exclude_pic])
+    filter_func_unique = parse_checkbox_query_param(request, "filter_func_unique")
+    if (all(flag is None for flag in [filter_direct_min_score, filter_frequency_min_score, filter_family_name,
+                filter_function_min_score, filter_function_max_score, filter_max_num_families, filter_function_offset])
+            and not any([filter_unique_only, filter_exclude_own_family, filter_exclude_library, filter_exclude_pic, filter_func_unique])
             and not filter_action == "clear"):
         # load default filters
         user_id = get_session_user_id()
@@ -378,12 +381,15 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
             "filter_frequency_nonlib_min_score": None,
             "filter_unique_only": None,
             "filter_exclude_own_family": None,
+            "filter_family_name": None,
             "filter_function_min_score": None,
             "filter_function_max_score": None,
+            "filter_function_offset": None,
             "filter_max_num_families": None,
             "filter_max_num_samples": None,
             "filter_exclude_library": None,
             "filter_exclude_pic": None,
+            "filter_func_unique": None,
         }
     else:
         filter_values = {
@@ -393,12 +399,15 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
             "filter_frequency_nonlib_min_score": filter_frequency_nonlib_min_score,
             "filter_unique_only": filter_unique_only,
             "filter_exclude_own_family": filter_exclude_own_family,
+            "filter_family_name": filter_family_name,
             "filter_function_min_score": filter_function_min_score,
             "filter_function_max_score": filter_function_max_score,
+            "filter_function_offset": filter_function_offset,
             "filter_max_num_families": filter_max_num_families,
             "filter_max_num_samples": filter_max_num_samples,
             "filter_exclude_library": filter_exclude_library,
             "filter_exclude_pic": filter_exclude_pic,
+            "filter_func_unique": filter_func_unique,
         }
     matching_result.setFilterValues(filter_values)
     matching_result.getUniqueFamilyMatchInfoForSample(None)

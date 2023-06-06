@@ -52,7 +52,10 @@ def parse_integer_query_param(request, query_param:str):
     """ Try to find query_param in the request and parse it as int """
     param = None
     try:
-        param = int(request.args.get(query_param))
+        if request.args.get(query_param).startswith("0x"):
+            param =  int(request.args.get(query_param), 16)
+        else:
+            param = int(request.args.get(query_param))
     except Exception:
         pass
     return param
