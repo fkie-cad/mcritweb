@@ -1,0 +1,80 @@
+{% from 'table/pagination_widget.html' import pagination_widget %}
+{% from 'table/column_table.html' import sample_column_table, matching_result_job_column_table %}
+{% from 'table/matching_statistics_table.html' import matching_statistics_table %}
+{% from 'table/links.html' import format_pichash, format_offset, format_family_name, format_family_id, format_sample_id, format_function_id %}
+
+{% extends 'base.html' %}
+{% block title%}
+Results for Job: {{ job_info.job_id }}
+{% endblock %}
+{% block style %}
+{% endblock %}
+{% block content %}
+<h1>Linkhunt for Job: {{ job_info.job_parameters }}</h1>
+<hr />
+
+{{ matching_result_job_column_table(job_info) }}
+
+<h3>Input Sample</h3>
+{{ sample_column_table(("Reference Sample", matching_result.reference_sample_entry)) }}
+
+<p><a href="{{'/data/result/' + job_info.job_id}}">Go to full matching report</a></p>
+
+<h3 id="linkhunt-matches">Linkhunt Matches</h3>
+<p>selection: {{ funp.max_value }}, showing: {{ 1 + funp.start_index }} - {{ funp.end_index }} (filtered: {{ matching_result.num_original_function_matches - funp.max_value}})</p>
+<form class="form-inline" action ="{{ url_for(request.endpoint, **request.view_args) }}#linkhunt-matches" method='GET'>
+    <div class="form-group row">
+      <label class="col-3">Filter results to (score, lib, size)</label>
+      <input class="col-3" type="text" name='filter_min_score' id="filter_min_score" aria-describedby="filter_min_score" placeholder="min score (0-100)" {% if matching_result.getFilterValue("filter_min_score") is not none %}value={{matching_result.getFilterValue("filter_min_score")}}{% endif %}>
+      <input class="col-3" type="text" name='filter_lib_min_score' id="filter_lib_min_score" aria-describedby="filter_lib_min_score" placeholder="lib score (0-100)" {% if matching_result.getFilterValue("filter_lib_min_score") is not none %}value={{matching_result.getFilterValue("filter_lib_min_score")}}{% endif %}>
+      <input class="col-3" type="text" name='filter_min_size' id="filter_min_size" aria-describedby="filter_min_size" placeholder="min size (bytes)" {% if matching_result.getFilterValue("filter_min_size") is not none %}value={{matching_result.getFilterValue("filter_min_size")}}{% endif %}>
+      <label class="col-3">Filter to offsets (min, max)</label>
+      <input class="col-4" type="text" name='filter_min_offset' id="filter_min_offset" aria-describedby="filter_min_offset" placeholder="0x0" {% if matching_result.getFilterValue("filter_min_offset") is not none %}value={{"0x%x" % matching_result.getFilterValue("filter_min_offset")}}{% endif %}>
+      <input class="col-4" type="text" name='filter_max_offset' id="filter_max_offset" aria-describedby="filter_max_offset" placeholder="0x0" {% if matching_result.getFilterValue("filter_max_offset") is not none %}value={{"0x%x" % matching_result.getFilterValue("filter_max_offset")}}{% endif %}>
+      <label class="col-3">Unpenalized family count</label>
+      <input class="col-9" type="text" name='filter_unpenalized_family_count' id="filter_unpenalized_family_count" aria-describedby="filter_unpenalized_family_count" placeholder="3" {% if matching_result.getFilterValue("filter_unpenalized_family_count") is not none %}value={{matching_result.getFilterValue("filter_unpenalized_family_count")}}{% endif %}>
+      <label class="col-3">Exclude families/samples</label>
+      <input class="col-4" type="text" name='filter_exclude_families' id="filter_exclude_families" aria-describedby="filter_exclude_families" placeholder="1, 2, 3" {% if matching_result.getFilterValue("filter_exclude_families") is not none %}value='{{matching_result.getFilterValue("filter_exclude_families")}}'{% endif %}>
+      <input class="col-4" type="text" name='filter_exclude_samples' id="filter_exclude_samples" aria-describedby="filter_exclude_samples" placeholder="1, 2, 3" {% if matching_result.getFilterValue("filter_exclude_samples") is not none %}value='{{matching_result.getFilterValue("filter_exclude_samples")}}'{% endif %}>
+      <label class="col-3" for="block_count">strongest per family only</label>
+      <input class="col-1" type="checkbox" name='filter_strongest_per_family' id="filter_strongest_per_family" aria-describedby="filter_strongest_per_family" {% if matching_result.getFilterValue("filter_strongest_per_family") %}checked{% endif %}>
+      <div class="d-grid gap-4 d-md-block">
+        <button class="btn btn-primary" type="submit" name="filter_button_action" value="filter">filter</button>
+        <button class="btn btn-secondary" type="submit" name="filter_button_action" value="clear">clear</button>
+      </div>
+    </div>
+</form>
+<table class="table table-hover">
+    <thead class="thead-light">
+      <tr>
+        <th style="text-align: right;" scope="col">Rank</th>
+        <th style="text-align: right;" scope="col">Linkscore</th>
+        <th style="text-align: right;" scope="col">Function ID</th>
+        <th style="text-align: right;" scope="col">Offset</th>
+        <th style="text-align: right;" scope="col">num_bytes</th>
+        <th style="text-align: right;" scope="col">Family</th>
+        <th style="text-align: right;" scope="col">Sample ID</th>
+        <th style="text-align: right;" scope="col">Function ID</th>
+        <th style="text-align: right;" scope="col">Match Score</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for link_entry in lhr[funp.start_index:funp.start_index+funp.limit] %}
+      <tr style="background-color:#{{ scp.getMatchHexColorByScore100(link_entry.matched_link_score, 0.4) }}">
+        <td style="text-align: right;" valign="middle">{{ funp.start_index + loop.index }}</td>
+        <td style="text-align: right;" valign="middle">{{ "%5.2f"|format(link_entry.matched_link_score) }}</td>
+        <td style="text-align: right;" valign="middle" scope="row" class="id"><a href="{{ url_for('explore.function_by_id', function_id=link_entry.function_id * -1 if matching_result.is_query else link_entry.function_id) }}">{% if matching_result.is_query %}*{% endif %}{{ link_entry.function_id }}</a></td>
+        <td style="text-align: right;" valign="middle">0x{{ "%x"|format(link_entry.offset) }}</td>
+        <td style="text-align: right;" valign="middle">{{ "%d"|format(link_entry.num_bytes) }}</td>
+        <td style="text-align: right;" valign="middle"><i class="fa-solid fa-bug " title="Family ID"></i>({{ link_entry.matched_family_id }}) {{ format_family_name(link_entry.matched_family, link_entry.matched_family_id) }}</td>
+        <td style="text-align: right;" valign="middle">{{ link_entry.matched_sample_id }}</td>
+        <td style="text-align: right;" valign="middle"><a href="{{ url_for('explore.function_by_id', function_id=link_entry.matched_function_id) }}">{{ link_entry.matched_function_id }}</a>{% if not matching_result.is_query %}&nbsp;<a target="_blank" href="{{ url_for('data.match_functions', function_id_a=link_entry.function_id, function_id_b=link_entry.matched_function_id) }}"><i class="fa-solid fa-code-compare"></i></a>{% endif %}</td>
+        <td style="text-align: right;" valign="middle">{{ "%5.2f"|format(link_entry.matched_score) }}</td>
+     </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {{ pagination_widget(funp, _anchor="linkhunt-matches")}}
+
+{% endblock %}
+

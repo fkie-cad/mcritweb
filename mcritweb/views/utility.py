@@ -60,6 +60,18 @@ def parse_integer_query_param(request, query_param:str):
         pass
     return param
 
+def parse_integer_list_query_param(request, query_param:str):
+    """ Try to find query_param in the request and parse it as list of int (no brackets) """
+    param = None
+    try:
+        if re.match("^\d+(?:[\s]*,[\s]*\d+)*$", request.args.get(query_param)):
+            param = [int(element.strip()) for element in request.args.get(query_param).split(',')]
+            param
+    except Exception:
+        pass
+    return param
+
+
 def parse_str_query_param(request, query_param:str):
     """ Try to find query_param in the request and parse it as str """
     param = None

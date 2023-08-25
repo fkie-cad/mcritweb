@@ -23,6 +23,8 @@ Results for Job: {{ job_info.job_id }}
     ("Other Sample", matching_result.other_sample_entry),
   ) }}
 
+  <p><a href="{{'/data/linkhunt/' + job_info.job_id}}">Go to linkhunt report</a></p>
+
 <h3 id="sample-matches">Sample Match Statistics</h3>
 <p>total: {{ samp.max_value }}, showing: {{ 1 + samp.start_index }} - {{ samp.end_index }}</p>
 <table class="table table-hover">

@@ -19,6 +19,8 @@ Results for Job: {{ job_info.job_id }}
 <h3>Input Sample</h3>
 {{ sample_column_table(("Reference Sample", matching_result.reference_sample_entry)) }}
 
+<p><a href="{{'/data/linkhunt/' + job_info.job_id}}">Go to linkhunt report</a></p>
+
 <p><a href="{{ url_for(request.endpoint, **request.view_args) }}#family-matches">back to all family overview</a></p>
 
 {% if not matching_result.is_query %}

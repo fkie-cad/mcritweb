@@ -19,6 +19,8 @@ Results for Job: {{ job_info.job_id }}
 <h3>Input Sample</h3>
 {{ sample_column_table(("Reference Sample", matching_result.reference_sample_entry)) }}
 
+<p><a href="{{'/data/linkhunt/' + job_info.job_id}}">Go to linkhunt report</a></p>
+
 <h3 id="family-matches">Best Family Matches</h3>
 <p>total: {{ famp.max_value }}{% if famp.max_value > 0 %}, showing: {{ 1 + famp.start_index }} - {{ famp.end_index }}{% endif %} (filtered: {{ matching_result.num_original_family_matches - famp.max_value}})</p>
 <form class="form-inline" action ="{{ url_for(request.endpoint, **request.view_args) }}#family-matches" method='GET'>

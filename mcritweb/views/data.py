@@ -13,7 +13,7 @@ from flask import current_app, Blueprint, render_template, request, redirect, ur
 
 from mcritweb.db import get_user_result_filters
 from mcritweb.views.analyze import query as analyze_query
-from mcritweb.views.utility import get_server_url, mcrit_server_required, parseBitnessFromFilename, parseBaseAddrFromFilename, get_matches_node_colors, parse_integer_query_param, parse_checkbox_query_param, parse_str_query_param, get_session_user_id
+from mcritweb.views.utility import get_server_url, mcrit_server_required, parseBitnessFromFilename, parseBaseAddrFromFilename, get_matches_node_colors, parse_integer_query_param, parse_integer_list_query_param, parse_checkbox_query_param, parse_str_query_param, get_session_user_id
 from mcritweb.views.pagination import Pagination
 from mcritweb.views.cross_compare import get_sample_to_job_id, score_to_color
 from mcritweb.views.authentication import visitor_required, contributor_required
@@ -435,6 +435,7 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         if not matching_result.is_query:
             create_match_diagram(current_app, job_info.job_id, matching_result, filtered_function_id=filtered_function_id)
         matching_result.filterToFunctionId(filtered_function_id)
+        matching_result.filtered_function_matches = sorted(matching_result.filtered_function_matches, key=lambda x: (x.matched_score, x.match_is_pichash, x.matched_family_id, x.matched_sample_id, x.matched_function_id), reverse=True)
         family_pagination = Pagination(request, matching_result.num_family_matches, limit=10, query_param="famp")
         function_pagination = Pagination(request, matching_result.num_function_matches, query_param="funp")
         return render_template("result_compare_function.html", funid=filtered_function_id, job_info=job_info, famp=family_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
@@ -498,6 +499,105 @@ def result_matches_for_cross(job_info, result_json):
         matching_percent={method: result_json[method]["matching_percent"] for method in result_json.keys()},
         score_to_color=score_to_color,
     )
+
+
+################################################################
+# Link Hunting
+################################################################
+
+@bp.route('/linkhunt/<job_id>')
+@mcrit_server_required
+@visitor_required
+# TODO:  refactor, simplify
+def linkhunt(job_id):
+    client = McritClient(mcrit_server=get_server_url())
+    # check if we have the respective report already locally cached
+    result_json = load_cached_result(current_app, job_id)
+    job_info = client.getJobData(job_id)
+    if not result_json:
+        # otherwise obtain result report from remote
+            result_json = client.getResultForJob(job_id)
+            if result_json:
+                cache_result(current_app, job_info, result_json)
+    if result_json:
+        # TODO validation - only parse to matching_result if this data type is appropriate 
+        # re-format result report for visualization and choose respective template
+        if job_info is None:
+            return render_template("result_invalid.html", job_id=job_id)
+        elif job_info.parameters.startswith("getMatchesForSample"):
+            matching_result = MatchingResult.fromDict(result_json)
+            return linkhunt_for_sample_or_query(job_info, matching_result)
+        elif job_info.parameters.startswith("getMatchesForSmdaReport"):
+            matching_result = MatchingResult.fromDict(result_json)
+            return linkhunt_for_sample_or_query(job_info, matching_result)
+        elif job_info.parameters.startswith("getMatchesForMappedBinary"):
+            matching_result = MatchingResult.fromDict(result_json)
+            return linkhunt_for_sample_or_query(job_info, matching_result)
+        elif job_info.parameters.startswith("getMatchesForUnmappedBinary"):
+            matching_result = MatchingResult.fromDict(result_json)
+            return linkhunt_for_sample_or_query(job_info, matching_result)
+    elif job_info:
+        # if we are not done processing, list job data
+        return render_template("job_in_progress.html", job_info=job_info)
+    else:
+        # if we can't find job or result, we have to assume the job_id was invalid
+        return render_template("result_incompatible.html", job_id=job_id)
+
+def linkhunt_for_sample_or_query(job_info, matching_result: MatchingResult):
+    score_color_provider = ScoreColorProvider()
+    # generic filtering of function results
+    filter_action = parse_str_query_param(request, "filter_button_action")
+    filter_min_score = parse_integer_query_param(request, "filter_min_score")
+    filter_lib_min_score = parse_integer_query_param(request, "filter_lib_min_score")
+    filter_min_size = parse_integer_query_param(request, "filter_min_size")
+    filter_min_offset = parse_integer_query_param(request, "filter_min_offset")
+    filter_max_offset = parse_integer_query_param(request, "filter_max_offset")
+    filter_unpenalized_family_count = parse_integer_query_param(request, "filter_unpenalized_family_count")
+    filter_exclude_families = parse_integer_list_query_param(request, "filter_exclude_families")
+    filter_exclude_samples = parse_integer_list_query_param(request, "filter_exclude_samples")
+    filter_strongest_per_family = parse_checkbox_query_param(request, "filter_strongest_per_family")
+    if (all(flag is None for flag in [filter_min_score, filter_lib_min_score, filter_min_size,
+                filter_min_offset, filter_max_offset, filter_exclude_families, filter_exclude_samples])
+                and not filter_strongest_per_family
+                and not filter_action == "clear"):
+        # specify default filters
+        filter_min_score = 65
+        filter_lib_min_score = 80
+        filter_min_size = 50
+        filter_min_offset = None
+        filter_max_offset = None
+        # own family id
+        filter_exclude_families = [matching_result.reference_sample_entry.family_id]
+        filter_exclude_samples = []
+        filter_unpenalized_family_count = 3
+        filter_strongest_per_family = True
+    elif filter_action == "clear":
+        filter_min_score = None
+        filter_lib_min_score = None
+        filter_min_size = None
+        filter_min_offset = None
+        filter_max_offset = None
+        # own family id
+        filter_exclude_families = None
+        filter_exclude_samples = None
+        filter_unpenalized_family_count = 3
+        filter_strongest_per_family = False
+    filter_values = {
+        "filter_min_score": filter_min_score,
+        "filter_lib_min_score": filter_lib_min_score,
+        "filter_min_size": filter_min_size,
+        "filter_min_offset": filter_min_offset,
+        "filter_max_offset": filter_max_offset,
+        "filter_exclude_families": ", ".join([str(famid) for famid in filter_exclude_families]) if filter_exclude_families is not None else "",
+        "filter_exclude_samples": ", ".join([str(samid) for samid in filter_exclude_samples]) if filter_exclude_samples is not None else "",
+        "filter_unpenalized_family_count": filter_unpenalized_family_count,
+        "filter_strongest_per_family": filter_strongest_per_family,
+    }
+    matching_result.setFilterValues(filter_values)
+    link_hunt_result = matching_result.getLinkHuntResults(filter_min_score, filter_lib_min_score, filter_min_size, filter_min_offset, filter_max_offset, filter_unpenalized_family_count, filter_exclude_families, filter_exclude_samples, filter_strongest_per_family)
+
+    function_pagination = Pagination(request, len(link_hunt_result), query_param="funp")
+    return render_template("linkhunt.html", job_info=job_info, funp=function_pagination, matching_result=matching_result, lhr=link_hunt_result, scp=score_color_provider)
 
 
 ################################################################
