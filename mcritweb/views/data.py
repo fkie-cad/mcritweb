@@ -544,11 +544,13 @@ def linkhunt(job_id):
         return render_template("result_incompatible.html", job_id=job_id)
 
 def linkhunt_for_sample_or_query(job_info, matching_result: MatchingResult):
+    client = McritClient(mcrit_server=get_server_url())
     score_color_provider = ScoreColorProvider()
     # generic filtering of function results
     filter_action = parse_str_query_param(request, "filter_button_action")
     filter_min_score = parse_integer_query_param(request, "filter_min_score")
     filter_lib_min_score = parse_integer_query_param(request, "filter_lib_min_score")
+    filter_link_score = parse_integer_query_param(request, "filter_link_score")
     filter_min_size = parse_integer_query_param(request, "filter_min_size")
     filter_min_offset = parse_integer_query_param(request, "filter_min_offset")
     filter_max_offset = parse_integer_query_param(request, "filter_max_offset")
@@ -556,35 +558,38 @@ def linkhunt_for_sample_or_query(job_info, matching_result: MatchingResult):
     filter_exclude_families = parse_integer_list_query_param(request, "filter_exclude_families")
     filter_exclude_samples = parse_integer_list_query_param(request, "filter_exclude_samples")
     filter_strongest_per_family = parse_checkbox_query_param(request, "filter_strongest_per_family")
-    if (all(flag is None for flag in [filter_min_score, filter_lib_min_score, filter_min_size,
+    if (all(flag is None for flag in [filter_min_score, filter_lib_min_score, filter_link_score, filter_min_size,
                 filter_min_offset, filter_max_offset, filter_exclude_families, filter_exclude_samples])
                 and not filter_strongest_per_family
                 and not filter_action == "clear"):
         # specify default filters
         filter_min_score = 65
         filter_lib_min_score = 80
+        filter_link_score = 10
         filter_min_size = 50
         filter_min_offset = None
         filter_max_offset = None
         # own family id
         filter_exclude_families = [matching_result.reference_sample_entry.family_id]
         filter_exclude_samples = []
-        filter_unpenalized_family_count = 3
+        filter_unpenalized_family_count = 2
         filter_strongest_per_family = True
     elif filter_action == "clear":
         filter_min_score = None
         filter_lib_min_score = None
+        filter_link_score = None
         filter_min_size = None
         filter_min_offset = None
         filter_max_offset = None
         # own family id
         filter_exclude_families = None
         filter_exclude_samples = None
-        filter_unpenalized_family_count = 3
+        filter_unpenalized_family_count = 2
         filter_strongest_per_family = False
     filter_values = {
         "filter_min_score": filter_min_score,
         "filter_lib_min_score": filter_lib_min_score,
+        "filter_link_score": filter_link_score,
         "filter_min_size": filter_min_size,
         "filter_min_offset": filter_min_offset,
         "filter_max_offset": filter_max_offset,
@@ -596,8 +601,13 @@ def linkhunt_for_sample_or_query(job_info, matching_result: MatchingResult):
     matching_result.setFilterValues(filter_values)
     link_hunt_result = matching_result.getLinkHuntResults(filter_min_score, filter_lib_min_score, filter_min_size, filter_min_offset, filter_max_offset, filter_unpenalized_family_count, filter_exclude_families, filter_exclude_samples, filter_strongest_per_family)
 
+    function_entries = client.getFunctionsBySampleId(matching_result.reference_sample_entry.sample_id)
+    # TODO: probably need to paginate them as well, also need an object with decent accessors to render this effectively
+    link_clusters = matching_result.clusterLinkHuntResult(function_entries, link_hunt_result)
+    link_clusters = sorted([l for l in link_clusters if len(l["nodes"]) > 1], key=lambda x: x["score"], reverse=True)
+
     function_pagination = Pagination(request, len(link_hunt_result), query_param="funp")
-    return render_template("linkhunt.html", job_info=job_info, funp=function_pagination, matching_result=matching_result, lhr=link_hunt_result, scp=score_color_provider)
+    return render_template("linkhunt.html", job_info=job_info, funp=function_pagination, matching_result=matching_result, lc=link_clusters, lhr=link_hunt_result, scp=score_color_provider)
 
 
 ################################################################
