@@ -565,7 +565,7 @@ def linkhunt_for_sample_or_query(job_info, matching_result: MatchingResult):
         # specify default filters
         filter_min_score = 65
         filter_lib_min_score = 80
-        filter_link_score = 10
+        filter_link_score = 30
         filter_min_size = 50
         filter_min_offset = None
         filter_max_offset = None
@@ -605,6 +605,10 @@ def linkhunt_for_sample_or_query(job_info, matching_result: MatchingResult):
     # TODO: probably need to paginate them as well
     link_clusters = matching_result.clusterLinkHuntResult(function_entries, link_hunt_result)
     link_clusters = sorted([l for l in link_clusters if len(l["links"]) > 1], key=lambda x: x["score"], reverse=True)
+
+    if filter_link_score:
+        link_clusters = [l for l in link_clusters if l["score"] > filter_link_score]
+        link_hunt_result = [l for l in link_hunt_result if l.matched_link_score > filter_link_score]
 
     function_pagination = Pagination(request, len(link_hunt_result), query_param="funp")
     return render_template("linkhunt.html", job_info=job_info, funp=function_pagination, matching_result=matching_result, lc=link_clusters, lhr=link_hunt_result, scp=score_color_provider)
