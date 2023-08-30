@@ -602,9 +602,9 @@ def linkhunt_for_sample_or_query(job_info, matching_result: MatchingResult):
     link_hunt_result = matching_result.getLinkHuntResults(filter_min_score, filter_lib_min_score, filter_min_size, filter_min_offset, filter_max_offset, filter_unpenalized_family_count, filter_exclude_families, filter_exclude_samples, filter_strongest_per_family)
 
     function_entries = client.getFunctionsBySampleId(matching_result.reference_sample_entry.sample_id)
-    # TODO: probably need to paginate them as well, also need an object with decent accessors to render this effectively
+    # TODO: probably need to paginate them as well
     link_clusters = matching_result.clusterLinkHuntResult(function_entries, link_hunt_result)
-    link_clusters = sorted([l for l in link_clusters if len(l["nodes"]) > 1], key=lambda x: x["score"], reverse=True)
+    link_clusters = sorted([l for l in link_clusters if len(l["links"]) > 1], key=lambda x: x["score"], reverse=True)
 
     function_pagination = Pagination(request, len(link_hunt_result), query_param="funp")
     return render_template("linkhunt.html", job_info=job_info, funp=function_pagination, matching_result=matching_result, lc=link_clusters, lhr=link_hunt_result, scp=score_color_provider)
