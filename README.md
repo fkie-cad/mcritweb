@@ -1,6 +1,6 @@
 # MCRITweb
 
-MCRITweb is a Flask-based user interface for [MCRIT](https://github.com/danielplohmann/mcrit), the MinHash-based Code Recognition & Investigation Toolkit.  
+MCRITweb is a Flask-based user interface for the [MinHash-based Code Recognition & Investigation Toolkit (MCRIT)](https://github.com/danielplohmann/mcrit).  
 MCRITweb has been developed by Daniel Enders, Manuel Blatt, and Daniel Plohmann.
 
 ## Installation
