@@ -61,6 +61,8 @@ def register():
             error = 'Username is required.'
         elif re.match("^(?=[a-zA-Z0-9._]{3,20}$)(?!.*[_.]{2})[^_.].*[^_.]$", username) is None:
             error = "Username has wrong format."
+        elif username in ["guest", "mcritweb", "mcrit"]:
+            error = "Username is reserved."
         elif not password:
             error = 'Password is required.'
         elif not password == request.form['inputPassword2']:

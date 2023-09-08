@@ -42,9 +42,10 @@ Note that most functionality of MCRITweb will only work if an MCRIT backend is c
 
 
 ## Version History
- * 2023-08-30 v1.0.19 Clustering functions by ICFG connectivity when doing link hunt.
- * 2023-08-25 v1.0.15 Integrated link hunt to result display.
- * 2023-06-06 v1.0.7 Extended result filters for family name, function offsets, and unique family function hits.
+ * 2023-09-08 v1.0.21: All McritClient calls are now passing on usernames/apitokens to the backend.
+ * 2023-08-30 v1.0.19: Clustering functions by ICFG connectivity when doing link hunt.
+ * 2023-08-25 v1.0.15: Integrated link hunt to result display.
+ * 2023-06-06 v1.0.7: Extended result filters for family name, function offsets, and unique family function hits.
  * 2023-06-06 v1.0.6: Bugfix for use of new MatchingResult methods when showing 1v1 results.
  * 2023-06-02 v1.0.5: Fixed ResultView for Query results. Slight improvement to Jobs table. Adjusted API passthrough for function collections.
  * 2023-05-12 v1.0.4: Extended API passthrough for creation of matching jobs in MCRIT.

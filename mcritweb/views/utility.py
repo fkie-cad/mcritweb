@@ -7,7 +7,7 @@ import logging
 import requests
 import functools 
 
-from flask import redirect, url_for, flash, session
+from flask import redirect, url_for, flash, session, g
 from rapidfuzz.distance import Levenshtein
 from smda.intel.IntelInstructionEscaper import IntelInstructionEscaper
 from mcrit.client.McritClient import McritClient
@@ -31,7 +31,7 @@ def mcrit_server_required(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
         try:
-            requests.get(f"{get_server_url()}/")
+            requests.get(f"{get_server_url()}/", headers={"username":"mcritweb"})
         except:
             flash('No connection to the Mcrit server', category='error')
             return redirect(url_for('index'))
@@ -46,6 +46,12 @@ def get_session_user_id():
             return user_id
     except:
         return None
+    
+def get_username():
+    username = "guest"
+    if g.user is not None:
+        username = g.user['username']
+    return username
 
 
 def parse_integer_query_param(request, query_param:str):
@@ -124,6 +130,7 @@ def parseBaseAddrFromFilename(filename):
     logging.warning("No base address recognized, using None.")
     return None
 
+
 def parseBitnessFromFilename(filename):
     # try to infer bitness from filename:
     baddr_match = re.search(re.compile("_0x(?P<base_addr>[0-9a-fA-F]{8,16})"), filename)
@@ -188,7 +195,7 @@ def get_full_picblock_matches(function_entry_a, function_entry_b):
     return node_colors
 
 def get_all_picblock_matches(function_a, function_b):
-    client = McritClient(mcrit_server=get_server_url())
+    client = McritClient(mcrit_server=get_server_url(), username=get_username())
     smda_function_a = function_a.toSmdaFunction()
     smda_function_b = function_b.toSmdaFunction()
     sample_a = client.getSampleById(function_a.sample_id)
@@ -323,7 +330,7 @@ def get_matches_node_colors(function_id_a, function_id_b):
     # thresholded edit distance match over escaped instruction sequence: green to orange
     node_colors = {"a": {}, "b": {}}
 
-    client = McritClient(mcrit_server=get_server_url())
+    client = McritClient(mcrit_server=get_server_url(), username=get_username())
     function_entry = client.getFunctionById(function_id_a, with_xcfg=True)
     other_function_entry = client.getFunctionById(function_id_b, with_xcfg=True)
     smda_function_a = function_entry.toSmdaFunction()

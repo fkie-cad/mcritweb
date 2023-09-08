@@ -4,7 +4,7 @@ from flask import current_app, Blueprint, render_template, g, request, flash, re
 
 from mcrit.client.McritClient import McritClient
 
-from mcritweb.views.utility import get_server_url
+from mcritweb.views.utility import get_server_url, get_username
 from mcritweb import db
 from mcritweb.db import UserInfo
 from mcritweb.views.authentication import admin_required, login_required, multi_user
@@ -167,7 +167,7 @@ def server():
     operation_mode_str = "Multi-User" if operation_mode == "multi" else "Single-User"
     db_server_version = db.get_server_version()
     running_server_version = get_mcritweb_version_from_setup()
-    client = McritClient(mcrit_server=get_server_url())
+    client = McritClient(mcrit_server=get_server_url(), username=get_username())
     mcrit_version = client.getVersion()
     return render_template('admin_server.html', current_url=get_server_url(), server_uuid=server_uuid, registration_token=registration_token, operation_mode=operation_mode_str, db_version=db_server_version, running_version=running_server_version, mcrit_version=mcrit_version)
 
@@ -189,7 +189,7 @@ def change_server():
 def reset_server():
     reset_confirmation = request.form.get('reset_server', '')
     if reset_confirmation and reset_confirmation == "RESET":
-        client = McritClient(mcrit_server=get_server_url())
+        client = McritClient(mcrit_server=get_server_url(), username=get_username())
         client.respawn()
         from mcritweb.views.utility import ensure_local_data_paths
         ensure_local_data_paths(current_app, clear_data=True)
