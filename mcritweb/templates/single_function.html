@@ -1,11 +1,12 @@
-{% from 'table/links.html' import format_pichash, format_offset, format_family_name_tuple, format_family_id, format_sample_id, format_function_id, format_sha_short_clipboard, clipboard_js %}
+{% from 'table/links.html' import format_pichash, format_offset, format_family_name_tuple, format_family_id, format_sample_id, format_function_id, format_sha_short_clipboard %}
+{% from 'table/column_table.html' import function_column_table %}
 {% extends 'base.html' %}
 {% block style %}
 <!-- 
 <script src="{{ url_for('static', filename='trace_CFG/lib/jquery-3.1.1.min.js') }}"></script>
 <script src="{{ url_for('static', filename='trace_CFG/lib/split.js') }}"></script>
 -->
-{{ clipboard_js() }}
+
 <script src="{{ url_for('static', filename='trace_CFG/lib/d3.min.js') }}"></script>
 <script src="{{ url_for('static', filename='trace_CFG/lib/graphlib.min.js') }}"></script>
 <script src="{{ url_for('static', filename='trace_CFG/lib/graphlib-dot.min.js') }}"></script>
@@ -26,61 +27,14 @@ Function: {{ function_id }}
 <span><h1>Function: {{ function_id }}</h1></span>
 <span style="float:right"><a href="#function_xcfg">go to cfg</a></span>
     {% if entry is not none %}
-      <table class="table table-sm table-borderless" style="width:50%;">
-      {% set entry_dict = entry.toDict() %}
-      {{ entry_dict.update(
-          {"family_name": (sample_entry.family, sample_entry.family_id), "sha256": sample_entry.sha256}
-        ) |silent
-      }}
-      {% set keys_to_names = dict(
-          architecture = "Architecture",
-          binweight = "Binweight",
-          family_id = "Family ID",
-          family_name = "Family Name",
-          sample_id = "Sample ID",
-          sha256 = "Short Sha256",
-          function_id = "Function ID",
-          function_name = "Function Name",
-          num_blocks = "Num Blocks",
-          num_instructions = "Num Instructions",
-          offset = "Offset",
-          pichash = "PicHash",
-      ) %}
-      {% set formatters = dict(
-          offset = format_offset,
-          pichash = format_pichash,
-          family_id = format_family_id,
-          family_name = format_family_name_tuple,
-          sample_id = format_sample_id,
-          function_id = format_function_id,
-          sha256 = format_sha_short_clipboard
-      ) %}
-      {% for key, name in keys_to_names.items() %}
-        <tr>
-            <th valign="middle">{{ name }}</td>
-            {% if key in formatters %}
-            <td valign="middle">{{ formatters[key](entry_dict[key]) }}
-              {% if key == "pichash" %}
-                (
-                {{ pichash_match_summary["families"] }} <i class="fa-solid fa-bug" title="Families matched"> </i>, 
-                {{ pichash_match_summary["samples"] }} <i class="fa-solid fa-virus" title="Samples matched"> </i>,
-                {{ pichash_match_summary["functions"] }} <i class="fa-solid fa-project-diagram" title="Functions matched"> </i>
-                )
-              {% endif %}
-            </td>
-            {% else %}
-              <td valign="middle">{{ entry_dict[key] }}</td>
-            {% endif %}
-        </tr>
-      {% endfor %}
-    </table>
+      {{ function_column_table(("Function Info", entry, sample_entry, pichash_match_summary)) }}
 
-    <script type="text/javascript">
-    window.onload = function() {
-        var js_function_id = {{ function_id }};
-        loadWithDotGraphAndFunctionId(js_function_id)
-    };
-    </script>
+      <script type="text/javascript">
+      window.onload = function() {
+          var js_function_id = {{ function_id }};
+          loadWithDotGraphAndFunctionId(js_function_id)
+      };
+      </script>
     {% endif %}
 
     <div id="xcfg_top" style="height: 90px;">

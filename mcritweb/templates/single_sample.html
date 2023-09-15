@@ -2,7 +2,8 @@
 {% from 'table/function_row.html' import function_row_std_js %}
 {% from 'table/pagination_widget.html' import pagination_widget %}
 {% from 'table/job_row.html' import job_row_std_js %}
-{% from 'table/links.html' import clipboard_btn, clipboard_js %}
+{% from 'table/links.html' import clipboard_btn %}
+{% from 'table/column_table.html' import sample_column_table %}
 {% extends 'base.html' %}
 {% block title%}
 Sample: {{ entry.sample_id }}
@@ -11,7 +12,6 @@ Sample: {{ entry.sample_id }}
 {% block style %}
 {{ function_row_std_js() }}
 {{ job_row_std_js() }}
-{{ clipboard_js() }}
 {% endblock %}
 
 {% block content %}
@@ -120,18 +120,26 @@ Sample: {{ entry.sample_id }}
   </script>
 
 
-<h1>Sample: {{ entry.sample_id }}</h1>
+<h1>Sample Overview: {{ entry.sample_id }}</h1>
 <div class="container">
     <div class="row">
       <div align="right" class="col">
         <div class="btn-group dropdown">
           <button type="button" class="btn btn-outline-dark btn-sm dropdown-toggle" id="button_sample_analyze" onclick=set_analyze_sample_button_clicked() bs-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+            {% if job_collection.getJobsForSample(entry.sample_id, matching_only=True) %}
+            <i style="color:green;" class="fa-solid fa-flask"></i>&nbsp;{{ job_collection.getJobsForSample(entry.sample_id, matching_only=True) | length}}
+            {% else %}
             <i class="fa-solid fa-flask"></i>
+            {% endif %}
           </button>
           <div style="margin-top: 30px" class="dropdown-menu" id="dropdown-menu">
-            <a class="dropdown-item" href="{{ url_for('analyze.compare', query='sha256:'+entry.sha256) }}">1 vs N</a>
-            <a class="dropdown-item" href="{{ url_for('analyze.compare_versus', selected_a=entry.sample_id, query_a='sha256:'+entry.sha256) }}">1 vs 1</a>
-            <a class="dropdown-item" href="{{ url_for('analyze.cross_compare', samples=entry.sample_id) }}">Cross Compare</a>
+            <a class="dropdown-item" href="{{ url_for('analyze.compare', query='sha256:'+entry.sha256) }}">New: 1 vs N</a>
+            <a class="dropdown-item" href="{{ url_for('analyze.compare_versus', selected_a=entry.sample_id, query_a='sha256:'+entry.sha256) }}">New: 1 vs 1</a>
+            <a class="dropdown-item" href="{{ url_for('analyze.cross_compare', samples=entry.sample_id) }}">New: Cross Compare</a>
+            <a class="dropdown-item" href="{{ url_for('explore.sample_by_id', sample_id=entry.sample_id, _anchor='jobs') }}">Previous Jobs</a>
+            {% if job_collection.getJobsForSample(entry.sample_id, method="getMatchesForSample", finished_only=True) %}
+            <a class="dropdown-item" href="{{ url_for('data.result', job_id=job_collection.getJobsForSample(entry.sample_id, method="getMatchesForSample", finished_only=True)[0].job_id) }}">Last 1:N Job</a>
+            {% endif %}
           </div>
         </div>
           <a class="btn btn-outline-dark btn-sm" id="sample_{{ entry.sample_id }}_family_blocks" href="{{ url_for('analyze.blocks_sample', sample_id=entry.sample_id) }}" role="button" target="_self"><i class="fa-solid fa-cubes-stacked"></i></a>
@@ -140,70 +148,28 @@ Sample: {{ entry.sample_id }}
       </div>
     </div>
 </div>
-<div class="accordion accordion-flush mb-3" id="accordionFlushExample">
-  <div class="accordion-item">
-    <h2 class="accordion-header" id="flush-headingOne">
-      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#flush-collapseOne" aria-expanded="false" aria-controls="flush-collapseOne">
-        Metadata
-      </button>
-    </h2>
-    <div id="flush-collapseOne" class="accordion-collapse collapse" aria-labelledby="flush-headingOne" data-bs-parent="#accordionFlushExample">
-      <table class="table table-sm table-borderless" style="width:50%;">
-        {% for key in entry.toDict() %}
-          {% if loop.index <= 11 %}
-            <tr>
-              <th valign="middle">{{ key.replace('_', ' ')|capitalize_all }}</td>
-              <td valign="middle">{% if key == 'family' %}<a href='{{ url_for("explore.family_by_id",family_id=entry.toDict()['family_id']) }}' >{{ entry.toDict()[key] }}</a>{% else %}{{ entry.toDict()[key] }}{% endif %}</td>
-            </tr>
-          {% endif %}
-        {% endfor %}
-        <tr>
-          <th valign="middle">Sha256</td>
-          <td valign="middle">{{ entry.sha256 }} {{ clipboard_btn(entry.sha256) }}</td>
-        </tr>
-        <tr>
-          <th valign="middle">Timestamp</td>
-          <td valign="middle">{{ entry.timestamp }}</td>
-        </tr>
-        <tr>
-          <th valign="middle">Version</td>
-          <td valign="middle">{{ entry.version }}</td>
-        </tr>
-      </table>
-    </div>
-  </div>
-  <div class="accordion-item">
-    <h2 class="accordion-header" id="flush-headingTwo"style="margin:0">
-      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#flush-collapseTwo" aria-expanded="false" aria-controls="flush-collapseTwo">
-        Statistics
-      </button>
-    </h2>
-    <div id="flush-collapseTwo" class="accordion-collapse collapse" aria-labelledby="flush-headingTwo" data-bs-parent="#accordionFlushExample">
-      <table class="table table-sm table-borderless" style="width:50%;">
-        {% for key in entry.statistics%}
-        <tr>
-          <th valign="middle">{{ key.replace('_', ' ')|capitalize_all  }}</td>
-          <td valign="middle">{{ entry.statistics[key] }}</td>
-        </tr>
-        {% endfor %}
-
-      </table>
-    </div>
-  </div>
+<p></p>
+<div>
+  {{ sample_column_table(("Sample Info", entry)) }}
+  {% if job_collection.count %}
+      <p>
+        Sample has <a href="#jobs">{{ job_collection.count }} {% if job_collection.count == 1 %}Job{% else %}Jobs{% endif %}</a>.
+      </p>
+  {% endif %}
 </div>
-
+<h3>Search</h3>
   <form style="width:100%" method="GET" required action="#">
     <input type="text" class="form-control shadow-none" name="query" value="{{ query or '' }}" id="query" placeholder="Search" autofocus autocomplete="on">
     <input type='submit' hidden>
   </form>
-
+  <h3>Functions</h3>
 {{ function_table(functions, for_sample_view=True, sort_pagination=pagination) }}
 {% if functions %}
 {{ pagination_widget(pagination) }}
 {% endif %}
-{% if jobs %}
-<h3>Jobs</h3>
-{{ job_table(jobs) }}
+{% if job_collection.count %}
+<h3 id="jobs">Jobs</h3>
+{{ job_table(job_collection.getJobs()) }}
 {% endif %}
 {% include 'js/ac_family_names.html' %}
 {% endblock %}

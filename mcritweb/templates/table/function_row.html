@@ -53,13 +53,13 @@
       <td align="right" valign="middle" scope="row" class="sample-id">{{ format_sample_id(function.sample_id) }}</th>
     {% endif %}
     <td align="right" valign="middle" class="font-monospace">{{ format_pichash(function.pichash) }}</td>
-    <td align="center" valign="middle"><i {% if function.minhash|length > 0 %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
+    <td align="center" valign="middle"><i {% if function.minhash|length > 0 %} style="color:green;" class="fa-solid fa-square-check" {% else %} style="color:darkred;" class="fa-solid fa-times-circle"> {% endif %}</i></td>
     <td align="right" valign="middle" class="font-monospace">{{ format_offset(function.offset) }}</td>
     <td valign="middle">{{ function.function_name }}</td>
     <td align="right" valign="middle" class="font-monospace">{{ "%d"|format(function.num_instructions) }}</td>
     <td align="right" valign="middle" class="font-monospace">{{ "%d"|format(function.num_blocks) }}</td>
     <td align="center">
-      <a class="btn btn-outline-dark btn-sm" href="{{ url_for('analyze.compare') }}" role="button"><i class="fa-solid fa-flask" title="Create Analysis Job"></i></a>
+      <a class="btn btn-outline-dark btn-sm" href="{{ url_for('analyze.compare', query='sample_id:' + '%d' % function.sample_id) }}" role="button"><i class="fa-solid fa-flask" title="New: 1 vs N"></i></a>
     </td>
   </tr>
 {% endmacro %}

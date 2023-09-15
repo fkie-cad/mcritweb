@@ -4,6 +4,7 @@ from mcrit.client.McritClient import McritClient
 from mcrit.storage.FamilyEntry import FamilyEntry
 from mcrit.storage.SampleEntry import SampleEntry
 from mcrit.storage.FunctionEntry import FunctionEntry
+from mcrit.queue.JobCollection import JobCollection
 
 from mcritweb.views.authentication import visitor_required, contributor_required
 from mcritweb.views.utility import get_server_url, mcrit_server_required, get_username
@@ -151,9 +152,13 @@ def samples():
         for sample_dict in results['search_results'].values():
             samples.append(SampleEntry.fromDict(sample_dict))
 
+    jobs = client.getQueueData()
+    job_collection = JobCollection(jobs)
+    job_collection.filterToSampleIds([s.sample_id for s in samples])
+
     all_families = client.getFamilies()
     family_names = [family_entry.family_name for family_entry in all_families.values()]
-    return render_template("samples.html", samples=samples, family_names=family_names, pagination=pagination, query=query)
+    return render_template("samples.html", samples=samples, family_names=family_names, job_collection=job_collection, pagination=pagination, query=query)
 
 
 @bp.route('/functions')
@@ -202,7 +207,12 @@ def family_by_id(family_id):
                 samples.append(SampleEntry.fromDict(sample_dict))
         all_families = client.getFamilies()
         family_names = [family_entry.family_name for family_entry in all_families.values()]
-        return render_template("single_family.html", family=family_info, samples=samples, family_names=family_names, pagination=pagination, query=original_query)
+
+        jobs = client.getQueueData()
+        job_collection = JobCollection(jobs)
+        job_collection.filterToSampleIds([s.sample_id for s in samples])
+
+        return render_template("single_family.html", family=family_info, samples=samples, family_names=family_names, job_collection=job_collection, pagination=pagination, query=original_query)
     else:
         flash("The given Family ID doesn't exist", category='error')
         return redirect(url_for('explore.families'))
@@ -227,12 +237,13 @@ def sample_by_id(sample_id):
             flash(f"Ups, search for {query} in MCRIT's functions failed!", category="error")
         else:
             jobs = client.getQueueData(filter=sample_id)
-            filtered_jobs = [job for job in jobs if '('+str(sample_id)+')' in job.parameters or '('+str(sample_id)+',' in job.parameters or ','+str(sample_id)+',' in job.parameters or ','+str(sample_id)+')' in job.parameters]
+            job_collection = JobCollection(jobs)
+            job_collection.filterToSampleIds([sample_id])
             for function_dict in results['search_results'].values():
                 functions.append(FunctionEntry.fromDict(function_dict))
         all_families = client.getFamilies()
         family_names = [family_entry.family_name for family_entry in all_families.values()]
-        return render_template("single_sample.html", entry=sample_entry, functions=functions, pagination=pagination, query=original_query, jobs=filtered_jobs, family_names=family_names)
+        return render_template("single_sample.html", entry=sample_entry, functions=functions, pagination=pagination, query=original_query, job_collection=job_collection, family_names=family_names)
     else:
         flash("The given Sample ID doesn't exist", category='error')
         return redirect(url_for('explore.samples'))

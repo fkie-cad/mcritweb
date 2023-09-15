@@ -19,7 +19,7 @@ Family: {{ family.family }}
     <input type='submit' hidden>
   </form>
 
-{{ sample_table(samples, show_edit=True, no_family=True, sort_pagination=pagination) }}
+{{ sample_table(samples, job_collection=job_collection, show_edit=True, no_family=True, sort_pagination=pagination) }}
 {% if samples %}
 {{ pagination_widget(pagination) }}
 {% endif %}

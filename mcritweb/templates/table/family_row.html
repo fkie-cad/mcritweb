@@ -80,7 +80,7 @@
     <!-- <td valign="middle" >{{ family.family or "Unnamed"}} <a name="malpedia" href="https://malpedia.caad.fkie.fraunhofer.de/details/{{ family.family }}" target="_blank"> <img src="{{ url_for('static', filename='malpedia_small.png') }}" width="25" height="25" > </a></td> -->
     <td align="right" valign="middle">{{ "%d"|format(family.num_samples) }}</td>
     <td align="right" valign="middle">{{ "%d"|format(family.num_functions) }}</td>
-    <td align="center" valign="middle"><i {% if family.is_library %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
+    <td align="center" valign="middle"><i {% if family.is_library %} style="color:green;" class="fa-solid fa-square-check" {% else %} style="color:darkred;" class="fa-solid fa-times-circle"> {% endif %}</i></td>
     <td align="center" valign="middle">
       <a class="btn btn-outline-dark btn-sm" name="compare" href="{{ url_for('analyze.compare', query=family.family_name, rematch='true') }}" role="button" target="_self"><i class="fa-solid fa-flask"></i></a>
       <a class="btn btn-outline-dark btn-sm" name="family_blocks" href="{{ url_for('analyze.blocks_family', family_id=family.family_id) }}" role="button" target="_self"><i class="fa-solid fa-cubes-stacked"></i></a>

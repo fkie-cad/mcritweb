@@ -436,6 +436,12 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
             create_match_diagram(current_app, job_info.job_id, matching_result, filtered_function_id=filtered_function_id)
         matching_result.filterToFunctionId(filtered_function_id)
         matching_result.filtered_function_matches = sorted(matching_result.filtered_function_matches, key=lambda x: (x.matched_score, x.match_is_pichash, x.matched_family_id, x.matched_sample_id, x.matched_function_id), reverse=True)
+        # pull all function_entries, as we want to have their offsets
+        matched_function_ids = list(set([f.matched_function_id for f in matching_result.filtered_function_matches]))
+        matched_function_entries_by_id = client.getFunctionsByIds(matched_function_ids)
+        for function_match in matching_result.filtered_function_matches:
+            function_match.matched_offset = matched_function_entries_by_id[function_match.matched_function_id].offset
+        # set up pagination
         family_pagination = Pagination(request, matching_result.num_family_matches, limit=10, query_param="famp")
         function_pagination = Pagination(request, matching_result.num_function_matches, query_param="funp")
         return render_template("result_compare_function.html", funid=filtered_function_id, job_info=job_info, famp=family_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 

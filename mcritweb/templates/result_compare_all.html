@@ -186,7 +186,9 @@ Results for Job: {{ job_info.job_id }}
         <td style="text-align: right;" valign="middle">0x{{ "%x"|format(aggregate["offset"]) }}</td>
         <td style="text-align: right;" valign="middle">{{ "%d"|format(aggregate["num_bytes"]) }}</td>
         <td style="text-align: right;" valign="middle">
-        {% if aggregate["num_families_matched"] in [1, 2, 3, 4, 5] %}
+        {% if aggregate["num_families_matched"] == 1 %}
+          <span><i class="fa-solid fa-bug" title="Family ID"></i>&nbsp; {{ join_hint_strings(aggregate['families_matched']) }}</span>
+        {% elif aggregate["num_families_matched"] in [2, 3, 4, 5] %}
           <span class="hint--right" data-hint="{{ join_hint_strings(aggregate['families_matched']) }}">{{ aggregate["num_families_matched"] }}&nbsp;<i class="fa-solid fa-bug " title="Family ID"></i></span>
         {% else %}
         {{ aggregate["num_families_matched"] }}
@@ -198,7 +200,7 @@ Results for Job: {{ job_info.job_id }}
         <td style="text-align: right;" valign="middle">{{ aggregate["minhash_matches"] }}</td>
         <td style="text-align: right;" valign="middle">{{ aggregate["pichash_matches"] }}</td>
         <td style="text-align: right;" valign="middle">{{ aggregate["library_matches"] }}</td>
-        <td style="text-align: right;" valign="middle"><i {% if aggregate["is_family_unique"] %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
+        <td style="text-align: right;" valign="middle"><i {% if aggregate["is_family_unique"] %} style="color:green;" class="fa-solid fa-square-check" {% else %} style="color:darkred;" class="fa-solid fa-times-circle"> {% endif %}</i></td>
      </tr>
       {% endfor %}
     </tbody>

@@ -44,7 +44,7 @@
     {% endif %}
     <td align="right">
       {% if job.finished_at %}
-      <a class="btn btn-outline-dark btn-sm" href="{{"/data/result/" + job.job_id}}"  role="button" target="_self"><i class="fa-solid fa-square-poll-vertical"></i></a>
+      <a class="btn btn-outline-dark btn-sm" href="{{ url_for('data.result', job_id=job.job_id) }}"  role="button" target="_self"><i class="fa-solid fa-square-poll-vertical"></i></a>
       {% endif %}
     </td>
   </tr>

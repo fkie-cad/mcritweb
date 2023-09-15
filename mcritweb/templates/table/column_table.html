@@ -1,4 +1,4 @@
-{% from 'table/links.html' import format_family_name, format_family_id, format_sample_id %}
+{% from 'table/links.html' import format_pichash, format_function_id, format_family_name, format_family_id, format_sample_id, format_sha_short_clipboard, clipboard_btn %}
 
 {% macro sample_column_table()%}
   <table class="table table-hover">
@@ -12,33 +12,27 @@
     </thead>
     <tbody>
       <tr>
-        <td valign="middle">Sample ID: </td>
+        <td valign="middle">Sample ID | Family: </td>
         {% for name_and_sample in varargs %}
-          <td valign="middle">{% if name_and_sample[1].sample_id < 0 %}*{% endif %}{{ name_and_sample[1].sample_id|abs }}</td>
+          <td valign="middle">{% if name_and_sample[1].sample_id < 0 %}*{{ name_and_sample[1].sample_id|abs }}{% else%}<a href="{{ url_for('explore.sample_by_id', sample_id=name_and_sample[1].sample_id) }}">{{ name_and_sample[1].sample_id }}</a>{% endif %} | 
+            {{ format_family_name(name_and_sample[1].family, name_and_sample[1].family_id) }}
+          </td>
+        {% endfor %}
+      </tr>
+
+      <tr>
+        <td valign="middle">Version | Component | Library: </td>
+        {% for name_and_sample in varargs %}
+          <td valign="middle">
+            {{ name_and_sample[1].version or "-" }} | 
+            {{ name_and_sample[1].component or "-" }} | 
+            <i {% if name_and_sample[1].is_library %} style="color:green;" class="fa-solid fa-square-check" {% else %} style="color:darkred;" class="fa-solid fa-times-circle"> {% endif %}</i></td>
         {% endfor %}
       </tr>
       <tr>
-        <td valign="middle">SHA256: </td>
+        <td valign="middle">SHA256 | Filename: </td>
         {% for name_and_sample in varargs %}
-          <td valign="middle">{{ name_and_sample[1].getShortSha256(border=20) }}</td>
-        {% endfor %}
-      </tr>
-      <tr>
-        <td valign="middle">Filename: </td>
-        {% for name_and_sample in varargs %}
-          <td valign="middle">{{ name_and_sample[1].getShortFilename() }}</td>
-        {% endfor %}
-      </tr>
-      <tr>
-        <td valign="middle">Family ID / Name: </td>
-        {% for name_and_sample in varargs %}
-          <td valign="middle">{{ name_and_sample[1].family_id }} | {{ format_family_name(name_and_sample[1].family, name_and_sample[1].family_id) }}</td>
-        {% endfor %}
-      </tr>
-      <tr>
-        <td valign="middle">Version / Component: </td>
-        {% for name_and_sample in varargs %}
-          <td valign="middle">{{ name_and_sample[1].version }} / {{ name_and_sample[1].component }}</td>
+          <td valign="middle">{{ format_sha_short_clipboard(name_and_sample[1].sha256) }} | {{ name_and_sample[1].getShortFilename() }} {{ clipboard_btn(name_and_sample[1].filename) }}</td>
         {% endfor %}
       </tr>
       <tr>
@@ -50,13 +44,103 @@
       <tr>
         <td valign="middle">Binary Size (BinWeight): </td>
         {% for name_and_sample in varargs %}
-          <td valign="middle">{{ name_and_sample[1].binary_size }} ({{ "%d"|format(name_and_sample[1].binweight) }}) bytes</td>
+          <td valign="middle">{{ "{:,d}".format(name_and_sample[1].binary_size) }} ({{ "{:,.0f}".format(name_and_sample[1].binweight) }}) bytes</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <td valign="middle">Functions | Blocks | Instructions: </td>
+        {% for name_and_sample in varargs %}
+          <td valign="middle">
+            {{ "{:,d}".format(name_and_sample[1].statistics['num_functions']) }} | 
+            {{ "{:,d}".format(name_and_sample[1].statistics['num_basic_blocks']) }} | 
+            {{ "{:,d}".format(name_and_sample[1].statistics['num_instructions']) }}
+          </td>
         {% endfor %}
       </tr>
       <tr>
         <td valign="middle">Platform: </td>
         {% for name_and_sample in varargs %}
           <td valign="middle">{{ name_and_sample[1].architecture }} / {{ name_and_sample[1].bitness }}bit</td>
+        {% endfor %}
+      </tr>
+    </tbody>
+  </table>
+{% endmacro %}
+
+
+{% macro function_column_table()%}
+  <table class="table table-hover">
+    <thead class="thead-light">
+      <tr>
+        <th scope="col">Field</th>
+        {% for name_fe_se_ph in varargs %}
+          <th scope="col">{{ name_fe_se_ph[0]}}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td valign="middle">Sample ID | Family: </td>
+        {% for name_fe_se_ph in varargs %}
+          <td valign="middle">{% if name_fe_se_ph[1].sample_id < 0 %}*{{ name_fe_se_ph[1].sample_id|abs }}{% else%}<a href="{{ url_for('explore.sample_by_id', sample_id=name_fe_se_ph[1].sample_id) }}">{{ name_fe_se_ph[1].sample_id }}</a>{% endif %} | 
+            {{ format_family_name(name_fe_se_ph[2].family, name_fe_se_ph[2].family_id) }}
+          </td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <td valign="middle">SHA256 | Filename: </td>
+        {% for name_fe_se_ph in varargs %}
+          <td valign="middle">{{ format_sha_short_clipboard(name_fe_se_ph[2].sha256) }} | {{ name_fe_se_ph[2].getShortFilename() }} {{ clipboard_btn(name_fe_se_ph[2].filename) }}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <td valign="middle">Function ID:</td>
+        {% for name_fe_se_ph in varargs %}
+          <td valign="middle">{{ format_function_id(name_fe_se_ph[1].function_id) }}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <td valign="middle">Offset:</td>
+        {% for name_fe_se_ph in varargs %}
+          <td valign="middle">0x{{ "%x"|format(name_fe_se_ph[1].offset) }}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <td valign="middle">Function Name:</td>
+        {% for name_fe_se_ph in varargs %}
+          <td valign="middle">{{ name_fe_se_ph[1].function_name }}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <td valign="middle">BinWeight: </td>
+        {% for name_fe_se_ph in varargs %}
+          <td valign="middle">{{ "{:,.0f}".format(name_fe_se_ph[1].binweight) }} bytes</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <td valign="middle">Blocks | Instructions: </td>
+        {% for name_fe_se_ph in varargs %}
+          <td valign="middle">
+            {{ "{:,d}".format(name_fe_se_ph[1].num_blocks) }} | 
+            {{ "{:,d}".format(name_fe_se_ph[1].num_instructions) }}
+          </td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <td valign="middle">Platform: </td>
+        {% for name_fe_se_ph in varargs %}
+          <td valign="middle">{{ name_fe_se_ph[1].architecture }} / {{ name_fe_se_ph[2].bitness }}bit</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <td valign="middle">PicHash: </td>
+        {% for name_fe_se_ph in varargs %}
+          <td valign="middle">
+            {{ format_pichash(name_fe_se_ph[1].pichash) }}
+            {{ name_fe_se_ph[3]["families"] }} <i class="fa-solid fa-bug" title="Families matched"> </i>, 
+            {{ name_fe_se_ph[3]["samples"] }} <i class="fa-solid fa-virus" title="Samples matched"> </i>,
+            {{ name_fe_se_ph[3]["functions"] }} <i class="fa-solid fa-project-diagram" title="Functions matched"> </i>
+          </td>
         {% endfor %}
       </tr>
     </tbody>

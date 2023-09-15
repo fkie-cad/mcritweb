@@ -99,7 +99,7 @@
 {% endmacro %}
   
   
-{% macro sample_row(sample, no_family=False, compact_view=False, show_analyze=True, show_export=False, show_edit=False, show_hint=False) %}
+{% macro sample_row(sample, no_family=False, compact_view=False, show_analyze=True, show_export=False, show_edit=False, show_hint=False, job_collection=None) %}
   <tr class="sample-row parent_{{ kwargs['parent'] }}" >
     <th align="left" valign="middle" scope="row" class="sample-id">{{ "%d"|format(sample.sample_id) }}</th>
     <td align="right" valign="middle" class="font-monospace">{{ sample.getShortSha256() }}</td>
@@ -112,7 +112,7 @@
       <td align="right" valign="middle">{{ "%d"|format(sample.bitness) }}</td>
     {% endif %}
     <td align="right" valign="middle">{{ "%d"|format(sample.statistics['num_functions']) }}</td>
-    <td align="center" valign="middle"><i {% if sample.is_library %} class="fa-solid fa-square-check" {% else %} class="fa-solid fa-times-circle"> {% endif %}</i></td>
+    <td align="center" valign="middle"><i {% if sample.is_library %} style="color:green;" class="fa-solid fa-square-check" {% else %} style="color:darkred;" class="fa-solid fa-times-circle"> {% endif %}</i></td>
     {% if show_hint %}
       <td>
         <span class="hint--left" data-hint="Sample_ID: {{ sample.sample_id }}&#10;SHA256: {{ sample.sha256 }}&#10;Family: {{ sample.family }}&#10;Version: {{ sample.version }}&#10;Filename: {{ sample.filename }} &#10;Architecture: {{ sample.architecture }}&#10;Bitness: {{ sample.bitness }} &#10;Base_Address: 0x{{ '%0x' % sample.base_addr }}&#10;Binary_Size: {{ '{:,.0f}'.format(sample.binary_size) }}&#10;Binweight: {{ '{:,.0f}'.format(sample.binweight) }}"><i class="fa-solid fa-circle-info"></i></span>
@@ -122,12 +122,20 @@
       <td align="right" class="buttons">
         {% if show_analyze %}
           <button type="button" class="btn btn-outline-dark btn-sm" id="sample_{{ sample.sample_id }}_analyze" onclick=set_analyze_sample_button_clicked() bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            {% if job_collection and job_collection.getJobsForSample(sample.sample_id, matching_only=True) %}
+            <i style="color:green;" class="fa-solid fa-flask"></i>&nbsp;{{ job_collection.getJobsForSample(sample.sample_id, matching_only=True) | length}}
+            {% else %}
             <i class="fa-solid fa-flask"></i>
+            {% endif %}
           </button>
           <div class="dropdown-menu dropdown-menu-end" id="dropdown-menu">
-            <a class="dropdown-item" href="{{ url_for('analyze.compare', query='sha256:'+sample.sha256) }}">1 vs N</a>
-            <a class="dropdown-item" href="{{ url_for('analyze.compare_versus', selected_a=sample.sample_id, query_a='sha256:'+sample.sha256) }}">1 vs 1</a>
+            <a class="dropdown-item" href="{{ url_for('analyze.compare', query='sha256:'+sample.sha256) }}">New: 1 vs N</a>
+            <a class="dropdown-item" href="{{ url_for('analyze.compare_versus', selected_a=sample.sample_id, query_a='sha256:'+sample.sha256) }}">New: 1 vs 1</a>
             <a class="dropdown-item" href="{{ url_for('analyze.cross_compare', samples=sample.sample_id) }}">Cross Compare</a>
+            <a class="dropdown-item" href="{{ url_for('explore.sample_by_id', sample_id=sample.sample_id, _anchor='jobs') }}">Previous Jobs</a>
+            {% if job_collection and job_collection.getJobsForSample(sample.sample_id, method="getMatchesForSample", finished_only=True) %}
+            <a class="dropdown-item" href="{{ url_for('data.result', job_id=job_collection.getJobsForSample(sample.sample_id, method="getMatchesForSample", finished_only=True)[0].job_id) }}">Last 1:N Job</a>
+            {% endif %}
           </div>
         {% endif %}
         {% if show_analyze %}

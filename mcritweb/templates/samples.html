@@ -19,7 +19,7 @@ Samples
 
 <h1>Overview of Samples</h1>
 
-{{ sample_table(samples, show_export=True, show_edit=True, sort_pagination=pagination) }}
+{{ sample_table(samples, job_collection=job_collection, show_export=True, show_edit=True, sort_pagination=pagination) }}
 {% if samples %}
 {{ pagination_widget(pagination) }}
 {% endif %}
