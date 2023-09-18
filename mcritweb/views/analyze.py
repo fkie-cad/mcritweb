@@ -6,12 +6,14 @@ from mcrit.client.McritClient import McritClient
 from mcrit.storage.SampleEntry import SampleEntry
 
 from mcritweb.views.authentication import visitor_required, contributor_required
-from mcritweb.views.utility import get_server_url, mcrit_server_required, get_username
+from mcritweb.views.utility import get_server_url, mcrit_server_required, get_username, parse_band_range
 from mcritweb.views.pagination import Pagination
 from mcritweb.views.cursor_pagination import CursorPagination
 from mcritweb.views.cross_compare import score_to_color
 
 bp = Blueprint('analyze', __name__, url_prefix='/analyze')
+
+
 
 
 @bp.route('/blocks/family/<int:family_id>')
@@ -102,13 +104,7 @@ def start_cross_compare():
     client = McritClient(mcrit_server= get_server_url(), username=get_username())
     selected = request.args.get('samples', '')
     rematch = request.args.get('rematch', '')
-    try:
-        minhash_band_range = int(request.args.get('minhashBandRange', "2"))
-        minhash_band_range = min(3, minhash_band_range)
-        minhash_band_range = max(0, minhash_band_range)
-    except:
-        minhash_band_range = 2
-    minhash_band_range = 4 - minhash_band_range
+    minhash_band_range = parse_band_range(request)
     if selected != '':
         selected_list = [int(x) for x in selected.split(',') if x != '']
         job_id = client.requestMatchesCross(selected_list, force_recalculation=rematch, band_matches_required=minhash_band_range)
@@ -177,13 +173,7 @@ def compare_versus():
 def compare_all(sample_id_a):
     client = McritClient(mcrit_server=get_server_url(), username=get_username())
     rematch = request.args.get('rematch', False)
-    try:
-        minhash_band_range = int(request.args.get('minhashBandRange', "2"))
-        minhash_band_range = min(3, minhash_band_range)
-        minhash_band_range = max(0, minhash_band_range)
-    except:
-        minhash_band_range = 2
-    minhash_band_range = 4 - minhash_band_range
+    minhash_band_range = parse_band_range(request)
     job_id = client.requestMatchesForSample(sample_id_a, force_recalculation=rematch, band_matches_required=minhash_band_range)
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
@@ -193,13 +183,7 @@ def compare_all(sample_id_a):
 def compare_vs(sample_id_a, sample_id_b):
     client = McritClient(mcrit_server=get_server_url(), username=get_username())
     rematch = request.args.get('rematch', False)
-    try:
-        minhash_band_range = int(request.args.get('minhashBandRange', "2"))
-        minhash_band_range = min(3, minhash_band_range)
-        minhash_band_range = max(0, minhash_band_range)
-    except:
-        minhash_band_range = 2
-    minhash_band_range = 4 - minhash_band_range
+    minhash_band_range = parse_band_range(request)
     job_id = client.requestMatchesForSampleVs(sample_id_a, sample_id_b, force_recalculation=rematch, band_matches_required=minhash_band_range)
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
@@ -228,11 +212,7 @@ def query():
         with open(os.sep.join([current_app.instance_path, "temp", "uploads", upload_sha256]), "wb") as fout:
             fout.write(binary_content)
 
-        minhash_band_range = int(request.form['minhashBandRange'])
-        minhash_band_range = min(3, minhash_band_range)
-        minhash_band_range = max(0, minhash_band_range)
-
-        minhash_band_range = 4 - minhash_band_range
+        minhash_band_range = parse_band_range(request)
         if is_dump:
             job_id = client.requestMatchesForMappedBinary(binary=binary_content, disassemble_locally=False, base_address=base_address, force_recalculation=True, band_matches_required=minhash_band_range)
         else:

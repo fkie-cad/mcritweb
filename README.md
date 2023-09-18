@@ -42,6 +42,7 @@ Note that most functionality of MCRITweb will only work if an MCRIT backend is c
 
 
 ## Version History
+ * 2023-09-18 v1.1.7: It's now possible to actually deactivate Minhash matching in jobs.
  * 2023-09-15 v1.1.6: Quality of Life improvements in several UI elements.
  * 2023-09-08 v1.0.21: All McritClient calls are now passing on usernames/apitokens to the backend.
  * 2023-08-30 v1.0.19: Clustering functions by ICFG connectivity when doing link hunt.

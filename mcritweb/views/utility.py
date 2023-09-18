@@ -54,6 +54,31 @@ def get_username():
     return username
 
 
+def parse_band_range(request, from_form=False):
+    minhash_band_range= 2
+    arg_to_value = {
+        # deactivate minhash bands
+        0: 0,
+        # 1: "Fast"
+        1: 4,
+        # 1: "Standard"
+        2: 2,
+        # 1: "Complete"
+        3: 1
+    }
+    try:
+        if from_form:
+            minhash_band_range = int(request.form['minhashBandRange'])
+        else:
+            minhash_band_range = int(request.args.get('minhashBandRange', "2"))
+        minhash_band_range = min(3, minhash_band_range)
+        minhash_band_range = max(0, minhash_band_range)
+    except:
+        minhash_band_range = 2
+    minhash_band_range = arg_to_value[minhash_band_range]
+    return minhash_band_range
+
+
 def parse_integer_query_param(request, query_param:str):
     """ Try to find query_param in the request and parse it as int """
     param = None
