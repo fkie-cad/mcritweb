@@ -7,7 +7,7 @@ setup(
     include_package_data=True,
     install_requires=[
         "flask==2.2.5",
-        "werkzeug==2.2.5",
+        "werkzeug==2.3.3",
         "flask-dropzone",
         "Pillow",
         "numpy",

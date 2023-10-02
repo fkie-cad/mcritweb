@@ -1,6 +1,6 @@
 requests
 Flask==2.2.5
-werkzeug==2.2.5
+werkzeug==2.3.3
 flask_dropzone
 click
 Pillow
