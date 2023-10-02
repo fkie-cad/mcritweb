@@ -427,6 +427,11 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         create_match_diagram(current_app, job_info.job_id, matching_result, filtered_sample_id=filtered_sample_id)
         filtered_sample_entry = client.getSampleById(filtered_sample_id)
         matching_result.other_sample_entry = filtered_sample_entry
+        # get offsets for matched functions
+        matched_function_ids = list(set([f.matched_function_id for f in matching_result.filtered_function_matches]))
+        matched_function_entries_by_id = client.getFunctionsByIds(matched_function_ids)
+        for function_match in matching_result.filtered_function_matches:
+            function_match.matched_offset = matched_function_entries_by_id[function_match.matched_function_id].offset
         sample_pagination = Pagination(request, 1, limit=10, query_param="samp")
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), query_param="funp")
         return render_template("result_compare_sample.html", samid=filtered_sample_id, job_info=job_info, samp=sample_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 

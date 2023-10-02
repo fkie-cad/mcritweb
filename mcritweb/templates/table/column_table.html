@@ -32,7 +32,7 @@
       <tr>
         <td valign="middle">SHA256 | Filename: </td>
         {% for name_and_sample in varargs %}
-          <td valign="middle">{{ format_sha_short_clipboard(name_and_sample[1].sha256) }} | {{ name_and_sample[1].getShortFilename() }} {{ clipboard_btn(name_and_sample[1].filename) }}</td>
+          <td valign="middle">{{ format_sha_short_clipboard(name_and_sample[1].sha256) }} | {{ name_and_sample[1].getShortFilename() or "-" }} {{ clipboard_btn(name_and_sample[1].filename) }}</td>
         {% endfor %}
       </tr>
       <tr>
@@ -90,7 +90,7 @@
       <tr>
         <td valign="middle">SHA256 | Filename: </td>
         {% for name_fe_se_ph in varargs %}
-          <td valign="middle">{{ format_sha_short_clipboard(name_fe_se_ph[2].sha256) }} | {{ name_fe_se_ph[2].getShortFilename() }} {{ clipboard_btn(name_fe_se_ph[2].filename) }}</td>
+          <td valign="middle">{{ format_sha_short_clipboard(name_fe_se_ph[2].sha256) }} | {{ name_fe_se_ph[2].getShortFilename(16) }} {{ clipboard_btn(name_fe_se_ph[2].filename) }}</td>
         {% endfor %}
       </tr>
       <tr>
@@ -108,7 +108,24 @@
       <tr>
         <td valign="middle">Function Name:</td>
         {% for name_fe_se_ph in varargs %}
-          <td valign="middle">{{ name_fe_se_ph[1].function_name }}</td>
+          <td valign="middle">
+            {{ name_fe_se_ph[1].function_name }}
+          </td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <td valign="middle">Function Labels:</td>
+        {% for name_fe_se_ph in varargs %}
+          <td valign="middle">
+          {% for label_entry in name_fe_se_ph[1].function_labels|sort(attribute='timestamp', reverse=True) %}
+            <p>
+              {{ label_entry.function_label }}<br />
+              <span style="font-size: 0.7em; color: grey;">
+                {{ label_entry.username }} | {{ label_entry.timestamp }}
+              </span>
+            </p>
+            {% endfor %}
+          </td>
         {% endfor %}
       </tr>
       <tr>

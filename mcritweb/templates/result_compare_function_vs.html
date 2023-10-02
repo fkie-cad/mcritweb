@@ -1,4 +1,5 @@
 {% from 'table/links.html' import format_pichash, format_offset, format_family_name_tuple, format_family_id, format_sample_id, format_function_id, format_sha_short_clipboard %}
+{% from 'table/column_table.html' import function_column_table %}
 {% extends 'base.html' %}
 {% block style %}
 <!-- 
@@ -26,79 +27,11 @@ Function: {{ function_id_a }} vs {{ function_id_b }}
 <span><h1>Function Comparison: {{ format_function_id(function_id_a) }} vs. {{ format_function_id(function_id_b) }}</h1></span>
 <span style="float:right"><a href="#function_xcfg">go to cfg</a></span>
 {% if entry_a is not none and entry_b is not none %}
-      {% set entry_dict_a = entry_a.toDict() %}
-      {% set entry_dict_b = entry_b.toDict() %}
-      {{ entry_dict_a.update(
-          {"family_name": (sample_entry_a.family, sample_entry_a.family_id), "sha256": sample_entry_a.sha256}
-        ) |silent
-      }}
-      {{ entry_dict_b.update(
-          {"family_name": (sample_entry_b.family, sample_entry_b.family_id), "sha256": sample_entry_b.sha256}
-        ) |silent
-      }}
-      <table class="table table-sm table-borderless" style="width:90%;">
-      {% set keys_to_names = dict(
-          architecture = "Architecture",
-          binweight = "Binweight",
-          family_id = "Family ID",
-          family_name = "Family Name",
-          sample_id = "Sample ID",
-          sha256 = "Short Sha256",
-          function_id = "Function ID",
-          function_name = "Function Name",
-          num_blocks = "Num Blocks",
-          num_instructions = "Num Instructions",
-          offset = "Offset",
-          pichash = "PicHash",
-      ) %}
-      {% set formatters = dict(
-          offset = format_offset,
-          pichash = format_pichash,
-          family_id = format_family_id,
-          family_name = format_family_name_tuple,
-          sample_id = format_sample_id,
-          function_id = format_function_id,
-          sha256 = format_sha_short_clipboard
-      ) %}
-      {% for key, name in keys_to_names.items() %}
-        <tr>
-            <th valign="middle">{{ name }}</th>
-            {% if key in formatters %}
-            <td valign="middle">{{ formatters[key](entry_dict_a[key]) }}
-              {% if key == "pichash" %}
-                (
-                {{ pichash_matches_a["families"] }} <i class="fa-solid fa-bug" title="Families matched"> </i>, 
-                {{ pichash_matches_a["samples"] }} <i class="fa-solid fa-virus" title="Samples matched"> </i>,
-                {{ pichash_matches_a["functions"] }} <i class="fa-solid fa-project-diagram" title="Functions matched"> </i>
-                )
-              {% endif %}
-            </td>
-            <td valign="middle">{{ formatters[key](entry_dict_b[key]) }}
-              {% if key == "pichash" %}
-                (
-                {{ pichash_matches_b["families"] }} <i class="fa-solid fa-bug" title="Families matched"> </i>, 
-                {{ pichash_matches_b["samples"] }} <i class="fa-solid fa-virus" title="Samples matched"> </i>,
-                {{ pichash_matches_b["functions"] }} <i class="fa-solid fa-project-diagram" title="Functions matched"> </i>
-                )
-              {% endif %}
-            </td>
-            {% else %}
-              {% if key == "binweight" %}
-                <td valign="middle">{{ "%d"|format(entry_a[key]) }}</td>
-                <td valign="middle">{{ "%d"|format(entry_b[key]) }}</td>
-              {% else %}
-              <td valign="middle">{{ entry_dict_a[key] }}</td>
-              <td valign="middle">{{ entry_dict_b[key] }}</td>
-              {% endif %}
-            {% endif %}
-        </tr>
-      {% endfor %}
-      <tr>
-        <th>Matching Score</th>
-        <td>{{ "%5.2f"|format(match_result.matched_score) }}</td>
-        <td></td>
-      </tr>
-    </table>
+    {{ function_column_table(
+      ("Function Info A", entry_a, sample_entry_a, pichash_matches_a),
+      ("Function Info B", entry_b, sample_entry_b, pichash_matches_b)
+      ) 
+    }}
 
     <script type="text/javascript">
     window.onload = function() {
