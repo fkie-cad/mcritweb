@@ -1,5 +1,5 @@
 requests
-Flask
+Flask>=2.3.1
 werkzeug
 flask_dropzone
 click
