@@ -8,5 +8,5 @@ numpy
 scipy
 fastcluster
 networkx
-mcrit>=0.20.1
+mcrit>=1.2.0
 levenshtein

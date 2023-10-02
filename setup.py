@@ -6,7 +6,7 @@ setup(
     packages=["mcritweb"],
     include_package_data=True,
     install_requires=[
-        "flask",
+        "flask>=2.3.1",
         "flask-dropzone",
         "Pillow",
         "numpy",
