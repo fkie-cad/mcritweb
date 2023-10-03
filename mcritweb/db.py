@@ -172,13 +172,14 @@ def get_user_result_filters(user_id):
         "filter_exclude_own_family": True if record["filter_exclude_own_family"] else False,
         # this is never stored as preference in the DB as its not as generic as the others
         "filter_family_name": None,
-        "filter_function_min_score": None if record["filter_function_min_score"] == 0 else record["filter_function_min_score"],
-        "filter_function_max_score": None if record["filter_function_max_score"] == 100 else record["filter_function_max_score"],
+        "filter_function_min_score": None if record.get("filter_function_min_score", 0) == 0 else record["filter_function_min_score"],
+        "filter_function_max_score": None if record.get("filter_function_max_score", 100) == 100 else record["filter_function_max_score"],
         # this is never stored as preference in the DB as its not as generic as the others
         "filter_function_offset": None,
-        "filter_max_num_families": None if record["filter_max_num_families"] == 0 else record["filter_max_num_families"],
+        "filter_max_num_families": None if record.get("filter_max_num_families", 0) == 0 else record["filter_max_num_families"],
         # we don't store filter_max_num_samples separately but instead duplicate from family value
-        "filter_max_num_samples": None if record["filter_max_num_families"] == 0 else record["filter_max_num_families"],
+        "filter_min_num_samples": None if record.get("filter_min_num_samples", 0) == 0 else record["filter_min_num_samples"],
+        "filter_max_num_samples": None if record.get("filter_max_num_samples", 0) == 0 else record["filter_max_num_samples"],
         "filter_exclude_library": True if record["filter_exclude_library"] else False,
         "filter_exclude_pic": True if record["filter_exclude_pic"] else False
         }

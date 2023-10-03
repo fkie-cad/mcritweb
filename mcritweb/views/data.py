@@ -365,18 +365,20 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
             and not filter_action == "clear"):
         # load default filters
         user_id = get_session_user_id()
-        filter_values = get_user_result_filters(user_id)
         # adjust filters based on family/sample filtering
+        filter_values = get_user_result_filters(user_id)
         if filtered_family_id is None and filtered_sample_id is None and filtered_function_id is None:
             filter_values["filter_min_num_samples"] = None
             filter_values["filter_max_num_samples"] = None
             filter_values["filter_max_num_families"] = None
         elif filtered_family_id is not None:
-            filter_values["filter_max_num_families"] = None
-        elif filtered_sample_id is not None:
-            filter_values["filter_max_num_families"] = None
             filter_values["filter_min_num_samples"] = None
             filter_values["filter_max_num_samples"] = None
+            filter_values["filter_max_num_families"] = None
+        elif filtered_sample_id is not None:
+            filter_values["filter_min_num_samples"] = None
+            filter_values["filter_max_num_samples"] = None
+            filter_values["filter_max_num_families"] = None
     elif filter_action == "clear":
         filter_values = {
             "filter_direct_min_score": None,

@@ -42,7 +42,7 @@ Note that most functionality of MCRITweb will only work if an MCRIT backend is c
 
 
 ## Version History
- * 2023-10-03 v1.2.1: Result can now filter to min number of samples as well.
+ * 2023-10-03 v1.2.2: Result can now filter to min number of samples as well.
  * 2023-10-02 v1.2.0: Milestone release for Virus Bulletin 2023.
  * 2023-09-18 v1.1.7: It's now possible to actually deactivate Minhash matching in jobs.
  * 2023-09-15 v1.1.6: Quality of Life improvements in several UI elements.
