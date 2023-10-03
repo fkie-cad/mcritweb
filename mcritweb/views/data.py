@@ -354,12 +354,13 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
     filter_function_max_score = parse_integer_query_param(request, "filter_function_max_score")
     filter_function_offset = parse_integer_query_param(request, "filter_function_offset")
     filter_max_num_families = parse_integer_query_param(request, "filter_max_num_families")
+    filter_min_num_samples = parse_integer_query_param(request, "filter_min_num_samples")
     filter_max_num_samples = parse_integer_query_param(request, "filter_max_num_samples")
     filter_exclude_library = parse_checkbox_query_param(request, "filter_exclude_library")
     filter_exclude_pic = parse_checkbox_query_param(request, "filter_exclude_pic")
     filter_func_unique = parse_checkbox_query_param(request, "filter_func_unique")
     if (all(flag is None for flag in [filter_direct_min_score, filter_frequency_min_score, filter_family_name,
-                filter_function_min_score, filter_function_max_score, filter_max_num_families, filter_function_offset])
+                filter_function_min_score, filter_function_max_score, filter_min_num_samples, filter_max_num_samples, filter_max_num_families, filter_function_offset])
             and not any([filter_unique_only, filter_exclude_own_family, filter_exclude_library, filter_exclude_pic, filter_func_unique])
             and not filter_action == "clear"):
         # load default filters
@@ -367,11 +368,14 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         filter_values = get_user_result_filters(user_id)
         # adjust filters based on family/sample filtering
         if filtered_family_id is None and filtered_sample_id is None and filtered_function_id is None:
+            filter_values["filter_min_num_samples"] = None
             filter_values["filter_max_num_samples"] = None
+            filter_values["filter_max_num_families"] = None
         elif filtered_family_id is not None:
             filter_values["filter_max_num_families"] = None
         elif filtered_sample_id is not None:
             filter_values["filter_max_num_families"] = None
+            filter_values["filter_min_num_samples"] = None
             filter_values["filter_max_num_samples"] = None
     elif filter_action == "clear":
         filter_values = {
@@ -386,6 +390,7 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
             "filter_function_max_score": None,
             "filter_function_offset": None,
             "filter_max_num_families": None,
+            "filter_min_num_samples": None,
             "filter_max_num_samples": None,
             "filter_exclude_library": None,
             "filter_exclude_pic": None,
@@ -404,6 +409,7 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
             "filter_function_max_score": filter_function_max_score,
             "filter_function_offset": filter_function_offset,
             "filter_max_num_families": filter_max_num_families,
+            "filter_min_num_samples": filter_min_num_samples,
             "filter_max_num_samples": filter_max_num_samples,
             "filter_exclude_library": filter_exclude_library,
             "filter_exclude_pic": filter_exclude_pic,
