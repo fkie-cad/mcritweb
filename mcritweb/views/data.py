@@ -9,6 +9,7 @@ from mcrit.storage.MatchingResult import MatchingResult
 from mcrit.storage.MatchedFunctionEntry import MatchedFunctionEntry
 from mcrit.storage.FunctionEntry import FunctionEntry
 from mcrit.storage.SampleEntry import SampleEntry
+from mcrit.queue.LocalQueue import Job
 from flask import current_app, Blueprint, render_template, request, redirect, url_for, Response, flash, session, send_from_directory, json
 
 from mcritweb.db import get_user_result_filters
@@ -644,43 +645,18 @@ def jobs():
     query = None
     if request.method == 'POST':
         query = request.form['Search']
-    # TODO how to get number of jobs?
+    # used for job/method collections
     client = McritClient(mcrit_server=get_server_url(), username=get_username())
-    active = request.args.get('active','')
-    pagination_others = Pagination(request, client.getJobCount(query), query_param="p_o")
-    pagination_vs1 = Pagination(request, client.getJobCount('Vs'), query_param="p_1")
-    pagination_vsN = Pagination(request, client.getJobCount('getMatchesForSample'), query_param="p_n")
-    pagination_query_count = client.getJobCount('getMatchesForUnmappedBinary')
-    pagination_query_count += client.getJobCount('getMatchesForMappedBinary')
-    pagination_query_count += client.getJobCount('getMatchesForSmdaReport')
-    pagination_queries = Pagination(request, pagination_query_count, query_param="p_q")
-    pagination_cross = Pagination(request, client.getJobCount('combineMatchesToCross'), query_param="p_c")
-    pagination_blocks = Pagination(request, client.getJobCount('getUniqueBlocks'), query_param="p_b")
-    others = client.getQueueData(start=pagination_others.start_index, limit=pagination_others.limit, filter=query)
-    # filter out all that are covered in other categories
-    filtered_others = []
-    for j in others:
-        if "getMatchesForSample" in j.parameters or "Vs" in j.parameters:
-            continue
-        if "getMatchesForUnmappedBinary" in j.parameters or"getMatchesForMappedBinary" in j.parameters or "getMatchesForSmdaReport" in j.parameters:
-            continue
-        if "combineMatchesToCross" in j.parameters:
-            continue
-        if "getUniqueBlocks" in j.parameters:
-            continue
-        filtered_others.append(j)
-    others = filtered_others
-    # NOTE: the filter is not just 'Vs' anymore. It is longer to prevent false matches. E.g. if a filename contains 'Vs'.
-    vs1 = client.getQueueData(start=pagination_vs1.start_index, limit=pagination_vs1.limit, filter='getMatchesForSampleVs(')
-    # NOTE: this includes '(', because otherwise vsN would also contain all vs1 jobs.
-    vsN = client.getQueueData(start=pagination_vsN.start_index, limit=pagination_vsN.limit, filter='getMatchesForSample(')
-    queries = []
-    queries.extend(client.getQueueData(start=pagination_queries.start_index, limit=pagination_queries.limit, filter='getMatchesForUnmappedBinary('))
-    queries.extend(client.getQueueData(start=pagination_queries.start_index, limit=pagination_queries.limit, filter='getMatchesForMappedBinary('))
-    queries.extend(client.getQueueData(start=pagination_queries.start_index, limit=pagination_queries.limit, filter='getMatchesForSmdaReport('))
-    cross = client.getQueueData(start=pagination_vsN.start_index, limit=pagination_vsN.limit, filter='combineMatchesToCross(')
-    blocks = client.getQueueData(start=pagination_blocks.start_index, limit=pagination_blocks.limit, filter='getUniqueBlocks(')
-    return render_template('jobs.html', active=active, others=others, cross=cross, queries=queries, vs1=vs1, vsN=vsN, blocks=blocks, p_o=pagination_others, p_q=pagination_queries, p_1=pagination_vs1, p_n=pagination_vsN, p_c=pagination_cross, p_b=pagination_blocks, query=query)
+    statistics = client.getQueueStatistics()
+    job_template = Job(None, None)
+    # dynamically create the job page with nested menu based on groups from statistics and Job.method_types
+    active_category = request.args.get('active','')
+    # TODO replace with value from active and statistics
+    max_count = 100
+    pagination = Pagination(request, max_count, query_param="p")
+    jobs = client.getQueueData(start=pagination.start_index, limit=pagination.limit, method=active_category)
+    # TODO decide if there's more to fix and possibly beef up the statistics with everything needed to dynamically derive the nested page layout in jobs.html
+    return render_template('jobs.html', active=active_category, jobs=jobs, statistics=statistics, p=pagination, query=query)
 
 
 @bp.route('/jobs/<job_id>')
