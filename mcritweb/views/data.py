@@ -647,6 +647,8 @@ def jobs():
         query = request.form['Search']
     # used for job/method collections
     client = McritClient(mcrit_server=get_server_url(), username=get_username())
+    # sort order
+    ascending = request.args.get('ascending', 'false').lower() == "true"
     statistics = client.getQueueStatistics()
     job_template = Job(None, None)
     # dynamically create the job page with nested menu based on groups from statistics and Job.method_types
@@ -703,7 +705,7 @@ def jobs():
         }
         max_count = sum(statistics[active_category].values())
         pagination = Pagination(request, max_count, query_param="p")
-        jobs = client.getQueueData(start=pagination.start_index, limit=pagination.limit, method=active_category)
+        jobs = client.getQueueData(start=pagination.start_index, limit=pagination.limit, method=active_category, ascending=ascending)
     # TODO decide if there's more to fix and possibly beef up the statistics with everything needed to dynamically derive the nested page layout in jobs.html
     return render_template('jobs.html', active=active_category, jobs=jobs, menu_configuration=menu_configuration, p=pagination, query=query)
 
