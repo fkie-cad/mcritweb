@@ -38,7 +38,34 @@ Jobs
     <input type='submit' hidden>
   </form>
 
-  
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-target="#first_level_navbar" aria-controls="first_level_navbar" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="first_level_navbar">
+      <ul class="navbar-nav">
+        {% for entry in menu_configuration["menu"] %}
+        {% if entry['available'] %}
+        <li class="nav-item dropdown {% if entry['active'] %}active{% endif %} px-2">
+          <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown-{{entry['group']}}" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            {{ entry["title"] }}
+          </a>
+          <div class="dropdown-menu" aria-labelledby="navbarDropdown-{{entry['group']}}">
+            {% for subentry in entry["submenu"] %}
+              <a class="dropdown-item" href="#">{{subentry["title"]}}</a>
+            {% endfor %}
+          </div>
+        </li>
+        {% else %}
+        <li class="nav-item {% if entry['active'] %}active{% endif %} px-2">
+          <a class="nav-link" href="#" id="navbar-{{entry['group']}}">
+            {{ entry["title"] }}
+          </a>
+        {% endif %}
+        {% endfor %}
+      </ul>
+    </div>
+  </nav>
 
   {{ job_table(jobs, table_id="{{ active }}") }}
   {% if p %}

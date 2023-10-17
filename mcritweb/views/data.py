@@ -650,13 +650,43 @@ def jobs():
     statistics = client.getQueueStatistics()
     job_template = Job(None, None)
     # dynamically create the job page with nested menu based on groups from statistics and Job.method_types
-    active_category = request.args.get('active','')
-    # TODO replace with value from active and statistics
-    max_count = 100
-    pagination = Pagination(request, max_count, query_param="p")
-    jobs = client.getQueueData(start=pagination.start_index, limit=pagination.limit, method=active_category)
+    active_category = request.args.get('active', None)
+    summarized_groups = {"matching": 0, "query": 0, "blocks": 0, "minhashing": 0, "collection": 0}
+    for group in summarized_groups.keys():
+        for category in job_template.method_types[group]:
+            if category in statistics:
+                summarized_groups[group] += sum(statistics[category].values())
+    if active_category is None:
+        for category in job_template.method_types["all"]:
+            if category in statistics:
+                active_category = category
+                break
+    # build menu information
+    jobs = None
+    pagination = None
+    menu_configuration = {}
+    if active_category:
+        menu_configuration = {
+            "menu": [
+                {"group": "matching", "title": f"Matching ({summarized_groups['matching']})", "active": True, "available": True, "submenu": [
+                    {"title": f"getMatchesForSample ({sum(statistics['getMatchesForSample'].values())})", "active": "getMatchesForSample" == active_category, "available": "getMatchesForSample" in statistics},
+                    {"title": f"getMatchesForSampleVs ({sum(statistics['getMatchesForSampleVs'].values())})", "active": "getMatchesForSampleVs" == active_category, "available": "getMatchesForSampleVs" in statistics},
+                    {"title": f"combineMatchesToCross ({sum(statistics['combineMatchesToCross'].values()) if 'combineMatchesToCross' in statistics else 0})", "active": "combineMatchesToCross" == active_category, "available": "combineMatchesToCross" in statistics},
+                ]}, 
+                {"group": "query", "title": f"Query ({summarized_groups['query']})", "active": False, "available": True, "submenu": [
+                    {"title": f"getMatchesForUnmappedBinary ({sum(statistics['getMatchesForUnmappedBinary'].values())})", "active": "getMatchesForUnmappedBinary" == active_category, "available": "getMatchesForUnmappedBinary" in statistics},
+                ]}, 
+                {"title": "Blocks", "active": False, "available": False}, 
+                {"title": "Minhashing", "active": False, "available": False}, 
+                {"title": "Collection", "active": False, "available": False}, 
+            ],
+            "statistics": statistics
+        }
+        max_count = sum(statistics[active_category].values())
+        pagination = Pagination(request, max_count, query_param="p")
+        jobs = client.getQueueData(start=pagination.start_index, limit=pagination.limit, method=active_category)
     # TODO decide if there's more to fix and possibly beef up the statistics with everything needed to dynamically derive the nested page layout in jobs.html
-    return render_template('jobs.html', active=active_category, jobs=jobs, statistics=statistics, p=pagination, query=query)
+    return render_template('jobs.html', active=active_category, jobs=jobs, menu_configuration=menu_configuration, p=pagination, query=query)
 
 
 @bp.route('/jobs/<job_id>')
