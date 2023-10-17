@@ -26,17 +26,54 @@ Jobs
   );
 });</script>
 
+<style>
+  .table-bordered {
+    border-collapse: collapse;
+    border-style: hidden;
+    width: 100%;
+  }
+
+  .table-bordered td,
+  .table-bordered th {
+    border: 1px solid #333; /* You can adjust the color as needed */
+  }
+
+  .table-bordered td {
+    border-right: none; /* Remove right border for all cells */
+  }
+
+  .table-bordered td + td {
+    border-right: 1px solid #333; /* Add right border for adjacent cells */
+  }
+</style>
+
 {% endblock %} 
 
 {% block content %}
 <h1>Job Overview</h1>
-{% if query %}
-  <p>Results for "{{ query }}"</p>
+
+{% if menu_configuration['statistics']['totals'] %}
+  <table class="table table-bordered">
+    <tr>
+      <td class="table-secondary text-end">
+        {{ menu_configuration['statistics']['totals']['queued'] }} queued
+      </td>
+      <td class="table-primary text-end">
+        {{ menu_configuration['statistics']['totals']['in_progress'] }} in progress
+      </td>
+      <td class="table-success text-end">
+        {{ menu_configuration['statistics']['totals']['finished'] }} finished
+      </td>
+      <td class="table-warning text-end">
+        {{ menu_configuration['statistics']['totals']['failed'] }} failed
+      </td>
+      <td class="table-danger text-end">
+        {{ menu_configuration['statistics']['totals']['terminated'] }} terminated
+      </td>
+    </tr>
+    </table>
+  </p>
 {% endif %}
-  <form style="width:100%" method="POST" required>
-    <input type="text" class="form-control shadow-none" name="Search"id="Search" placeholder="Search" autofocus autocomplete="on">
-    <input type='submit' hidden>
-  </form>
 
   <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-target="#first_level_navbar" aria-controls="first_level_navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,28 +83,44 @@ Jobs
       <ul class="navbar-nav">
         {% for entry in menu_configuration["menu"] %}
         {% if entry['available'] %}
-        <li class="nav-item dropdown {% if entry['active'] %}active{% endif %} px-2">
-          <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown-{{entry['group']}}" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            {{ entry["title"] }}
-          </a>
-          <div class="dropdown-menu" aria-labelledby="navbarDropdown-{{entry['group']}}">
-            {% for subentry in entry["submenu"] %}
-              <a class="dropdown-item" href="#">{{subentry["title"]}}</a>
-            {% endfor %}
-          </div>
-        </li>
+          {% if 'submenu' in entry %}
+            <li class="nav-item dropdown  px-2">
+              <a class="nav-link dropdown-toggle {% if entry['active'] %}active{% endif %}" href="#" id="navbarDropdown-{{entry['group']}}" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                {{ entry["title"] }}
+              </a>
+              <div class="dropdown-menu" aria-labelledby="navbarDropdown-{{entry['group']}}">
+                {% for subentry in entry["submenu"] %}
+                  <a class="dropdown-item {% if not subentry['available'] %}disabled{% endif %}" href="{{ url_for('data.jobs', active=subentry['name']) }}">{{subentry["title"]}}</a>
+                {% endfor %}
+              </div>
+            </li>
+          {% else %}
+          <li class="nav-item  px-2">
+            <a class="nav-link {% if entry['active'] %}active{% endif %}" href="{{ url_for('data.jobs', active=entry['group']) }}" id="navbar-{{entry['group']}}">
+              {{ entry["title"] }}
+            </a>
+          {% endif %}
         {% else %}
-        <li class="nav-item {% if entry['active'] %}active{% endif %} px-2">
-          <a class="nav-link" href="#" id="navbar-{{entry['group']}}">
-            {{ entry["title"] }}
-          </a>
+          <li class="nav-item px-2">
+            <a class="nav-link {% if entry['active'] %}active{% endif %}" href="#" id="navbar-{{entry['group']}}">
+              {{ entry["title"] }}
+            </a>
         {% endif %}
         {% endfor %}
       </ul>
     </div>
   </nav>
+  {#
+  {% if query %}
+  <p>Results for "{{ query }}"</p>
+  {% endif %}
+  <form style="width:100%" method="POST" required>
+    <input type="text" class="form-control shadow-none" name="Search"id="Search" placeholder="Search" autofocus autocomplete="on">
+    <input type='submit' hidden>
+  </form>
+  #}
 
-  {{ job_table(jobs, table_id="{{ active }}") }}
+  {{ job_table(jobs, table_id=active) }}
   {% if p %}
     {{ pagination_widget(p) }}
   {% endif %}
