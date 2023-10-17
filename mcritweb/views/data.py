@@ -9,6 +9,7 @@ from mcrit.storage.MatchingResult import MatchingResult
 from mcrit.storage.MatchedFunctionEntry import MatchedFunctionEntry
 from mcrit.storage.FunctionEntry import FunctionEntry
 from mcrit.storage.SampleEntry import SampleEntry
+from mcrit.queue.LocalQueue import Job
 from flask import current_app, Blueprint, render_template, request, redirect, url_for, Response, flash, session, send_from_directory, json
 
 from mcritweb.db import get_user_result_filters
@@ -644,43 +645,67 @@ def jobs():
     query = None
     if request.method == 'POST':
         query = request.form['Search']
-    # TODO how to get number of jobs?
+    # used for job/method collections
     client = McritClient(mcrit_server=get_server_url(), username=get_username())
-    active = request.args.get('active','')
-    pagination_others = Pagination(request, client.getJobCount(query), query_param="p_o")
-    pagination_vs1 = Pagination(request, client.getJobCount('Vs'), query_param="p_1")
-    pagination_vsN = Pagination(request, client.getJobCount('getMatchesForSample'), query_param="p_n")
-    pagination_query_count = client.getJobCount('getMatchesForUnmappedBinary')
-    pagination_query_count += client.getJobCount('getMatchesForMappedBinary')
-    pagination_query_count += client.getJobCount('getMatchesForSmdaReport')
-    pagination_queries = Pagination(request, pagination_query_count, query_param="p_q")
-    pagination_cross = Pagination(request, client.getJobCount('combineMatchesToCross'), query_param="p_c")
-    pagination_blocks = Pagination(request, client.getJobCount('getUniqueBlocks'), query_param="p_b")
-    others = client.getQueueData(start=pagination_others.start_index, limit=pagination_others.limit, filter=query)
-    # filter out all that are covered in other categories
-    filtered_others = []
-    for j in others:
-        if "getMatchesForSample" in j.parameters or "Vs" in j.parameters:
-            continue
-        if "getMatchesForUnmappedBinary" in j.parameters or"getMatchesForMappedBinary" in j.parameters or "getMatchesForSmdaReport" in j.parameters:
-            continue
-        if "combineMatchesToCross" in j.parameters:
-            continue
-        if "getUniqueBlocks" in j.parameters:
-            continue
-        filtered_others.append(j)
-    others = filtered_others
-    # NOTE: the filter is not just 'Vs' anymore. It is longer to prevent false matches. E.g. if a filename contains 'Vs'.
-    vs1 = client.getQueueData(start=pagination_vs1.start_index, limit=pagination_vs1.limit, filter='getMatchesForSampleVs(')
-    # NOTE: this includes '(', because otherwise vsN would also contain all vs1 jobs.
-    vsN = client.getQueueData(start=pagination_vsN.start_index, limit=pagination_vsN.limit, filter='getMatchesForSample(')
-    queries = []
-    queries.extend(client.getQueueData(start=pagination_queries.start_index, limit=pagination_queries.limit, filter='getMatchesForUnmappedBinary('))
-    queries.extend(client.getQueueData(start=pagination_queries.start_index, limit=pagination_queries.limit, filter='getMatchesForMappedBinary('))
-    queries.extend(client.getQueueData(start=pagination_queries.start_index, limit=pagination_queries.limit, filter='getMatchesForSmdaReport('))
-    cross = client.getQueueData(start=pagination_vsN.start_index, limit=pagination_vsN.limit, filter='combineMatchesToCross(')
-    blocks = client.getQueueData(start=pagination_blocks.start_index, limit=pagination_blocks.limit, filter='getUniqueBlocks(')
-    return render_template('jobs.html', active=active, others=others, cross=cross, queries=queries, vs1=vs1, vsN=vsN, blocks=blocks, p_o=pagination_others, p_q=pagination_queries, p_1=pagination_vs1, p_n=pagination_vsN, p_c=pagination_cross, p_b=pagination_blocks, query=query)
+    statistics = client.getQueueStatistics()
+    job_template = Job(None, None)
+    # dynamically create the job page with nested menu based on groups from statistics and Job.method_types
+    active_category = request.args.get('active', None)
+    summarized_groups = {"matching": 0, "query": 0, "blocks": 0, "minhashing": 0, "collection": 0}
+    for group in summarized_groups.keys():
+        for category in job_template.method_types[group]:
+            if category in statistics:
+                summarized_groups[group] += sum(statistics[category].values())
+    if active_category is None:
+        for category in job_template.method_types["all"]:
+            if category in statistics:
+                active_category = category
+                break
+    totals = {}
+    for category, status_dict in statistics.items():
+        for state, count in status_dict.items():
+            if state not in totals:
+                totals[state] = 0
+            totals[state] += count
+    statistics["totals"] = totals
+    # build menu information
+    jobs = None
+    pagination = None
+    menu_configuration = {}
+    if active_category:
+        menu_configuration = {
+            "menu": [
+                {"group": "matching", "title": f"Matching ({summarized_groups['matching']})", "active": active_category in ["getMatchesForSample", "getMatchesForSampleVs", "combineMatchesToCross"], "available": True, "submenu": [
+                    {"name": "getMatchesForSample", "title": f"getMatchesForSample ({sum(statistics['getMatchesForSample'].values()) if 'getMatchesForSample' in statistics else 0})", "active": "getMatchesForSample" == active_category, "available": "getMatchesForSample" in statistics},
+                    {"name": "getMatchesForSampleVs", "title": f"getMatchesForSampleVs ({sum(statistics['getMatchesForSampleVs'].values()) if 'getMatchesForSampleVs' in statistics else 0})", "active": "getMatchesForSampleVs" == active_category, "available": "getMatchesForSampleVs" in statistics},
+                    {"name": "combineMatchesToCross", "title": f"combineMatchesToCross ({sum(statistics['combineMatchesToCross'].values()) if 'combineMatchesToCross' in statistics else 0})", "active": "combineMatchesToCross" == active_category, "available": "combineMatchesToCross" in statistics},
+                ]}, 
+                {"group": "query", "title": f"Query ({summarized_groups['query']})", "active": active_category in ["getMatchesForUnmappedBinary", "getMatchesForMappedBinary", "getMatchesForSmdaReport"], "available": True, "submenu": [
+                    {"name": "getMatchesForUnmappedBinary", "title": f"getMatchesForUnmappedBinary ({sum(statistics['getMatchesForUnmappedBinary'].values()) if 'getMatchesForUnmappedBinary' in statistics else 0})", "active": "getMatchesForUnmappedBinary" == active_category, "available": "getMatchesForUnmappedBinary" in statistics},
+                    {"name": "getMatchesForMappedBinary", "title": f"getMatchesForMappedBinary ({sum(statistics['getMatchesForMappedBinary'].values()) if 'getMatchesForMappedBinary' in statistics else 0})", "active": "getMatchesForMappedBinary" == active_category, "available": "getMatchesForMappedBinary" in statistics},
+                    {"name": "getMatchesForSmdaReport", "title": f"getMatchesForSmdaReport ({sum(statistics['getMatchesForSmdaReport'].values()) if 'getMatchesForSmdaReport' in statistics else 0})", "active": "getMatchesForSmdaReport" == active_category, "available": "getMatchesForSmdaReport" in statistics},
+                ]}, 
+                {"group": "getUniqueBlocks", "title": f"Blocks ({summarized_groups['blocks']})", "active": "getUniqueBlocks" == active_category, "available": "getUniqueBlocks" in statistics},
+                {"group": "minhashing", "title": f"Minhashing ({summarized_groups['minhashing']})", "active": active_category in ["updateMinHashesForSample", "updateMinHashes", "rebuildIndex"], "available": True, "submenu": [
+                    {"name": "updateMinHashesForSample", "title": f"updateMinHashesForSample ({sum(statistics['updateMinHashesForSample'].values()) if 'updateMinHashesForSample' in statistics else 0})", "active": "updateMinHashesForSample" == active_category, "available": "updateMinHashesForSample" in statistics},
+                    {"name": "updateMinHashes", "title": f"updateMinHashes ({sum(statistics['updateMinHashes'].values()) if 'updateMinHashes' in statistics else 0})", "active": "updateMinHashes" == active_category, "available": "updateMinHashes" in statistics},
+                    {"name": "rebuildIndex", "title": f"rebuildIndex ({sum(statistics['rebuildIndex'].values()) if 'rebuildIndex' in statistics else 0})", "active": "rebuildIndex" == active_category, "available": "rebuildIndex" in statistics},
+                ]}, 
+                {"group": "collection", "title": f"Collection ({summarized_groups['collection']})", "active": active_category in ["addBinarySample", "deleteSample", "modifySample", "deleteFamily", "modifyFamily"], "available": True, "submenu": [
+                    {"name": "addBinarySample", "title": f"addBinarySample ({sum(statistics['addBinarySample'].values()) if 'addBinarySample' in statistics else 0})", "active": "addBinarySample" == active_category, "available": "addBinarySample" in statistics},
+                    {"name": "deleteSample", "title": f"deleteSample ({sum(statistics['deleteSample'].values()) if 'deleteSample' in statistics else 0})", "active": "deleteSample" == active_category, "available": "deleteSample" in statistics},
+                    {"name": "modifySample", "title": f"modifySample ({sum(statistics['modifySample'].values()) if 'modifySample' in statistics else 0})", "active": "modifySample" == active_category, "available": "modifySample" in statistics},
+                    {"name": "deleteFamily", "title": f"deleteFamily ({sum(statistics['deleteFamily'].values()) if 'deleteFamily' in statistics else 0})", "active": "deleteFamily" == active_category, "available": "deleteFamily" in statistics},
+                    {"name": "modifyFamily", "title": f"modifyFamily ({sum(statistics['modifyFamily'].values()) if 'modifyFamily' in statistics else 0})", "active": "modifyFamily" == active_category, "available": "modifyFamily" in statistics},
+                ]}, 
+            ],
+            "statistics": statistics
+        }
+        max_count = sum(statistics[active_category].values())
+        pagination = Pagination(request, max_count, query_param="p")
+        jobs = client.getQueueData(start=pagination.start_index, limit=pagination.limit, method=active_category)
+    # TODO decide if there's more to fix and possibly beef up the statistics with everything needed to dynamically derive the nested page layout in jobs.html
+    return render_template('jobs.html', active=active_category, jobs=jobs, menu_configuration=menu_configuration, p=pagination, query=query)
 
 
 @bp.route('/jobs/<job_id>')
