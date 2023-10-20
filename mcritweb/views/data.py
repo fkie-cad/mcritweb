@@ -663,7 +663,7 @@ def jobs():
             if category in statistics:
                 active_category = category
                 break
-    totals = {}
+    totals = {"queued": 0, "in_progress": 0, "finished": 0, "failed": 0, "terminated": 0}
     for category, status_dict in statistics.items():
         for state, count in status_dict.items():
             if state not in totals:
@@ -675,34 +675,6 @@ def jobs():
     pagination = None
     menu_configuration = {
         "menu": [
-            {"group": "matching", "title": f"Matching (0)", "active": False, "available": True, "submenu": [
-                {"name": "getMatchesForSample", "title": f"getMatchesForSample (0)", "active": False, "available": False},
-                {"name": "getMatchesForSampleVs", "title": f"getMatchesForSampleVs (0)", "active": False, "available": False},
-                {"name": "combineMatchesToCross", "title": f"combineMatchesToCross (0)", "active": False, "available": False},
-            ]}, 
-            {"group": "query", "title": f"Query (0)", "active": False, "available": True, "submenu": [
-                {"name": "getMatchesForUnmappedBinary", "title": f"getMatchesForUnmappedBinary (0)", "active": False, "available": False},
-                {"name": "getMatchesForMappedBinary", "title": f"getMatchesForMappedBinary (0)", "active": False, "available": False},
-                {"name": "getMatchesForSmdaReport", "title": f"getMatchesForSmdaReport (0)", "active": False, "available": False},
-            ]}, 
-            {"group": "getUniqueBlocks", "title": f"Blocks (0)", "active": False, "available": True},
-            {"group": "minhashing", "title": f"Minhashing (0)", "active": False, "available": True, "submenu": [
-                {"name": "updateMinHashesForSample", "title": f"updateMinHashesForSample (0)", "active": False, "available": False},
-                {"name": "updateMinHashes", "title": f"updateMinHashes (0)", "active": False, "available": False},
-                {"name": "rebuildIndex", "title": f"rebuildIndex (0)", "active": False, "available": False},
-            ]}, 
-            {"group": "collection", "title": f"Collection (0)", "active": False, "available": True, "submenu": [
-                {"name": "addBinarySample", "title": f"addBinarySample (0)", "active": False, "available": False},
-                {"name": "deleteSample", "title": f"deleteSample (0)", "active": False, "available": False},
-                {"name": "modifySample", "title": f"modifySample (0)", "active": False, "available": False},
-                {"name": "deleteFamily", "title": f"deleteFamily (0)", "active": False, "available": False},
-                {"name": "modifyFamily", "title": f"modifyFamily (0)", "active": False, "available": False},
-            ]}, 
-        ],
-        "statistics": statistics,
-    }
-    if active_category:
-        menu_configuration["menu"] = [
             {"group": "matching", "title": f"Matching ({summarized_groups['matching']})", "active": active_category in ["getMatchesForSample", "getMatchesForSampleVs", "combineMatchesToCross"], "available": True, "submenu": [
                 {"name": "getMatchesForSample", "title": f"getMatchesForSample ({sum(statistics['getMatchesForSample'].values()) if 'getMatchesForSample' in statistics else 0})", "active": "getMatchesForSample" == active_category, "available": "getMatchesForSample" in statistics},
                 {"name": "getMatchesForSampleVs", "title": f"getMatchesForSampleVs ({sum(statistics['getMatchesForSampleVs'].values()) if 'getMatchesForSampleVs' in statistics else 0})", "active": "getMatchesForSampleVs" == active_category, "available": "getMatchesForSampleVs" in statistics},
@@ -726,11 +698,12 @@ def jobs():
                 {"name": "deleteFamily", "title": f"deleteFamily ({sum(statistics['deleteFamily'].values()) if 'deleteFamily' in statistics else 0})", "active": "deleteFamily" == active_category, "available": "deleteFamily" in statistics},
                 {"name": "modifyFamily", "title": f"modifyFamily ({sum(statistics['modifyFamily'].values()) if 'modifyFamily' in statistics else 0})", "active": "modifyFamily" == active_category, "available": "modifyFamily" in statistics},
             ]}, 
-        ]
-        max_count = sum(statistics[active_category].values())
-        pagination = Pagination(request, max_count, query_param="p")
-        jobs = client.getQueueData(start=pagination.start_index, limit=pagination.limit, method=active_category, ascending=ascending)
-    # TODO decide if there's more to fix and possibly beef up the statistics with everything needed to dynamically derive the nested page layout in jobs.html
+        ],
+        "statistics": statistics
+    }
+    max_count = sum(statistics[active_category].values()) if active_category else 0
+    pagination = Pagination(request, max_count, query_param="p")
+    jobs = client.getQueueData(start=pagination.start_index, limit=pagination.limit, method=active_category, ascending=ascending)
     return render_template('jobs.html', active=active_category, jobs=jobs, menu_configuration=menu_configuration, p=pagination, query=query)
 
 
