@@ -42,6 +42,7 @@ Note that most functionality of MCRITweb will only work if an MCRIT backend is c
 
 
 ## Version History
+ * 2023-10-17 v1.2.9: Fix for empty job pages (THX: @yankovs!).
  * 2023-10-17 v1.2.8: Rewrite of Job view which should now perform much better on larger collections.
  * 2023-10-03 v1.2.2: Result can now filter to min number of samples as well.
  * 2023-10-02 v1.2.0: Milestone release for Virus Bulletin 2023.
