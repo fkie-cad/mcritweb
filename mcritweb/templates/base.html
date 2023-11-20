@@ -69,7 +69,7 @@
     {% if g.user %}
     <li><hr class="dropdown-divider"></li>
     <li class="nav-item dropdown">
-      <a class="nav-link" href="#" id="navbarDropdownExplore" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" {% if g.user['role'] == 'pending' %} disabled{% endif %}>Explore</a>
+      <a class="nav-link" href="#" id="navbarDropdownExplore" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" {% if g.user.role == 'pending' %} disabled{% endif %}>Explore</a>
       <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownExplore">
         <a class="dropdown-item" href="{{ url_for('explore.search') }}"><i class="fa-solid fa-search "></i>&nbsp;Search</a>
         <div class="dropdown-divider"></div>
@@ -80,7 +80,7 @@
       </div>
     </li>
     <li class="nav-item dropdown">
-      <a class="nav-link" href="{% if not g.user %}{{ url_for('authentication.login') }}{% endif %}" id="navbarDropdownAnalyze" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" {% if g.user['role'] == 'pending' %} disabled{% endif %}>
+      <a class="nav-link" href="{% if not g.user %}{{ url_for('authentication.login') }}{% endif %}" id="navbarDropdownAnalyze" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" {% if g.user.role == 'pending' %} disabled{% endif %}>
         Analyze
       </a>
       <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownAnalyze">
@@ -92,11 +92,11 @@
       </div>
     </li>
     <li class="nav-item dropdown">
-      <a class="nav-link" href="{% if not g.user %}{{ url_for('authentication.login') }}{% endif %}" id="navbarDropdownData" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" {% if g.user['role'] == 'pending' %} disabled{% endif %}>
+      <a class="nav-link" href="{% if not g.user %}{{ url_for('authentication.login') }}{% endif %}" id="navbarDropdownData" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" {% if g.user.role == 'pending' %} disabled{% endif %}>
         Data
       </a>
       <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownData">
-        {% if g.user['role'] == 'admin' or g.user['role'] == 'contributor' %}
+        {% if g.user.role == 'admin' or g.user.role == 'contributor' %}
         <a class="dropdown-item" href="{{ url_for('data.import_view') }}">Import</a>
         <a class="dropdown-item" href="{{ url_for('data.export_view') }}">Export</a>
         <a class="dropdown-item" href="{{ url_for('data.submit') }}">Submit binary</a>
@@ -110,9 +110,9 @@
       {% if not g.user %}
       <a class="nav-link" href="{{ url_for('authentication.login') }}">Login</a>
       {% else %}
-      <a class="nav-link"  href="#" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{g.user['username']}}</a>
+      <a class="nav-link"  href="#" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{g.user.username}}</a>
       <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownUser">
-        {% if g.user['role'] == 'admin'%}
+        {% if g.user.role == 'admin'%}
           <a class="dropdown-item" href="{{ url_for('admin.server') }}">Server</a>
           {% if g.operation_mode == 'multi' %}
             <a class="dropdown-item" href="{{ url_for('admin.users', tab='pending') }}">Users</a>

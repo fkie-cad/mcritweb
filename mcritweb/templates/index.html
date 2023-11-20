@@ -5,11 +5,11 @@ Home
 {% block content %}
 
 {% if g.user %}
-  <h1>Welcome {{g.user['username']}}</h1>
-  {% if g.user['role'] == 'pending' %}
+  <h1>Welcome {{g.user.username}}</h1>
+  {% if g.user.role == 'pending' %}
     <h4>Please wait for an admin to assign you a role</h4>
   {% else %}
-    <h4>Your role is: {{g.user['role']}}</h4>
+    <h4>Your role is: {{g.user.role}}</h4>
   {% endif %}
 {% endif %}
   

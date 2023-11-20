@@ -38,7 +38,7 @@ Users
         {% for user in g.all_users %}
         {% if user.role == 'pending' %}
         <tr>
-          <th valign="middle" scope="row">{{ user.id }}</th>
+          <th valign="middle" scope="row">{{ user.user_id }}</th>
           <td valign="middle">{{ user.username }}</td>
           <td valign="middle">{{ user.role }}</td>
           <td valign="middle">{{ user.registered|date }}</td>
@@ -47,11 +47,11 @@ Users
             <i class="fas fa-user-cog fa-xs"></i>
           </button>
           <div class="dropdown-menu">
-            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'admin', id = user.id, tab = 'pending') }}">Change role to admin</a>
-            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'contributor', id = user.id, tab = 'pending') }}">Change role to contributor</a>
-            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'visitor', id = user.id, tab = 'pending') }}">Change role to visitor</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'admin', user_id=user.user_id, tab='pending') }}">Change role to admin</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'contributor', user_id=user.user_id, tab='pending') }}">Change role to contributor</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'visitor', user_id=user.user_id, tab='pending') }}">Change role to visitor</a>
             <a class="dropdown-item" href="{{ url_for('analyze.cross_compare') }}">View profile</a>
-            <a class="dropdown-item"href="{{ url_for('admin.delete_user', id = user.id, tab = 'pending') }}">Delete user</a>
+            <a class="dropdown-item"href="{{ url_for('admin.delete_user', user_id=user.user_id, tab='pending') }}">Delete user</a>
           </div>
         </td>
         </tr>
@@ -76,7 +76,7 @@ Users
         {% for user in g.all_users %}
         {% if user.role == 'contributor' %}
         <tr>
-          <th valign="middle" scope="row">{{ user.id }}</th>
+          <th valign="middle" scope="row">{{ user.user_id }}</th>
           <td valign="middle">{{ user.username }}</td>
           <td valign="middle">{{ user.role }}</td>
           <td valign="middle">{{ user.registered|date }}</td>
@@ -85,10 +85,10 @@ Users
             <i class="fas fa-user-cog fa-xs"></i>
           </button>
           <div class="dropdown-menu">
-            <a class="dropdown-item" href="{{url_for('admin.change_user_role', role = 'admin', id = user.id, tab = 'contributors')}}">Change role to admin</a>
-            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'visitor', id = user.id, tab = 'contributors') }}">Change role to visitor</a>
+            <a class="dropdown-item" href="{{url_for('admin.change_user_role', role='admin', user_id=user.user_id, tab='contributors')}}">Change role to admin</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role='visitor', user_id=user.user_id, tab='contributors') }}">Change role to visitor</a>
             <a class="dropdown-item" href="{{ url_for('analyze.cross_compare') }}">View profile</a>
-            <a class="dropdown-item" href="{{ url_for('admin.delete_user', id = user.id, tab = 'contributors') }}">Delete user</a>
+            <a class="dropdown-item" href="{{ url_for('admin.delete_user', user_id=user.user_id, tab='contributors') }}">Delete user</a>
           </div>
         </td>
         </tr>
@@ -113,7 +113,7 @@ Users
         {% for user in g.all_users %}
         {% if user.role == 'admin' %}
         <tr>
-          <th valign="middle" scope="row">{{ user.id }}</th>
+          <th valign="middle" scope="row">{{ user.user_id }}</th>
           <td valign="middle">{{ user.username }}</td>
           <td valign="middle">{{ user.role }}</td>
           <td valign="middle">{{ user.registered|date }}</td>
@@ -122,10 +122,10 @@ Users
             <i class="fas fa-user-cog fa-xs"></i>
           </button>
           <div class="dropdown-menu">
-            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'contributor', id = user.id, tab = 'admins') }}">Change role to contributor</a>
-            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'visitor', id = user.id, tab = 'admins') }}">Change role to visitor</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role='contributor', user_id=user.user_id, tab='admins') }}">Change role to contributor</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role='visitor', user_id=user.user_id, tab='admins') }}">Change role to visitor</a>
             <a class="dropdown-item" href="{{ url_for('analyze.cross_compare') }}">View profile</a>
-            <a class="dropdown-item" href="{{ url_for('admin.delete_user', id = user.id, tab = 'admin') }}">Delete user</a>
+            <a class="dropdown-item" href="{{ url_for('admin.delete_user', user_id=user.user_id, tab='admin') }}">Delete user</a>
           </div>
         </td>
         </tr>
@@ -149,7 +149,7 @@ Users
       <tbody>
         {% for user in g.all_users %}
         <tr>
-          <th valign="middle" scope="row">{{ user.id }}</th>
+          <th valign="middle" scope="row">{{ user.user_id }}</th>
           <td valign="middle">{{ user.username }}</td>
           <td valign="middle">{{ user.role }}</td>
           <td valign="middle">{{ user.registered|date }}</td>
@@ -159,24 +159,24 @@ Users
           </button>
           <div class="dropdown-menu">
             {% if user.role == 'pending' %}
-            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'visitor', id = user.id, tab = 'all') }}">Change role to visitor</a>
-            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'contributor', id = user.id, tab = 'all') }}">Change role to contributor</a>
-            <a class="dropdown-item" href="{{url_for('admin.change_user_role', role = 'admin', id = user.id, tab = 'all')}}">Change role to admin</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role='visitor', user_id=user.user_id, tab='all') }}">Change role to visitor</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role='contributor', user_id=user.user_id, tab='all') }}">Change role to contributor</a>
+            <a class="dropdown-item" href="{{url_for('admin.change_user_role', role='admin', user_id=user.user_id, tab='all')}}">Change role to admin</a>
             {% endif %}
             {% if user.role == 'admin' %}
-            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'visitor', id = user.id, tab = 'all') }}">Change role to visitor</a>
-            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'contributor', id = user.id, tab = 'all') }}">Change role to contributor</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role='visitor', user_id=user.user_id, tab='all') }}">Change role to visitor</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role='contributor', user_id=user.user_id, tab='all') }}">Change role to contributor</a>
             {% endif %}
             {% if user.role == 'contributor' %}
-            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'visitor', id = user.id, tab = 'all') }}">Change role to visitor</a>
-            <a class="dropdown-item" href="{{url_for('admin.change_user_role', role = 'admin', id = user.id, tab = 'all')}}">Change role to admin</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role='visitor', user_id=user.user_id, tab='all') }}">Change role to visitor</a>
+            <a class="dropdown-item" href="{{url_for('admin.change_user_role', role='admin', user_id=user.user_id, tab='all')}}">Change role to admin</a>
             {% endif %}
             {% if user.role == 'visitor' %}
-            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'contributor', id = user.id, tab = 'all') }}">Change role to contributor</a>
-            <a class="dropdown-item" href="{{url_for('admin.change_user_role', role = 'admin', id = user.id, tab = 'all')}}">Change role to admin</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role='contributor', user_id=user.user_id, tab='all') }}">Change role to contributor</a>
+            <a class="dropdown-item" href="{{url_for('admin.change_user_role', role='admin', user_id=user.user_id, tab='all')}}">Change role to admin</a>
             {% endif %}
             <a class="dropdown-item" href="{{ url_for('analyze.cross_compare') }}">View profile</a>
-            <a class="dropdown-item" href="{{ url_for('admin.delete_user', id = user.id, tab = 'all') }}">Delete user</a>
+            <a class="dropdown-item" href="{{ url_for('admin.delete_user', user_id=user.user_id, tab='all') }}">Delete user</a>
           </div>
         </td>
         </tr>
@@ -200,7 +200,7 @@ Users
         {% for user in g.all_users %}
         {% if user.role == 'visitor' %}
         <tr>
-          <th valign="middle" scope="row">{{ user.id }}</th>
+          <th valign="middle" scope="row">{{ user.user_id }}</th>
           <td valign="middle">{{ user.username }}</td>
           <td valign="middle">{{ user.role }}</td>
           <td valign="middle">{{ user.registered|date }}</td>
@@ -209,10 +209,10 @@ Users
             <i class="fas fa-user-cog fa-xs"></i>
           </button>
           <div class="dropdown-menu">
-            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'admin', id = user.id, tab = 'visitors') }}">Change role to admin</a>
-            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role = 'contributor', id = user.id, tab = 'visitors') }}">Change role to contributor</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role='admin', user_id=user.user_id, tab='visitors') }}">Change role to admin</a>
+            <a class="dropdown-item" href="{{ url_for('admin.change_user_role', role='contributor', user_id=user.user_id, tab='visitors') }}">Change role to contributor</a>
             <a class="dropdown-item" href="{{ url_for('analyze.cross_compare') }}">View profile</a>
-            <a class="dropdown-item"href="{{ url_for('admin.delete_user', id = user.id, tab = 'visitors') }}">Delete user</a>
+            <a class="dropdown-item"href="{{ url_for('admin.delete_user', user_id=user.user_id, tab='visitors') }}">Delete user</a>
           </div>
         </td>
         </tr>

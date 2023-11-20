@@ -6,7 +6,7 @@ from mcrit.client.McritClient import McritClient
 from mcrit.storage.SampleEntry import SampleEntry
 
 from mcritweb.views.authentication import visitor_required, contributor_required
-from mcritweb.views.utility import get_server_url, mcrit_server_required, get_username, parse_band_range
+from mcritweb.views.utility import get_server_url, get_server_token, mcrit_server_required, get_username, parse_band_range
 from mcritweb.views.pagination import Pagination
 from mcritweb.views.cursor_pagination import CursorPagination
 from mcritweb.views.cross_compare import score_to_color
@@ -20,7 +20,7 @@ bp = Blueprint('analyze', __name__, url_prefix='/analyze')
 @visitor_required
 @mcrit_server_required
 def blocks_family(family_id):
-    client = McritClient(mcrit_server=get_server_url(), username=get_username())
+    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
     job_id = client.requestUniqueBlocksForFamily(family_id)
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
@@ -29,7 +29,7 @@ def blocks_family(family_id):
 @visitor_required
 @mcrit_server_required
 def blocks_sample(sample_id):
-    client = McritClient(mcrit_server=get_server_url(), username=get_username())
+    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
     job_id = client.requestUniqueBlocksForSamples([sample_id])
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
@@ -43,7 +43,7 @@ def compare_submit_query():
 @visitor_required
 @mcrit_server_required
 def cross_compare():
-    client = McritClient(mcrit_server= get_server_url(), username=get_username())
+    client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
 
     selected = request.args.get('samples', '').strip(',')
     cached = request.args.get('cache','').strip(',')
@@ -101,7 +101,7 @@ def cross_compare():
 @visitor_required
 @mcrit_server_required
 def start_cross_compare():
-    client = McritClient(mcrit_server= get_server_url(), username=get_username())
+    client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
     selected = request.args.get('samples', '')
     rematch = request.args.get('rematch', '')
     minhash_band_range = parse_band_range(request)
@@ -115,7 +115,7 @@ def start_cross_compare():
 @visitor_required
 @mcrit_server_required
 def compare():
-    client = McritClient(mcrit_server= get_server_url(), username=get_username())
+    client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
 
     query = request.args.get('query', "")
     samples = []
@@ -143,7 +143,7 @@ def compare():
 @visitor_required
 @mcrit_server_required
 def compare_versus():
-    client = McritClient(mcrit_server= get_server_url(), username=get_username())
+    client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
 
     parameters = {}
     for a_or_b in "ab":
@@ -171,7 +171,7 @@ def compare_versus():
 @visitor_required
 @mcrit_server_required
 def compare_all(sample_id_a):
-    client = McritClient(mcrit_server=get_server_url(), username=get_username())
+    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
     rematch = request.args.get('rematch', False)
     minhash_band_range = parse_band_range(request)
     job_id = client.requestMatchesForSample(sample_id_a, force_recalculation=rematch, band_matches_required=minhash_band_range)
@@ -181,7 +181,7 @@ def compare_all(sample_id_a):
 @visitor_required
 @mcrit_server_required
 def compare_vs(sample_id_a, sample_id_b):
-    client = McritClient(mcrit_server=get_server_url(), username=get_username())
+    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
     rematch = request.args.get('rematch', False)
     minhash_band_range = parse_band_range(request)
     job_id = client.requestMatchesForSampleVs(sample_id_a, sample_id_b, force_recalculation=rematch, band_matches_required=minhash_band_range)
@@ -191,7 +191,7 @@ def compare_vs(sample_id_a, sample_id_b):
 @mcrit_server_required
 @visitor_required
 def query():
-    client = McritClient(mcrit_server=get_server_url(), username=get_username())
+    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
     if request.method == 'POST':
         f = request.files.get('file')
         if f is None:
@@ -204,7 +204,7 @@ def query():
             base_address = int(request.form['base_address'], 16)
 
         binary_content = f.read()
-        if g.user['role'] == 'visitor' and len(binary_content) > 1 * 2**20:
+        if g.user.role == 'visitor' and len(binary_content) > 1 * 2**20:
             flash(f'Your account may only upload files for query that are up to {1 * 2**20} bytes in size.', category='error')
             return "", 403 # Bad Request
         # persist the upload in binary format

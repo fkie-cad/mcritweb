@@ -12,28 +12,30 @@ from rapidfuzz.distance import Levenshtein
 from smda.intel.IntelInstructionEscaper import IntelInstructionEscaper
 from mcrit.client.McritClient import McritClient
 
-from mcritweb import db
+from mcritweb.db import ServerInfo
 
 
 def get_server_url():
-    database = db.get_db()
-    return database.execute('SELECT * FROM server').fetchone()['url']
+    server_info = ServerInfo.fromDb()
+    return server_info.url
 
 
-def set_server_url(new_url):
-    database = db.get_db()
-    database.execute("UPDATE server SET url = ?",(new_url,))
-    database.commit()
-    return
+def get_server_token():
+    server_info = ServerInfo.fromDb()
+    return server_info.server_token
 
 
 def mcrit_server_required(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
         try:
-            requests.get(f"{get_server_url()}/", headers={"username":"mcritweb"})
+            result = requests.get(f"{get_server_url()}/", headers={"username":"mcritweb", "apitoken": get_server_token()})
+            print("mcrit_server_required", result, result.text, result.json)
+            if result.status_code == 401:
+                flash('Connected to MCRIT server but could not authenticate - Did you configure a token in the server settings?', category='error')
+                return redirect(url_for('index'))
         except:
-            flash('No connection to the Mcrit server', category='error')
+            flash('No connection to the MCRIT server', category='error')
             return redirect(url_for('index'))
         return view(**kwargs)
     return wrapped_view
@@ -50,7 +52,7 @@ def get_session_user_id():
 def get_username():
     username = "guest"
     if g.user is not None:
-        username = g.user['username']
+        username = g.user.username
     return username
 
 
@@ -220,7 +222,7 @@ def get_full_picblock_matches(function_entry_a, function_entry_b):
     return node_colors
 
 def get_all_picblock_matches(function_a, function_b):
-    client = McritClient(mcrit_server=get_server_url(), username=get_username())
+    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
     smda_function_a = function_a.toSmdaFunction()
     smda_function_b = function_b.toSmdaFunction()
     sample_a = client.getSampleById(function_a.sample_id)
@@ -355,7 +357,7 @@ def get_matches_node_colors(function_id_a, function_id_b):
     # thresholded edit distance match over escaped instruction sequence: green to orange
     node_colors = {"a": {}, "b": {}}
 
-    client = McritClient(mcrit_server=get_server_url(), username=get_username())
+    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
     function_entry = client.getFunctionById(function_id_a, with_xcfg=True)
     other_function_entry = client.getFunctionById(function_id_b, with_xcfg=True)
     smda_function_a = function_entry.toSmdaFunction()

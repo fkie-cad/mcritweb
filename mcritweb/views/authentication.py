@@ -4,12 +4,14 @@ import uuid
 import hashlib
 import functools 
 from datetime import datetime
+
+import sqlite3
 from flask import Blueprint, render_template, g, request, flash, redirect, url_for, session, abort, current_app
 from werkzeug.security import check_password_hash, generate_password_hash
 
 
 from mcritweb import db
-from mcritweb.db import UserInfo
+from mcritweb.db import UserInfo, ServerInfo, UserFilters
 from mcritweb.views.utility import parse_integer_query_param, parse_checkbox_query_param, get_session_user_id
 
 
@@ -24,16 +26,15 @@ def set_is_first_user():
 @bp.before_app_request
 def set_operation_mode():
     if not g.first_user:
-        database = db.get_db()
-        operation_mode = database.execute('SELECT operation_mode FROM server',).fetchone()
-        g.operation_mode = operation_mode['operation_mode']
+        server_info = ServerInfo.fromDb()
+        g.operation_mode = server_info.operation_mode
 
 
 def multi_user(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
         if not g.first_user and g.operation_mode == 'single':
-            flash('You are in single user mode', category='error')
+            flash('You are in single user mode, no need to register a user.', category='error')
             return redirect(url_for('index'))
         return view(**kwargs)
     return wrapped_view
@@ -47,15 +48,16 @@ def register():
         error = 'You already have a registered account.'
         flash(error, category='error')
         return redirect(url_for('index'))
-    registration_token = db.get_registration_token()
-    is_registration_token_required = registration_token not in [None, ""]
+    server_info = ServerInfo.fromDb()
+    is_registration_token_required = False
+    if server_info:
+        is_registration_token_required = server_info.registration_token not in [None, ""]
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['inputPassword1']
         provided_registration_token = ""
         if 'registrationToken' in request.form:
             provided_registration_token = request.form['registrationToken']
-        database = db.get_db()
         error = None
         if not username:
             error = 'Username is required.'
@@ -67,32 +69,34 @@ def register():
             error = 'Password is required.'
         elif not password == request.form['inputPassword2']:
             error = 'The passwords do not match. No new user was created.'
-        elif is_registration_token_required and registration_token != provided_registration_token:
+        elif is_registration_token_required and server_info.registration_token != provided_registration_token:
             error = 'Invalid registration token provided. No new user was created.'
         if error is None:
-            apitoken = hashlib.md5(uuid.uuid4().bytes).hexdigest()
+            user_info = UserInfo()
+            user_info.username = username
+            user_info.password = generate_password_hash(password)
+            # TODO make it configurable what the default role for new users should be, but stick with pending for now
+            user_info.role = "pending"
+            if g.first_user:
+                user_info.role = "admin"
+                server_info = ServerInfo()
+                server_info.url = request.form['url']
+                server_info.operation_mode = request.form['operationMode']
+                server_info.registration_token = request.form['setRegistrationToken'] if request.form['setRegistrationToken'] else ""
+                server_info.server_token = request.form['mcritServerToken'] if request.form['mcritServerToken'] else ""
+                server_info.server_uuid = str(uuid.uuid4())
+                server_info.server_version = current_app.config['MCRITWEB_VERSION']
+                try:
+                    server_info.saveToDb()
+                except:
+                    raise
+                    error = f"Server values invalid."
+            user_info.registered = datetime.utcnow()
+            user_info.last_login = 'no login'
+            user_info.apitoken = hashlib.md5(uuid.uuid4().bytes).hexdigest()
             try:
-                if g.first_user:
-                    database.execute(
-                        "INSERT INTO user (username, password, role, registered, last_login, apitoken) VALUES (?,?,?,?,?,?)",
-                        (username, generate_password_hash(password), 'admin', datetime.utcnow(), 'no login', apitoken),
-                    )
-                    server_url = request.form['url']
-                    operation_mode = request.form['operationMode']
-                    registration_token = request.form['setRegistrationToken']
-                    server_uuid = str(uuid.uuid4())
-                    initial_server_version = current_app.config['MCRITWEB_VERSION']
-                    database.execute(
-                        "INSERT INTO server (url, operation_mode, registration_token, server_uuid, server_version) VALUES (?,?,?,?,?)",
-                        (server_url, operation_mode, registration_token, server_uuid, initial_server_version),
-                    )
-                else:
-                    database.execute(
-                        "INSERT INTO user (username, password, role, registered, last_login, apitoken) VALUES (?,?,?,?,?,?)",
-                        (username, generate_password_hash(password), 'pending', datetime.utcnow(), 'no login', apitoken),
-                    )
-                database.commit()
-            except database.IntegrityError:
+                user_info.saveToDb()
+            except sqlite3.IntegrityError:
                 error = f"User {username} is already registered."
             else:
                 return redirect(url_for("authentication.login"))
@@ -117,20 +121,18 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['inputPassword']
-        database = db.get_db()
+
+        user_info = UserInfo.fromDb(username=username)
         error = None
-        user = database.execute(
-            'SELECT * FROM user WHERE username = ?', (username,)
-        ).fetchone()
-        if user is None:
+        if user_info is None:
             error = 'Incorrect username.'
-        elif not check_password_hash(user['password'], password):
+        elif not check_password_hash(user_info.password, password):
             error = 'Incorrect password.'
         if error is None:
             session.clear()
-            session['user_id'] = user['id']
-            database.execute("UPDATE user SET last_login = ? WHERE id = ?",(datetime.now(), user['id']),)
-            database.commit()
+            session['user_id'] = user_info.user_id
+            user_info.last_login = datetime.utcnow()
+            user_info.saveToDb()
             return redirect(url_for('index'))
         flash(error, category='error')
     return render_template('login.html')
@@ -142,9 +144,8 @@ def load_logged_in_user():
     if user_id is None:
         g.user = None
     else:
-        g.user = db.get_db().execute(
-            'SELECT * FROM user WHERE id = ?', (user_id,)
-        ).fetchone()
+        user_info = UserInfo.fromDb(user_id=user_id)
+        g.user = user_info
 
 
 def login_required(view):
@@ -162,9 +163,9 @@ def settings():
     user_id = get_session_user_id()
     if user_id is None:
         return redirect(url_for('index'))
-    user_info = UserInfo.fromDb(user_id)
-    filter_values = db.get_user_result_filters(user_id)
-    return render_template('settings.html', user_info=user_info, filters=filter_values)
+    user_info = UserInfo.fromDb(user_id=user_id)
+    user_filters = UserFilters.fromDb(user_id)
+    return render_template('settings.html', user_info=user_info, user_filters=user_filters)
     
     
 def admin_required(view):
@@ -172,7 +173,7 @@ def admin_required(view):
     def wrapped_view(**kwargs):
         if g.user is None:
             return redirect(url_for('authentication.login'))
-        if g.user['role'] != 'admin':
+        if g.user.role != 'admin':
             abort(403)
         return view(**kwargs)
     return wrapped_view
@@ -183,7 +184,7 @@ def contributor_required(view):
     def wrapped_view(**kwargs):
         if g.user is None:
             return redirect(url_for('authentication.login'))
-        if g.user['role'] != 'admin' and g.user['role'] != 'contributor':
+        if g.user.role != 'admin' and g.user.role != 'contributor':
             abort(403)
         return view(**kwargs)
     return wrapped_view
@@ -194,7 +195,7 @@ def visitor_required(view):
     def wrapped_view(**kwargs):
         if g.user is None:
             return redirect(url_for('authentication.login'))
-        if g.user['role'] != 'admin' and g.user['role'] != 'contributor' and g.user['role'] != 'visitor':
+        if g.user.role != 'admin' and g.user.role != 'contributor' and g.user.role != 'visitor':
             abort(403)
         return view(**kwargs)
     return wrapped_view

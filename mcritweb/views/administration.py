@@ -4,11 +4,11 @@ from flask import current_app, Blueprint, render_template, g, request, flash, re
 
 from mcrit.client.McritClient import McritClient
 
-from mcritweb.views.utility import get_server_url, get_username
+from mcritweb.views.utility import get_server_url, get_server_token, get_username
 from mcritweb import db
-from mcritweb.db import UserInfo
+from mcritweb.db import UserInfo, ServerInfo, UserFilters
 from mcritweb.views.authentication import admin_required, login_required, multi_user
-from mcritweb.views.utility import get_server_url, set_server_url, get_mcritweb_version_from_setup, parse_integer_post_param, parse_checkbox_post_param, get_session_user_id
+from mcritweb.views.utility import get_server_url, get_mcritweb_version_from_setup, parse_integer_post_param, parse_checkbox_post_param, get_session_user_id
 
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -26,23 +26,23 @@ def change_username():
         return redirect(url_for('index'))
     new_username = request.form['username']
     password = request.form['inputPassword1']
-    database = db.get_db()
-    error = None
-    user = database.execute('SELECT * FROM user WHERE id = ?', (session['user_id'],)).fetchone()
+    error_msg = None
+    user_info = UserInfo.fromDb(user_id=session['user_id'])
     if re.match("^(?=[a-zA-Z0-9._]{3,20}$)(?!.*[_.]{2})[^_.].*[^_.]$", new_username) is None:
-        error = "Username has invalid format."
-    if not check_password_hash(user['password'], password):
-        error = 'Incorrect Password!'
-    if not database.execute('SELECT * FROM user WHERE username = ?', (new_username,)).fetchone() is None:
-        error = 'Username is already taken!'
-    if error is None:
-        database.execute("UPDATE user SET username = ? WHERE id = ?",(new_username, user['id']),)
-        database.commit()
+        error_msg = "Username has invalid format."
+    if  not check_password_hash(user_info.password, password):
+        error_msg = 'Incorrect Password!'
+    user_with_name = UserInfo.fromDb(username=new_username)
+    if user_with_name is not None:
+        error_msg = 'Username is already taken!'
+    if error_msg is None:
+        user_info.username = new_username
+        user_info.saveToDb()
         flash('Username successfully changed', category='success')
         return redirect(url_for('index'))
-    flash(error, category='error')
-    user_info = UserInfo.fromDb(user_id)
-    return render_template('settings.html', user_info=user_info)
+    flash(error_msg, category='error')
+    user_filters = UserFilters.fromDb(user_info.user_id)
+    return render_template('settings.html', user_info=user_info, user_filters=user_filters)
 
 
 @bp.route('/change_password' , methods=('GET', 'POST'))
@@ -57,21 +57,20 @@ def change_password():
         return redirect(url_for('index'))
     new_password = request.form['inputPassword3']
     old_password = request.form['inputPassword2']
-    database = db.get_db()
-    error = None
-    user = database.execute('SELECT * FROM user WHERE id = ?', (session['user_id'],)).fetchone()
-    if not check_password_hash(user['password'], old_password):
-        error = 'Incorrect password!'
+    error_msg = None
+    user_info = UserInfo.fromDb(user_id=session['user_id'])
+    if not check_password_hash(user_info.password, old_password):
+        error_msg = 'Incorrect password!'
     if not new_password == request.form['inputPassword4']:
-        error = 'The entered passwords do not match!'
-    if error is None:
-        database.execute("UPDATE user SET password = ? WHERE id = ?",(generate_password_hash(new_password), user['id']),)
-        database.commit()
+        error_msg = 'The entered passwords do not match!'
+    if error_msg is None:
+        user_info.password = generate_password_hash(new_password)
+        user_info.saveToDb(withPassword=True)
         flash('Password successfully changed', category='success') 
         return redirect(url_for('index'))
-    flash(error, category='error')
-    user_info = UserInfo.fromDb(user_id)
-    return render_template('settings.html', user_info=user_info)
+    flash(error_msg, category='error')
+    user_filters = UserFilters.fromDb(user_info.user_id)
+    return render_template('settings.html', user_info=user_info, user_filters=user_filters)
 
 
 @bp.route('/change_default_filter' , methods=('GET', 'POST'))
@@ -79,7 +78,7 @@ def change_password():
 def change_default_filter():
     user_id = get_session_user_id()
     if user_id is None:
-        flash('User ID was not recognized', category='error') 
+        flash('User ID was not recognized', category='error')
         return redirect(url_for('index'))
     # generic filtering on family/sample results
     filter_direct_min_score = parse_integer_post_param(request, "filter_direct_min_score")
@@ -107,11 +106,12 @@ def change_default_filter():
         "filter_exclude_library": filter_exclude_library,
         "filter_exclude_pic": filter_exclude_pic,
     }
-    # store user filter values in database
-    db.set_user_result_filters(user_id, filter_values)
+    user_filters = UserFilters.fromDict(user_id, filter_values)
+    user_filters.saveToDb()
     flash('Default filters successfully changed', category='success') 
     user_info = UserInfo.fromDb(user_id)
-    return render_template('settings.html', user_info=user_info, filters=filter_values)
+    user_filters = UserFilters.fromDb(user_info.user_id)
+    return render_template('settings.html', user_info=user_info, user_filters=user_filters)
 
 @bp.route('/users/')
 @bp.route('/users/<tab>')
@@ -125,34 +125,34 @@ def users(tab = None):
 
 
 def get_users():
-    database = db.get_db() 
-    users = database.execute('SELECT * FROM user').fetchall()
-    return users
+    user_infos = db.get_all_user_info()
+    return user_infos
 
 
-@bp.route('/change_user_role/<int:id>/<role>/<tab>')
+@bp.route('/change_user_role/<int:user_id>/<role>/<tab>')
 @admin_required
-def change_user_role(id, role, tab):
+def change_user_role(user_id, role, tab):
     # root user is always admin
-    if id == 1:
+    if user_id == 1:
         return redirect(url_for('admin.users', tab=tab))
     # others can be changed
-    database = db.get_db() 
-    database.execute("UPDATE user SET role = ? WHERE id = ?",(role, id),)
-    database.commit()
+    user_info = UserInfo.fromDb(user_id=user_id)
+    user_info.role = role
+    user_info.saveToDb()
     return redirect(url_for('admin.users', tab=tab))
 
 
-@bp.route('/delete_user/<int:id>')
-@bp.route('/delete_user/<int:id>/<tab>')
+@bp.route('/delete_user/<int:user_id>')
+@bp.route('/delete_user/<int:user_id>/<tab>')
 @admin_required
-def delete_user(id, tab = None):
+def delete_user(user_id, tab = None):
     # root user is not deletable
-    if id == 1:
+    if user_id == 1:
         return redirect(url_for('admin.users', tab=tab))
     # others can be deleted
     database = db.get_db() 
-    database.execute("DELETE FROM user WHERE id = ?",(id),)
+    print(user_id)
+    database.execute("DELETE FROM user WHERE id = ?;", (user_id,))
     database.commit()
     return redirect(url_for('admin.users', tab=tab))
 
@@ -161,27 +161,33 @@ def delete_user(id, tab = None):
 @bp.route('/server')
 @admin_required
 def server():
-    server_uuid = db.get_server_uuid()
-    registration_token = db.get_registration_token()
-    operation_mode = db.get_operation_mode()
-    operation_mode_str = "Multi-User" if operation_mode == "multi" else "Single-User"
-    db_server_version = db.get_server_version()
+    server_info = ServerInfo.fromDb()
+    print(server_info)
+    operation_mode_str = "Multi-User" if server_info.operation_mode == "multi" else "Single-User"
     running_server_version = get_mcritweb_version_from_setup()
-    client = McritClient(mcrit_server=get_server_url(), username=get_username())
+    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
     mcrit_version = client.getVersion()
-    return render_template('admin_server.html', current_url=get_server_url(), server_uuid=server_uuid, registration_token=registration_token, operation_mode=operation_mode_str, db_version=db_server_version, running_version=running_server_version, mcrit_version=mcrit_version)
+    return render_template('admin_server.html', operation_mode=operation_mode_str, server_info=server_info, running_version=running_server_version, mcrit_version=mcrit_version)
 
 
 @bp.route('/change_server' , methods=('GET', 'POST'))
 @admin_required
 def change_server():
+    server_info = ServerInfo.fromDb()
     new_url = request.form.get('mcrit_server_url', '')
-    if new_url:
-        current_url = get_server_url()
-        if new_url != current_url:
-            set_server_url(new_url)
-        flash('Server URL successfully changed', category='success')
-        return redirect(url_for('index'))
+    new_token = request.form.get('mcrit_server_token', '')
+    if server_info.url != new_url or server_info.server_token != new_token:
+        server_info.url = new_url
+        server_info.server_token = new_token
+        server_info.saveToDb()
+        flash('Server information successfully changed', category='success')
+    else:
+        flash('No information needed change', category='success')
+    operation_mode_str = "Multi-User" if server_info.operation_mode == "multi" else "Single-User"
+    running_server_version = get_mcritweb_version_from_setup()
+    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    mcrit_version = client.getVersion()
+    return render_template('admin_server.html', operation_mode=operation_mode_str, server_info=server_info, running_version=running_server_version, mcrit_version=mcrit_version)
 
 
 @bp.route('/reset_server' , methods=('GET', 'POST'))
@@ -189,7 +195,7 @@ def change_server():
 def reset_server():
     reset_confirmation = request.form.get('reset_server', '')
     if reset_confirmation and reset_confirmation == "RESET":
-        client = McritClient(mcrit_server=get_server_url(), username=get_username())
+        client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
         client.respawn()
         from mcritweb.views.utility import ensure_local_data_paths
         ensure_local_data_paths(current_app, clear_data=True)

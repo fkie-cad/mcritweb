@@ -1,9 +1,11 @@
 import os
-from . import db
-from .views import explore, analyze, authentication, administration, data, api
+import datetime
+
 from flask import Flask, render_template, g, redirect, url_for, request
 from flask_dropzone import Dropzone
 
+from . import db
+from .views import explore, analyze, authentication, administration, data, api
 from .views.utility import ensure_local_data_paths, get_mcritweb_version_from_setup
 
 
@@ -46,6 +48,7 @@ def create_app(test_config=None):
     # ensure the instance and cache folders exists
     ensure_local_data_paths(app)
     db.init_app(app)
+    db.migrate(app)
     app.register_blueprint(explore.bp)
     app.register_blueprint(analyze.bp)
     app.register_blueprint(authentication.bp)
@@ -73,7 +76,10 @@ def create_app(test_config=None):
 
     @app.template_filter('date')
     def date(input):
-        return input[:10]
+        if isinstance(input, datetime.datetime):
+            return input.strftime("%Y-%m-%d")
+        elif isinstance(input, str):
+            return input[:10]
 
     @app.template_filter('time')
     def time(input):

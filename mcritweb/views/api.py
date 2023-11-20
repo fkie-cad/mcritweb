@@ -8,7 +8,7 @@ from mcrit.client.McritClient import McritClient
 from smda.common.SmdaReport import SmdaReport
 
 from mcritweb.views.authentication import token_required
-from mcritweb.views.utility import get_server_url, mcrit_server_required, get_username
+from mcritweb.views.utility import get_server_url, get_server_token, mcrit_server_required, get_username
 
 
 bp = Blueprint('api', __name__, url_prefix='/api')
@@ -25,7 +25,7 @@ def handle_raw_response(response):
 @mcrit_server_required
 def api_router(api_path):
     api_path = api_path.rstrip("/")
-    client = McritClient(mcrit_server=get_server_url(), username=get_username(), raw_responses=True)
+    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username(), raw_responses=True)
     print("api_router - ", api_path)
     if re.match("status", api_path):
         print("status")
