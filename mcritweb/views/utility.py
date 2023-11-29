@@ -30,7 +30,6 @@ def mcrit_server_required(view):
     def wrapped_view(**kwargs):
         try:
             result = requests.get(f"{get_server_url()}/", headers={"username":"mcritweb", "apitoken": get_server_token()})
-            print("mcrit_server_required", result, result.text, result.json)
             if result.status_code == 401:
                 flash('Connected to MCRIT server but could not authenticate - Did you configure a token in the server settings?', category='error')
                 return redirect(url_for('index'))

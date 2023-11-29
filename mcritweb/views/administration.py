@@ -42,6 +42,10 @@ def change_username():
         return redirect(url_for('index'))
     flash(error_msg, category='error')
     user_filters = UserFilters.fromDb(user_info.user_id)
+    # if we don't have them yet, create them
+    if user_filters is None:
+        user_filters = UserFilters.fromDict(user_info.user_id, {})
+        user_filters.saveToDb()
     return render_template('settings.html', user_info=user_info, user_filters=user_filters)
 
 
@@ -70,6 +74,10 @@ def change_password():
         return redirect(url_for('index'))
     flash(error_msg, category='error')
     user_filters = UserFilters.fromDb(user_info.user_id)
+    # if we don't have them yet, create them
+    if user_filters is None:
+        user_filters = UserFilters.fromDict(user_info.user_id, {})
+        user_filters.saveToDb()
     return render_template('settings.html', user_info=user_info, user_filters=user_filters)
 
 

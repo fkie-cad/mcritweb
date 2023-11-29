@@ -368,6 +368,10 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         user_id = get_session_user_id()
         # adjust filters based on family/sample filtering
         user_filters = UserFilters.fromDb(user_id)
+        # if we don't have them yet, create them
+        if user_filters is None:
+            user_filters = UserFilters.fromDict(user_id, {})
+            user_filters.saveToDb()
         filter_values = user_filters.toDict()
         if filtered_family_id is None and filtered_sample_id is None and filtered_function_id is None:
             filter_values["filter_min_num_samples"] = None

@@ -165,6 +165,10 @@ def settings():
         return redirect(url_for('index'))
     user_info = UserInfo.fromDb(user_id=user_id)
     user_filters = UserFilters.fromDb(user_id)
+    # if we don't have them yet, create them
+    if user_filters is None:
+        user_filters = UserFilters.fromDict(user_id, {})
+        user_filters.saveToDb()
     return render_template('settings.html', user_info=user_info, user_filters=user_filters)
     
     
