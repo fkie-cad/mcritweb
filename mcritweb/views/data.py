@@ -668,6 +668,10 @@ def jobs():
             if category in statistics:
                 active_category = category
                 break
+    # if we filter by state, don't filter by type
+    state_category = request.args.get('state', None)
+    if state_category:
+        active_category = None
     totals = {"queued": 0, "in_progress": 0, "finished": 0, "failed": 0, "terminated": 0}
     for category, status_dict in statistics.items():
         for state, count in status_dict.items():
@@ -706,10 +710,14 @@ def jobs():
         ],
         "statistics": statistics
     }
-    max_count = sum(statistics[active_category].values()) if active_category else 0
-    pagination = Pagination(request, max_count, query_param="p")
-    jobs = client.getQueueData(start=pagination.start_index, limit=pagination.limit, method=active_category, ascending=ascending)
-    return render_template('jobs.html', active=active_category, jobs=jobs, menu_configuration=menu_configuration, p=pagination, query=query)
+    if active_category is None:
+        max_count = statistics["totals"][state_category] if state_category in statistics["totals"] else 0
+        pagination = Pagination(request, max_count, query_param="p")
+    else:
+        max_count = sum(statistics[active_category].values()) if active_category else 0
+        pagination = Pagination(request, max_count, query_param="p")
+    jobs = client.getQueueData(start=pagination.start_index, limit=pagination.limit, method=active_category, state=state_category, ascending=ascending)
+    return render_template('jobs.html', active=active_category, state=state_category, jobs=jobs, menu_configuration=menu_configuration, p=pagination, query=query)
 
 
 @bp.route('/jobs/<job_id>')
@@ -753,11 +761,23 @@ def job_by_id(job_id):
 
 @bp.route('/jobs/<job_id>/delete')
 @mcrit_server_required
-@visitor_required
+@contributor_required
 def delete_job_by_id(job_id):
     client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
-    job_data = client.getJobData(job_id)
-    raise NotImplementedError("Implement me!")
+    if job_id.startswith("state_"):
+        state = job_id.replace("state_", "")
+        jobs = client.getQueueData(state=state)
+        for job in jobs:
+            client.deleteJob(job.job_id)
+    elif job_id.startswith("category_"):
+        category = job_id.replace("category_", "")
+        jobs = client.getQueueData(method=category)
+        for job in jobs:
+            client.deleteJob(job.job_id)
+    else:
+        client.deleteJob(job_id)
+    return redirect(url_for("data.jobs"))
+    
 
 
 ################################################################
