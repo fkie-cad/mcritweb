@@ -152,3 +152,38 @@
   </tr>
 
 {% endmacro %}
+
+
+{% macro minisample_header(no_family=False, compact_view=False, show_analyze=True, show_export=False, show_hint=False, show_edit=False, sort_pagination=None) %}
+  <tr>
+    <th>
+      Uploaded
+    </th>
+    <th>
+      <i class="fa-solid fa-virus" title="Sample ID"></i>
+    </th>
+    <th>
+      SHA256
+    </th>
+    <th>
+      Family
+    </th>
+    <th>
+      Version
+    </th>
+    <th>
+      Filename
+    </th>
+  </tr>
+{% endmacro %}
+
+{% macro minisample_row(sample, no_family=False, compact_view=False, show_analyze=True, show_export=False, show_edit=False, show_hint=False, job_collection=None) %}
+  <tr class="sample-row parent_{{ kwargs['parent'] }}" >
+    <td>{{ sample.timestamp|date }}</td>
+    <td align="left" valign="middle" scope="row" class="sample-id">{{ "%d"|format(sample.sample_id) }}</td>
+    <td align="right" valign="middle" class="font-monospace">{{ sample.getShortSha256() }}</td>
+    <td valign="middle">{{ format_family_name(sample.family, sample.family_id) }}</td>
+    <td valign="middle">{{ sample.version }}</td>
+    <td valign="middle">{{ sample.getShortFilename() }}</td>
+  </tr>
+{% endmacro %}

@@ -717,7 +717,16 @@ def jobs():
         max_count = sum(statistics[active_category].values()) if active_category else 0
         pagination = Pagination(request, max_count, query_param="p")
     jobs = client.getQueueData(start=pagination.start_index, limit=pagination.limit, method=active_category, state=state_category, ascending=ascending)
-    return render_template('jobs.html', active=active_category, state=state_category, jobs=jobs, menu_configuration=menu_configuration, p=pagination, query=query)
+    samples_by_id = {}
+    for job in jobs:
+        if job.sample_ids is not None:
+            for sample_id in [sid for sid in job.sample_ids if sid not in samples_by_id]:
+                samples_by_id[sample_id] = client.getSampleById(sample_id)
+    families_by_id = {}
+    for job in jobs:
+        if job.family_id is not None:
+            families_by_id[job.family_id] = client.getFamily(job.family_id)
+    return render_template('jobs.html', families=families_by_id, samples=samples_by_id, active=active_category, state=state_category, jobs=jobs, menu_configuration=menu_configuration, p=pagination, query=query)
 
 
 @bp.route('/jobs/<job_id>')

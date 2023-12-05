@@ -169,7 +169,7 @@ Sample: {{ entry.sample_id }}
 {% endif %}
 {% if job_collection.count %}
 <h3 id="jobs">Jobs</h3>
-{{ job_table(job_collection.getJobs()) }}
+{{ job_table(job_collection.getJobs(), samples_by_id=samples) }}
 {% endif %}
 {% include 'js/ac_family_names.html' %}
 {% endblock %}

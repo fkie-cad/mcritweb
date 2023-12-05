@@ -243,7 +243,12 @@ def sample_by_id(sample_id):
                 functions.append(FunctionEntry.fromDict(function_dict))
         all_families = client.getFamilies()
         family_names = [family_entry.family_name for family_entry in all_families.values()]
-        return render_template("single_sample.html", entry=sample_entry, functions=functions, pagination=pagination, query=original_query, job_collection=job_collection, family_names=family_names)
+        samples_by_id = {}
+        for job in jobs:
+            if job.sample_ids is not None:
+                for sample_id in [sid for sid in job.sample_ids if sid not in samples_by_id]:
+                    samples_by_id[sample_id] = client.getSampleById(sample_id)
+        return render_template("single_sample.html", entry=sample_entry, functions=functions, pagination=pagination, query=original_query, samples=samples_by_id, job_collection=job_collection, family_names=family_names)
     else:
         flash("The given Sample ID doesn't exist", category='error')
         return redirect(url_for('explore.samples'))

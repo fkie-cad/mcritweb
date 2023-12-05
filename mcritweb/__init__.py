@@ -6,8 +6,10 @@ from flask_dropzone import Dropzone
 
 from . import db
 from .views import explore, analyze, authentication, administration, data, api
-from .views.utility import ensure_local_data_paths, get_mcritweb_version_from_setup
+from .views.utility import ensure_local_data_paths, get_mcritweb_version_from_setup, get_server_url, get_server_token, get_username
 
+from mcrit.client.McritClient import McritClient
+from mcrit.storage.SampleEntry import SampleEntry
 
 dropzone = Dropzone()
 def create_app(test_config=None):
@@ -101,6 +103,21 @@ def create_app(test_config=None):
         if request.method == 'POST':
             return redirect(url_for("explore.search", query=request.form["Search"]))
         else:
-            return render_template("index.html")
+            client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+            jobs = client.getQueueData(0, 5, method="getMatchesForSample", state="finished", ascending=False)
+            samples_by_id = {}
+            for job in jobs:
+                if job.sample_ids is not None:
+                    for sample_id in [sid for sid in job.sample_ids if sid not in samples_by_id]:
+                        samples_by_id[sample_id] = client.getSampleById(sample_id)
+            families_by_id = {}
+            for job in jobs:
+                if job.family_id is not None:
+                    families_by_id[job.family_id] = client.getFamily(job.family_id)
+            results = client.search_samples("", is_ascending=False, cursor=None, sort_by="sample_id", limit=5)
+            latest_samples = []
+            for sample_dict in results['search_results'].values():
+                latest_samples.append(SampleEntry.fromDict(sample_dict))
+            return render_template("index.html", samples=samples_by_id, families=families_by_id, latest_samples=latest_samples, jobs=jobs)
 
     return app
