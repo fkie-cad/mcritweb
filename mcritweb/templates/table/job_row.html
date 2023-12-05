@@ -126,7 +126,7 @@
   {{ job.sample_id }} (deleted)
   {% endif %}<br />
   {% for key, value in job.arguments[1].items() %}
-    {{ key }} <i class="fa-solid fa-arrow-right"></i> {{ value }}
+    {{ key }} <i class="fa-solid fa-arrow-right"></i> {{ value }}<br />
   {% endfor %}
 
   {% elif job.method == "deleteFamily" %}
@@ -141,7 +141,7 @@
   {{ job.family_id }} (deleted)
   {% endif %}<br />
   {% for key, value in job.arguments[1].items() %}
-    {{ key }} <i class="fa-solid fa-arrow-right"></i> {{ value }}
+    {{ key }} <i class="fa-solid fa-arrow-right"></i> {{ value }}<br />
   {% endfor %}
 
 {% else %}
