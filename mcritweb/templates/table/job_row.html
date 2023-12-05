@@ -83,17 +83,35 @@
   Match SMDA Report | {{ format_monospace(job.sha256[:8]) }}
 
 {% elif job.method == "getUniqueBlocks" %}
+
+  {% set reference_sample = samples_by_id.get(job.sample_id) %}
+  {% for sample_id in job.arguments[0] %}
+    {% set sample_entry = samples_by_id.get(sample_id) %}
+    {% if sample_entry %}
+    {% set reference_sample = samples_by_id.get(sample_id) %}
+  {% endif %}
+  {% endfor %}
+
   {% if job.arguments[0]|length > 1 %}
     UniqueBlocks | {{ job.arguments[0] | length }} samples<br />
   {% else %}
     UniqueBlocks | {{ job.arguments[0] | length }} sample<br />
   {% endif %}
+
   {% if job.arguments|length > 1 %}
-  <i class="fa-solid fa-bug " title="Family ID"></i> {{ format_family_name(samples_by_id[job.sample_id].family, samples_by_id[job.sample_id].family_id) }} | <i class="fa-solid fa-virus " title="Sample ID"></i> 
+    {% if reference_sample %}
+     <i class="fa-solid fa-bug " title="Family ID"></i> {{ format_family_name(reference_sample.family, reference_sample.family_id) }} | <i class="fa-solid fa-virus " title="Sample ID"></i> 
+    {% else %}
+     <i class="fa-solid fa-bug " title="Family ID"></i> - | <i class="fa-solid fa-virus " title="Sample ID"></i> 
+   {% endif %}
+   {% else %}
+   {% if reference_sample %}
+   <i class="fa-solid fa-bug " title="Family ID"></i> {{ format_family_name(reference_sample.family, reference_sample.family_id) }} | <i class="fa-solid fa-virus " title="Sample ID"></i> 
+   {% else %}
+   <i class="fa-solid fa-bug " title="Family ID"></i> - | <i class="fa-solid fa-virus " title="Sample ID"></i> 
+   {% endif %}
+   {% endif %}
   {{ job.arguments[0]|join(', ') }}
-  {% else %}
-  <i class="fa-solid fa-bug " title="Family ID"></i> {{ format_family_name(samples_by_id[job.sample_id].family, samples_by_id[job.sample_id].family_id) }} | <i class="fa-solid fa-virus " title="Sample ID"></i> {{ format_sample_id(job.sample_id) }}
-  {% endif %}
 
 {% elif job.method == "updateMinHashesForSample" %}
   {% set sample_entry = samples_by_id.get(job.sample_id) %}
