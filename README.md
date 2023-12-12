@@ -42,6 +42,7 @@ Note that most functionality of MCRITweb will only work if an MCRIT backend is c
 
 
 ## Version History
+ * 2023-12-12 v1.2.17: Function Diff view should now work better for obfuscated functions with lots of unique instruction tokens.
  * 2023-12-05 v1.2.16: More expressive job tables, now showing recent data on index page.
  * 2023-12-01 v1.2.13: Contributor and above can now delete jobs, jobs also filterable by state.
  * 2023-11-29 v1.2.11: Ensure user filters exist when using them the first time (THX: @rootbsd!).

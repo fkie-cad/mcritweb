@@ -301,9 +301,10 @@ def get_levenshtein_matches(smda_function_a, smda_function_b, unmatched_nodes):
         for instruction in block.getInstructions():
             escaped_ins = instruction.mnemonic + " " + IntelInstructionEscaper.escapeOperands(instruction)
             if escaped_ins not in alphabet:
-                alphabet[escaped_ins] = chr(0x30 + num_symbols)
+                alphabet[escaped_ins] = chr(0x20 + num_symbols)
                 num_symbols += 1
-                if num_symbols > 94:
+                if num_symbols > 0xff-0x20:
+                    print(alphabet)
                     raise Exception("Basic Block contains too many tokens to compare.")
             symbolified_block += alphabet[escaped_ins]
         candidate_blocks_a[block.offset] = symbolified_block
@@ -315,17 +316,19 @@ def get_levenshtein_matches(smda_function_a, smda_function_b, unmatched_nodes):
         for instruction in block.getInstructions():
             escaped_ins = instruction.mnemonic + " " + IntelInstructionEscaper.escapeOperands(instruction)
             if escaped_ins not in alphabet:
-                alphabet[escaped_ins] = chr(0x30 + num_symbols)
+                alphabet[escaped_ins] = chr(0x20 + num_symbols)
                 num_symbols += 1
-                if num_symbols > 94:
+                if num_symbols > 0xff-0x20:
+                    print(alphabet)
                     raise Exception("Basic Block contains too many tokens to compare.")
             symbolified_block += alphabet[escaped_ins]
         candidate_blocks_b[block.offset] = symbolified_block
 
-    # print(alphabet)
     by_score = {0: [], 1: [], 2: [], 3: []}
     for block_a, symbols_a in candidate_blocks_a.items():
         for block_b, symbols_b in candidate_blocks_b.items():
+            if abs(len(symbols_a) - len(symbols_b)) > 4:
+                continue
             distance = Levenshtein.distance(symbols_a, symbols_b, score_cutoff=3)
             if distance < 4:
                 by_score[distance].append((block_a, block_b))
