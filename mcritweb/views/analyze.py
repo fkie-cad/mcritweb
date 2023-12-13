@@ -21,8 +21,13 @@ bp = Blueprint('analyze', __name__, url_prefix='/analyze')
 @mcrit_server_required
 def blocks_family(family_id):
     client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
-    job_id = client.requestUniqueBlocksForFamily(family_id)
-    return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
+    family_samples = client.getSamplesByFamilyId(family_id)
+    if family_samples:
+        job_id = client.requestUniqueBlocksForFamily(family_id)
+        return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
+    else:
+        flash("Can't locate unique blocks for a family without samples", category="error")
+        return redirect(url_for('explore.families'))
 
 
 @bp.route('/blocks/sample/<int:sample_id>')
