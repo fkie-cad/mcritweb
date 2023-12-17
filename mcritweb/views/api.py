@@ -13,6 +13,17 @@ from mcritweb.views.utility import get_server_url, get_server_token, mcrit_serve
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
+def nullable_integer(x):
+    return int(x) if x else x
+
+def stringified_bool(x):
+    if not str(x):
+        return x
+    lowered = x.lower()
+    if lowered in ['true', '1']:
+        return True
+    elif lowered in ['false', '0']:
+        return False
 
 def handle_raw_response(response):
     if response.status_code in [200, 202]:
@@ -167,11 +178,11 @@ def api_router(api_path):
     elif re_match := re.match("query/binary", api_path):
         binary = request.get_data()
         request_args = request.args
-        minhash_threshold = request_args.get("minhash_threshold", None)
-        pichash_size = request_args.get("pichash_size", None)
-        band_matches_required = request_args.get("band_matches_required", None)
-        disassemble_locally = request_args.get("disassemble_locally", True)
-        force_recalculation = request_args.get("force_recalculation", False)
+        minhash_threshold = request_args.get("minhash_threshold", default=None, type=nullable_int)
+        pichash_size = request_args.get("pichash_size", default=None, type=nullable_int)
+        band_matches_required = request_args.get("band_matches_required", default=None, type=nullable_int)
+        disassemble_locally = request_args.get("disassemble_locally", default=True, type=stringified_bool)
+        force_recalculation = request_args.get("force_recalculation", default=False, type=stringified_bool)
         if re_match := re.match("query/binary/mapped/(?P<base_addr>\d+)", api_path):
             base_address = re_match.group("base_addr")
             return handle_raw_response(
