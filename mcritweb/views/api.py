@@ -163,4 +163,37 @@ def api_router(api_path):
     elif re_match := re.match("version$", api_path):
         print("getVersion")
         return handle_raw_response(client.getVersion())
+    # requestMatchesForMappedBinary, requestMatchesForUnmappedBinary
+    elif re_match := re.match("query/binary", api_path):
+        binary = request.get_data()
+        request_args = request.args
+        minhash_threshold = request_args.get("minhash_threshold", None)
+        pichash_size = request_args.get("pichash_size", None)
+        band_matches_required = request_args.get("band_matches_required", None)
+        disassemble_locally = request_args.get("disassemble_locally", True)
+        force_recalculation = request_args.get("force_recalculation", False)
+        if re_match := re.match("query/binary/mapped/(?P<base_addr>\d+)", api_path):
+            base_address = re_match.group("base_addr")
+            return handle_raw_response(
+                client.requestMatchesForMappedBinary(
+                    binary=binary,
+                    base_address=base_address,
+                    minhash_threshold=minhash_threshold,
+                    pichash_size=pichash_size,
+                    band_matches_required=band_matches_required,
+                    disassemble_locally=disassemble_locally,
+                    force_recalculation=force_recalculation
+                )
+            )
+        else:
+            return handle_raw_response(
+                client.requestMatchesForUnmappedBinary(
+                    binary=binary,
+                    minhash_threshold=minhash_threshold,
+                    pichash_size=pichash_size,
+                    band_matches_required=band_matches_required,
+                    disassemble_locally=disassemble_locally,
+                    force_recalculation=force_recalculation
+                )
+            )
     return Response(status=501)
