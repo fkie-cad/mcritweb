@@ -48,11 +48,12 @@ def get_session_user_id():
     except:
         return None
     
-def get_username():
-    username = "guest"
+def get_username(request=None):
     if g.user is not None:
-        username = g.user.username
-    return username
+        return g.user.username
+    elif request and "username" in request.headers:
+        return request.headers.get("username")
+    return "guest"
 
 
 def parse_band_range(request, from_form=False):
