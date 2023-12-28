@@ -13,8 +13,12 @@ from mcritweb.views.utility import get_server_url, get_server_token, mcrit_serve
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
-def nullable_integer(x):
-    return int(x) if x else x
+def nullable_int(x):
+    try:
+        casted = int(x)
+        return casted
+    except:
+        raise ValueError("Can't cast this to int")
 
 def stringified_bool(x):
     if not str(x):
@@ -181,8 +185,9 @@ def api_router(api_path):
         minhash_threshold = request_args.get("minhash_threshold", default=None, type=nullable_int)
         pichash_size = request_args.get("pichash_size", default=None, type=nullable_int)
         band_matches_required = request_args.get("band_matches_required", default=None, type=nullable_int)
-        disassemble_locally = request_args.get("disassemble_locally", default=True, type=stringified_bool)
         force_recalculation = request_args.get("force_recalculation", default=False, type=stringified_bool)
+        # never disassembly in the server for this as we otherwise can't distinguish the type of matching server-side
+        disassemble_locally = False
         if re_match := re.match("query/binary/mapped/(?P<base_addr>\d+)", api_path):
             base_address = re_match.group("base_addr")
             return handle_raw_response(
