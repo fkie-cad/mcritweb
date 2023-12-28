@@ -25,7 +25,7 @@ def handle_raw_response(response):
 @mcrit_server_required
 def api_router(api_path):
     api_path = api_path.rstrip("/")
-    username = get_username()
+    username = get_username(request)
     client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=username, raw_responses=True)
     print(f"api_router - {api_path} - {username}")
     if re.match("status", api_path):
