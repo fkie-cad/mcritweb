@@ -21,7 +21,7 @@ def nullable_int(x):
         raise ValueError("Can't cast this to int")
 
 def stringified_bool(x):
-    if not str(x):
+    if not isinstace(x, str):
         return x
     lowered = x.lower()
     if lowered in ['true', '1']:
@@ -132,15 +132,31 @@ def api_router(api_path):
     # getQueueData
     elif re_match := re.match("jobs$", api_path):
         print("getQueueData")
-        forward_filter = request.args.get("filter", None)
         forward_start = 0
         forward_limit = 0
+        forward_method = None
+        forward_filter = None
+        forward_state = None
+        forward_ascending = False
         try:
             forward_start = int(request.args.get("start", 0))
             forward_limit = int(request.args.get("limit", 0))
+            forward_method = request.args.get("method", None)
+            forward_filter = request.args.get("filter", None)
+            forward_state = request.args.get("state", None)
+            forward_ascending = request.args.get("ascending", False, stringified_bool)
         except:
             pass
-        return handle_raw_response(client.getQueueData(start=forward_start, limit=forward_limit, filter=forward_filter))
+        return handle_raw_response(
+            client.getQueueData(
+                start=forward_start, 
+                limit=forward_limit, 
+                method=forward_method, 
+                filter=forward_filter, 
+                state=forward_state, 
+                ascending=forward_ascending
+            )
+        )
     # getJobData, getResultForJob
     elif re_match := re.match("jobs/(?P<job_id>[0-9a-fA-F]+)(?P<result_for_job>/result)?$", api_path):
         print("getJobData, getResultForJob")
