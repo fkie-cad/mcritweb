@@ -9,6 +9,7 @@ from mcrit.storage.MatchingResult import MatchingResult
 from mcrit.storage.MatchedFunctionEntry import MatchedFunctionEntry
 from mcrit.storage.FunctionEntry import FunctionEntry
 from mcrit.storage.SampleEntry import SampleEntry
+from mcrit.storage.UniqueBlocksResult import UniqueBlocksResult
 from mcrit.queue.LocalQueue import Job
 from flask import current_app, Blueprint, render_template, request, redirect, url_for, Response, flash, session, send_from_directory, json
 
@@ -253,29 +254,8 @@ def result(job_id):
         return render_template("result_invalid.html", job_id=job_id)
 
 def build_yara_rule(job_info, blocks_result, blocks_statistics):
-    unique_blocks = blocks_result["unique_blocks"]
-    yara_blocks = blocks_result["yara_rule"]
-    yara_rule = f"rule mcrit_{job_info.job_id} {{\n"
-    yara_rule += "    meta:\n"
-    yara_rule += "        author = \"MCRIT YARA Generator\"\n"
-    yara_rule += f"        description = \"Code-based YARA rule composed from potentially unique basic blocks for the selected set of samples/family.\"\n"
-    rule_date = datetime.utcnow().strftime("%Y-%m-%d")
-    yara_rule += f"        date = \"{rule_date}\"\n"
-    yara_rule += "    strings:\n"
-    yara_rule += f"        // Rule generation selected {len(yara_blocks)} picblocks, covering {blocks_statistics['num_samples_covered']}/{blocks_statistics['num_samples']} input sample(s).\n"
-    for pichash, result in unique_blocks.items():
-        if pichash not in yara_blocks:
-            continue
-        yarafied = f"        /* picblockhash: {pichash} - coverage: {len(result['samples'])}/{blocks_statistics['num_samples_covered']} samples.\n"
-        maxlen_ins = max([len(ins[1]) for ins in result["instructions"]])
-        for ins in result["instructions"]:
-            yarafied += f"         * {ins[1]:{maxlen_ins}} | {ins[2]} {ins[3]}\n"
-        yarafied += "         */\n"
-        yarafied += f"        $blockhash_{pichash} = {{ " + re.sub("(.{80})", "\\1\n", result["escaped_sequence"], 0, re.DOTALL) + " }\n"
-        yara_rule += yarafied + "\n"
-    yara_rule += "    condition:\n"
-    yara_rule += "        7 of them\n"
-    yara_rule += "}"
+    ubr = UniqueBlocksResult.fromDict(blocks_result)
+    yara_rule = ubr.generateYaraRule(wrap_at=40)
     return yara_rule
 
 def result_unique_blocks(job_info, blocks_result: dict):
