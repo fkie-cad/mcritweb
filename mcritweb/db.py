@@ -461,3 +461,12 @@ def get_user_by_apitoken(apitoken):
     if record is not None:
         user_id = record["id"]
     return user_id
+
+def get_username_by_apitoken(apitoken):
+    username = None
+    db = get_db()
+    cursor = db.cursor()
+    record = cursor.execute("SELECT * FROM user WHERE apitoken = ?;", (apitoken,)).fetchone()
+    if record is not None:
+        username = record["username"]
+    return username

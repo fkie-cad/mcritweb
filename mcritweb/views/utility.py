@@ -12,6 +12,7 @@ from rapidfuzz.distance import Levenshtein
 from smda.intel.IntelInstructionEscaper import IntelInstructionEscaper
 from mcrit.client.McritClient import McritClient
 
+from mcritweb import db
 from mcritweb.db import ServerInfo
 
 
@@ -49,11 +50,17 @@ def get_session_user_id():
         return None
     
 def get_username(request=None):
+    username = "guest"
     if g.user is not None:
-        return g.user.username
+        username =  g.user.username
+    elif request and "apitoken" in request.headers:
+        provided_token = request.headers.get("apitoken", "")
+        username_by_token = db.get_username_by_apitoken(provided_token)
+        if username_by_token is not None:
+            username = username_by_token
     elif request and "username" in request.headers:
-        return request.headers.get("username")
-    return "guest"
+        username = request.headers.get("username")
+    return username
 
 
 def parse_band_range(request, from_form=False):

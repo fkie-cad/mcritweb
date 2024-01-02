@@ -21,7 +21,7 @@ def nullable_int(x):
         raise ValueError("Can't cast this to int")
 
 def stringified_bool(x):
-    if not isinstace(x, str):
+    if not isinstance(x, str):
         return x
     lowered = x.lower()
     if lowered in ['true', '1']:
