@@ -162,8 +162,9 @@ def api_router(api_path):
         print("getJobData, getResultForJob")
         job_id = re_match.group("job_id")
         forward_result = True if re_match.group("result_for_job") is not None else False
+        compact = request.args.get("compact", default=False, type=stringified_bool)
         if forward_result:
-            return handle_raw_response(client.getResultForJob(job_id))
+            return handle_raw_response(client.getResultForJob(job_id, compact=compact))
         else:
             return handle_raw_response(client.getJobData(job_id))
     # getResult, getJobForResult
