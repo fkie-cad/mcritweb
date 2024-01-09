@@ -42,6 +42,7 @@ Note that most functionality of MCRITweb will only work if an MCRIT backend is c
 
 
 ## Version History
+ * 2024-01-09 v1.2.22: API passthrough for results can now also use compact flag (THX: @yankovs!).
  * 2024-01-02 v1.2.21: YARA rule generation for UniqueBlocks now uses the respective data class from backend, which fixes rendering bugs.
  * 2024-01-02 v1.2.20: Extended API passthrough for queue status, fixed username annotation for calls (THX: @yankovs!).
  * 2023-12-28 v1.2.19: Enabled API passthrough for binary query matching (THX: @yankovs!).
