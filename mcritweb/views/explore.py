@@ -244,7 +244,7 @@ def sample_by_id(sample_id):
         all_families = client.getFamilies()
         family_names = [family_entry.family_name for family_entry in all_families.values()]
         samples_by_id = {}
-        for job in jobs:
+        for job in job_collection.getJobs():
             if job.sample_ids is not None:
                 for sample_id in [sid for sid in job.sample_ids if sid not in samples_by_id]:
                     samples_by_id[sample_id] = client.getSampleById(sample_id)
