@@ -201,9 +201,9 @@ def result(job_id):
     job_info = client.getJobData(job_id)
     if not result_json:
         # otherwise obtain result report from remote
-            result_json = client.getResultForJob(job_id)
-            if result_json:
-                cache_result(current_app, job_info, result_json)
+        result_json = client.getResultForJob(job_id)
+        if result_json:
+            cache_result(current_app, job_info, result_json)
     if result_json:
         score_color_provider = ScoreColorProvider()
         # TODO validation - only parse to matching_result if this data type is appropriate 
@@ -246,6 +246,8 @@ def result(job_id):
             return redirect(url_for('explore.families'))
         elif job_info.parameters.startswith("modifyFamily"):
             return redirect(url_for('explore.families'))
+        elif job_info.parameters in ["rebuildIndex()", "recalculatePicHashes()", "recalculateMinHashes()"]:
+            return render_template("result_maintenance.html", result=result_json, job_info=job_info)
     elif job_info:
         # if we are not done processing, list job data
         return render_template("job_in_progress.html", job_info=job_info)
