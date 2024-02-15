@@ -201,9 +201,9 @@ def result(job_id):
     job_info = client.getJobData(job_id)
     if not result_json:
         # otherwise obtain result report from remote
-            result_json = client.getResultForJob(job_id)
-            if result_json:
-                cache_result(current_app, job_info, result_json)
+        result_json = client.getResultForJob(job_id)
+        if result_json:
+            cache_result(current_app, job_info, result_json)
     if result_json:
         score_color_provider = ScoreColorProvider()
         # TODO validation - only parse to matching_result if this data type is appropriate 
@@ -246,7 +246,9 @@ def result(job_id):
             return redirect(url_for('explore.families'))
         elif job_info.parameters.startswith("modifyFamily"):
             return redirect(url_for('explore.families'))
-    elif job_info:
+        elif job_info.parameters in ["rebuildIndex()", "recalculatePicHashes()", "recalculateMinHashes()"]:
+            return render_template("result_maintenance.html", result=result_json, job_info=job_info)
+    elif job_info and not (job_info.is_finished or job_info.is_failed or job_info.is_terminated):
         # if we are not done processing, list job data
         return render_template("job_in_progress.html", job_info=job_info)
     else:
@@ -679,6 +681,8 @@ def jobs():
                 {"name": "updateMinHashesForSample", "title": f"updateMinHashesForSample ({sum(statistics['updateMinHashesForSample'].values()) if 'updateMinHashesForSample' in statistics else 0})", "active": "updateMinHashesForSample" == active_category, "available": "updateMinHashesForSample" in statistics},
                 {"name": "updateMinHashes", "title": f"updateMinHashes ({sum(statistics['updateMinHashes'].values()) if 'updateMinHashes' in statistics else 0})", "active": "updateMinHashes" == active_category, "available": "updateMinHashes" in statistics},
                 {"name": "rebuildIndex", "title": f"rebuildIndex ({sum(statistics['rebuildIndex'].values()) if 'rebuildIndex' in statistics else 0})", "active": "rebuildIndex" == active_category, "available": "rebuildIndex" in statistics},
+                {"name": "recalculateMinHashes", "title": f"recalculateMinHashes ({sum(statistics['recalculateMinHashes'].values()) if 'recalculateMinHashes' in statistics else 0})", "active": "recalculateMinHashes" == active_category, "available": "recalculateMinHashes" in statistics},
+                {"name": "recalculatePicHashes", "title": f"recalculatePicHashes ({sum(statistics['recalculatePicHashes'].values()) if 'recalculatePicHashes' in statistics else 0})", "active": "recalculatePicHashes" == active_category, "available": "recalculatePicHashes" in statistics},
             ]}, 
             {"group": "collection", "title": f"Collection ({summarized_groups['collection']})", "active": active_category in ["addBinarySample", "deleteSample", "modifySample", "deleteFamily", "modifyFamily"], "available": True, "submenu": [
                 {"name": "addBinarySample", "title": f"addBinarySample ({sum(statistics['addBinarySample'].values()) if 'addBinarySample' in statistics else 0})", "active": "addBinarySample" == active_category, "available": "addBinarySample" in statistics},

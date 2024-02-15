@@ -125,8 +125,14 @@
 {% elif job.method == "updateMinHashes" %}
   Update all missing MinHashes
 
-  {% elif job.method == "rebuildIndex" %}
+{% elif job.method == "rebuildIndex" %}
   Rebuild full Index
+
+{% elif job.method == "recalculatePicHashes" %}
+  Recalculate PicHashes
+
+{% elif job.method == "recalculateMinHashes" %}
+  Recalculate MinHashes and Index
 
 {% elif job.method == "addBinarySample" %}
   Add Binary | <i class="fa-solid fa-bug " title="Family ID"></i> {{ job.family }}<br />

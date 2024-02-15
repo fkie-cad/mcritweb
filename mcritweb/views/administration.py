@@ -210,3 +210,30 @@ def reset_server():
         # TODO also clean all locally cached data.
         flash('A reset of MCRIT was successfully performed.', category='success')
         return redirect(url_for('index'))
+
+
+@bp.route('/schedule_rebuild_index' , methods=('GET', 'POST'))
+@admin_required
+def schedule_rebuild_index():
+    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    job_id = client.rebuildIndex()
+    flash('A job for rebuilding the MinHash Index has been scheduled.', category='success')
+    return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
+
+
+@bp.route('/schedule_recalc_pichashes' , methods=('GET', 'POST'))
+@admin_required
+def schedule_recalc_pichashes():
+    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    job_id = client.recalculatePicHashes()
+    flash('A job for recalculating all PicHashes has been scheduled.', category='success')
+    return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
+
+
+@bp.route('/schedule_recalc_minhashes' , methods=('GET', 'POST'))
+@admin_required
+def schedule_recalc_minhashes():
+    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    job_id = client.recalculateMinHashes()
+    flash('A job for recalculating and indexing all MinHashes has been scheduled.', category='success')
+    return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
