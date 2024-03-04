@@ -702,14 +702,15 @@ def jobs():
         pagination = Pagination(request, max_count, query_param="p")
     jobs = client.getQueueData(start=pagination.start_index, limit=pagination.limit, method=active_category, state=state_category, ascending=ascending)
     samples_by_id = {}
-    for job in jobs:
-        if job.sample_ids is not None:
-            for sample_id in [sid for sid in job.sample_ids if sid not in samples_by_id]:
-                samples_by_id[sample_id] = client.getSampleById(sample_id)
     families_by_id = {}
-    for job in jobs:
-        if job.family_id is not None:
-            families_by_id[job.family_id] = client.getFamily(job.family_id)
+    if jobs:
+        for job in jobs:
+            if job.sample_ids is not None:
+                for sample_id in [sid for sid in job.sample_ids if sid not in samples_by_id]:
+                    samples_by_id[sample_id] = client.getSampleById(sample_id)
+        for job in jobs:
+            if job.family_id is not None:
+                families_by_id[job.family_id] = client.getFamily(job.family_id)
     return render_template('jobs.html', families=families_by_id, samples=samples_by_id, active=active_category, state=state_category, jobs=jobs, menu_configuration=menu_configuration, p=pagination, query=query)
 
 
@@ -760,13 +761,15 @@ def delete_job_by_id(job_id):
     if job_id.startswith("state_"):
         state = job_id.replace("state_", "")
         jobs = client.getQueueData(state=state)
-        for job in jobs:
-            client.deleteJob(job.job_id)
+        if jobs:
+            for job in jobs:
+                client.deleteJob(job.job_id)
     elif job_id.startswith("category_"):
         category = job_id.replace("category_", "")
         jobs = client.getQueueData(method=category)
-        for job in jobs:
-            client.deleteJob(job.job_id)
+        if jobs:
+            for job in jobs:
+                client.deleteJob(job.job_id)
     else:
         client.deleteJob(job_id)
     return redirect(url_for("data.jobs"))
