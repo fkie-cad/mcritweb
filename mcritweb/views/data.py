@@ -786,7 +786,15 @@ def request_filename_info():
     except Exception:
         filename = ""
     result = {}
-    if 'dump' in filename:
+    if filename.endswith(".smda"):
+        result['smda'] = True
+        # parse from smda report
+        result['family'] = None
+        result['version'] = None
+        result['bitness'] = None
+        base_address = None
+        result['baseaddress'] = "" if not base_address else hex(base_address)
+    elif 'dump' in filename:
         result['dump'] = True
         result['bitness'] = parseBitnessFromFilename(filename)
         base_address = parseBaseAddrFromFilename(filename)

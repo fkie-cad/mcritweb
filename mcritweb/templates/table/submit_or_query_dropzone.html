@@ -5,15 +5,15 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='dropzone.min.css') }}">
 {{ dropzone.style('border: 2px dashed black; margin: 30%; min-height: 200px;border-radius: 25px; background: rgb(240, 240, 240);') }}
 <script>
-  function show_dumped(x) {
+  function show_extended(x) {
     if (x.checked) {      
-      $(document.getElementById("dumpExtraFields")).slideDown();   
+      $(document.getElementById("extendedFields")).slideDown();   
     }
   }
  
-  function hide_dumped(x) {
+  function hide_extended(x) {
     if (x.checked) {
-      $(document.getElementById("dumpExtraFields")).slideUp();
+      $(document.getElementById("extendedFields")).slideUp();
     }
   }
 
@@ -33,7 +33,7 @@
 
   $(document).ready(function(){
     if ($("#dumped").prop("checked")){
-      $(document.getElementById("dumpExtraFields")).slideDown(); 
+      $(document.getElementById("extendedFields")).slideDown(); 
     }
     {% if select_form_type %}
     if ($("#submit_form").prop("checked")){
@@ -50,7 +50,7 @@
   function fill_form(data) {
     data = JSON.parse(data);
     // set dumped/unmapped
-    if (data["dump"]){
+    if (data["dump"] || data["smda"]){
       $("#dumped").click();
     } else {
       $("#unmapped").click();
@@ -62,7 +62,9 @@
       $("#bitness64").click();
     }
     // set base address
-    $("#base_address").val(data["baseaddress"])
+    $("#base_address").val(data["family"])
+    // set family and version
+    $("#base_address").val(data["version"])
   }
 
 
@@ -150,7 +152,7 @@ function handleSliderChange_dropzone(val) {
 {% endif %}
   {{ dropzone.create(action=target_link) }}
   <script src="{{ url_for('static', filename='dropzone.js') }}"></script>
-  {{ dropzone.config(max_file_size=20000000, redirect_view=None, custom_options='autoProcessQueue: false') }}
+  {{ dropzone.config(max_file_size=100000000, redirect_view=None, custom_options='autoProcessQueue: false') }}
   <form id="dropzone-additional-fields-form">
   {% if select_form_type %}
     <div class="container-fluid">
@@ -168,7 +170,7 @@ function handleSliderChange_dropzone(val) {
       <input type='text' name='family' class="form-control" id="family" aria-describedby="familyHelp" placeholder="Enter family" autofocus autocomplete="off">
       <input name='version' class="form-control" id="version" aria-describedby="versionHelp" placeholder="Enter version">
     </div>
-    <div class="form-group" style="display:none" id='dumpExtraFields'>
+    <div class="form-group" style="display:none" id='extendedFields'>
         <input name='base_address' class="form-control" id="base_address" aria-describedby="baseAddressHelp" placeholder="Enter base address">
         <div class="form-check form-check-inline submit-form-exclusive" {% if not show_submit_fields %}style="display:none"{% endif %}>
           <input class="form-check-input" type="radio" name="bitness" id="bitness32" value="32">
@@ -180,14 +182,18 @@ function handleSliderChange_dropzone(val) {
         </div>
       </div>
 
-    <div class="form-check form-check-inline" align="left">
-        <input class="form-check-input" onchange="hide_dumped(this)" type="radio" name="options" id="unmapped" value="unmapped" checked>
+      <div class="form-check form-check-inline" align="left">
+        <input class="form-check-input" onchange="hide_extended(this)" type="radio" name="options" id="unmapped" value="unmapped" checked>
         <label class="form-check-label" for="unmapped">Unmapped</label>
-    </div>
-    <div class="form-check form-check-inline" align="left">
-        <input class="form-check-input"  onchange="show_dumped(this)" type="radio" name="options" id="dumped" value="dumped">
+      </div>
+      <div class="form-check form-check-inline" align="left">
+        <input class="form-check-input"  onchange="show_extended(this)" type="radio" name="options" id="dumped" value="dumped">
         <label class="form-check-label" for="dumped">Dumped</label>
-    </div>
+      </div>
+      <div class="form-check form-check-inline" align="left">
+          <input class="form-check-input" onchange="show_extended(this)" type="radio" name="options" id="smda" value="smda">
+          <label class="form-check-label" for="smda">SMDA</label>
+      </div>
      <!-- TODO: only show if file available -->
     <div class="form-group query-form-exclusive" {% if not show_query_fields %}style="display:none"{% endif %}>
     <div class="col-sm-12 d-inline-flex justify-content-center">
