@@ -11,6 +11,6 @@ Import
 <center>
     {{ dropzone.create(action= url_for('data.import_view')) }}
 </center>
-<script src="{{ url_for('static', filename='dropzone.min.js') }}"></script>
+<script src="{{ url_for('static', filename='dropzone.js') }}"></script>
 {{ dropzone.config(max_file_size=100000000) }}
 {% endblock %}

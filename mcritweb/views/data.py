@@ -11,6 +11,7 @@ from mcrit.storage.FunctionEntry import FunctionEntry
 from mcrit.storage.SampleEntry import SampleEntry
 from mcrit.storage.UniqueBlocksResult import UniqueBlocksResult
 from mcrit.queue.LocalQueue import Job
+from smda.common.SmdaReport import SmdaReport
 from flask import current_app, Blueprint, render_template, request, redirect, url_for, Response, flash, session, send_from_directory, json
 
 from mcritweb.db import UserFilters
@@ -785,15 +786,39 @@ def delete_job_by_id(job_id):
 @contributor_required
 def request_filename_info():
     try:
-        filename = json.loads(request.data)["filename"]
-    except Exception:
+        data_as_dict = json.loads(request.data)
+        filename = data_as_dict["filename"]
+        file_header = data_as_dict["file_header"]
+    except Exception:   
         filename = ""
+        file_header = ""
     result = {}
-    if 'dump' in filename:
+    if filename.endswith(".smda"):
+        result = {
+            "smda": True,
+            "family": None,
+            "version": None,
+            "bitness": None,
+            "base_addr": None,
+        }
+        # parse from smda report
+        match_family = re.search('"family": "(?P<family>[^\"^<^>]+)"', file_header)
+        if match_family:
+            result['family'] = match_family.group('family')
+        match_version = re.search('"version": "(?P<version>[^\"^<^>]+)"', file_header)
+        if match_version:
+            result['version'] = match_version.group('version')
+        match_bitness = re.search('"bitness": (?P<bitness>(16|32|64))', file_header)
+        if match_bitness:
+            result['bitness'] = int(match_bitness.group('bitness'))
+        match_baseaddr = re.search('"base_addr": (?P<base_addr>\d+)', file_header)
+        if match_baseaddr:
+            result['base_addr'] = hex(int(match_baseaddr.group('base_addr')))
+    elif 'dump' in filename:
         result['dump'] = True
         result['bitness'] = parseBitnessFromFilename(filename)
         base_address = parseBaseAddrFromFilename(filename)
-        result['baseaddress'] = "" if not base_address else hex(base_address)
+        result['base_addr'] = "" if not base_address else hex(base_address)
     else:
         result['dump'] = False
     return json.dumps(result), 200
@@ -827,22 +852,31 @@ def submit():
         version = request.form['version']
         bitness = None
         base_address = None
-        is_dump = request.form['options'] == 'dumped'
-        if is_dump:
+        form_options = request.form['options']
+        is_dump = form_options == "dumped"
+        is_dump_or_smda = form_options in ['dumped', 'smda']
+        if is_dump_or_smda:
             bitness = int(request.form['bitness'])
-            base_address = int(request.form['base_address'], 16)
+            base_address = int(request.form['base_addr'], 16)
 
         binary_content = f.read()
-        # check here if it is already part of corpus
-        upload_sha256 = hashlib.sha256(binary_content).hexdigest()
+        if form_options == "smda":
+            content_as_dict = json.loads(binary_content)
+            smda_report = SmdaReport.fromDict(content_as_dict)
+            upload_sha256 = smda_report.sha256
+        else:
+            # check here if it is already part of corpus
+            upload_sha256 = hashlib.sha256(binary_content).hexdigest()
         sample_entry = client.getSampleBySha256(upload_sha256)
         if sample_entry is None:
-            # NOTE: This flash is done on redirect target
-            # flash('We received your sample, currently processing!', category='info')
-            with open(os.sep.join([current_app.instance_path, "temp", "uploads", upload_sha256]), "wb") as fout:
-                fout.write(binary_content)
-            job_id = client.addBinarySample(binary_content, filename=f.filename, family=family, version=version, is_dump=is_dump, base_addr=base_address, bitness=bitness)
-            return url_for('data.job_by_id', job_id=job_id, refresh=3, forward=1), 202 # Accepted
+            if form_options == "smda" and smda_report:
+                new_sample_entry, job_id = client.addReport(smda_report)
+                return url_for('explore.sample_by_id', sample_id=new_sample_entry.sample_id), 202 # Accepted
+            else:
+                with open(os.sep.join([current_app.instance_path, "temp", "uploads", upload_sha256]), "wb") as fout:
+                    fout.write(binary_content)
+                job_id = client.addBinarySample(binary_content, filename=f.filename, family=family, version=version, is_dump=is_dump, base_addr=base_address, bitness=bitness)
+                return url_for('data.job_by_id', job_id=job_id, refresh=3, forward=1), 202 # Accepted
         else:
             flash('Sample was already in database', category='warning')
             return url_for('explore.sample_by_id', sample_id=sample_entry.sample_id), 202 # Accepted
