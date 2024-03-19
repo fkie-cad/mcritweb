@@ -7601,7 +7601,8 @@ var defaultOptions = {
     if (this.element === this.previewsContainer) {
       this.element.classList.add("dz-started");
     }
-
+    file.previewElement = Dropzone.createElement(this.options.previewTemplate.trim());
+    file.previewTemplate = file.previewElement; // Backwards compatibility
     if (this.previewsContainer && !this.options.disablePreviews) {
       file.previewElement = Dropzone.createElement(this.options.previewTemplate.trim());
       file.previewTemplate = file.previewElement; // Backwards compatibility
@@ -8673,13 +8674,28 @@ var Dropzone = /*#__PURE__*/function (_Emitter) {
     key: "addFile",
     value: function addFile(file) {
       var _this6 = this;
-
+      
+      // START OF PATCH FOR EARLY CONTENT DELIVERY
+      // https://javascript.info/async-await
+      // we added a new function bufferToText that converts what was submitted
+      const bufferToText = (buffer, maxlen) => {
+        const bufferByteLength = Math.min(buffer.byteLength, maxlen);
+        const bufferUint8Array = new Uint8Array(buffer, 0, bufferByteLength);
+  
+        return new TextDecoder().decode(bufferUint8Array);
+      };
+      
+      (async () => {
+        const buffer = await file.arrayBuffer();
+        var file_header = bufferToText(buffer, 1024);
+      
       file.upload = {
         uuid: Dropzone.uuidv4(),
         progress: 0,
         // Setting the total upload size to file.size for the beginning
         // It's actual different than the size to be transmitted.
         total: file.size,
+        header: file_header,
         bytesSent: 0,
         filename: this._renameFile(file) // Not setting chunking information here, because the acutal data — and
         // thus the chunks — might change if `options.transformFile` is set
@@ -8709,6 +8725,8 @@ var Dropzone = /*#__PURE__*/function (_Emitter) {
 
         _this6._updateMaxFilesReachedClass();
       });
+      // END OF PATCH FOR EARLY CONTENT DELIVERY
+    })();
     } // Wrapper for enqueueFile
 
   }, {
@@ -9280,7 +9298,8 @@ var Dropzone = /*#__PURE__*/function (_Emitter) {
 
   }, {
     key: "_uploadData",
-    value: function _uploadData(files, dataBlocks) {
+    value: function _uploadData(files, dataBlocks) { 
+
       var _this15 = this;
 
       var xhr = new XMLHttpRequest(); // Put the xhr object in the file objects to be able to reference it later.

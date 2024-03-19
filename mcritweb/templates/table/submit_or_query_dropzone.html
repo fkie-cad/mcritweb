@@ -49,9 +49,11 @@
 
   function fill_form(data) {
     data = JSON.parse(data);
-    // set dumped/unmapped
-    if (data["dump"] || data["smda"]){
+    // set dumped/unmapped/smda
+    if (data["dump"]){
       $("#dumped").click();
+    } else if (data["smda"]) {
+      $("#smda").click();
     } else {
       $("#unmapped").click();
     }
@@ -62,9 +64,10 @@
       $("#bitness64").click();
     }
     // set base address
-    $("#base_address").val(data["family"])
+    $("#base_addr").val(data["base_addr"])
     // set family and version
-    $("#base_address").val(data["version"])
+    $("#family").val(data["family"])
+    $("#version").val(data["version"])
   }
 
 
@@ -97,8 +100,14 @@
 
       xhr.onload = () => fill_form(xhr.responseText);
 
+      myDropzone.processQueue();
+      var form_data = $('#dropzone-additional-fields-form').serializeArray();
+
       let data = {
-        "filename": filename
+        "filename": filename,
+        // "file": file,
+        "file_header": file.upload.header,
+        "form": form_data
       };
 
       xhr.send(JSON.stringify(data));
@@ -171,7 +180,7 @@ function handleSliderChange_dropzone(val) {
       <input name='version' class="form-control" id="version" aria-describedby="versionHelp" placeholder="Enter version">
     </div>
     <div class="form-group" style="display:none" id='extendedFields'>
-        <input name='base_address' class="form-control" id="base_address" aria-describedby="baseAddressHelp" placeholder="Enter base address">
+        <input name='base_addr' class="form-control" id="base_addr" aria-describedby="baseAddressHelp" placeholder="Enter base address">
         <div class="form-check form-check-inline submit-form-exclusive" {% if not show_submit_fields %}style="display:none"{% endif %}>
           <input class="form-check-input" type="radio" name="bitness" id="bitness32" value="32">
           <label class="form-check-label" for="inlineRadio1">32bit</label>

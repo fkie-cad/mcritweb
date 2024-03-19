@@ -4,6 +4,7 @@ import hashlib
 from flask import Blueprint, g, render_template, request, redirect, session, url_for, current_app, json, flash
 from mcrit.client.McritClient import McritClient
 from mcrit.storage.SampleEntry import SampleEntry
+from smda.common.SmdaReport import SmdaReport
 
 from mcritweb.views.authentication import visitor_required, contributor_required
 from mcritweb.views.utility import get_server_url, get_server_token, mcrit_server_required, get_username, parse_band_range
@@ -204,21 +205,33 @@ def query():
             return "", 400 # Bad Request
 
         base_address = None
-        is_dump = request.form['options'] == 'dumped'
-        if is_dump:
-            base_address = int(request.form['base_address'], 16)
+        form_options = request.form['options']
+        is_dump_or_smda = form_options in ['dumped', 'smda']
+        if is_dump_or_smda:
+            bitness = int(request.form['bitness'])
+            base_address = int(request.form['base_addr'], 16)
 
         binary_content = f.read()
         if g.user.role == 'visitor' and len(binary_content) > 1 * 2**20:
             flash(f'Your account may only upload files for query that are up to {1 * 2**20} bytes in size.', category='error')
             return "", 403 # Bad Request
         # persist the upload in binary format
-        upload_sha256 = hashlib.sha256(binary_content).hexdigest()
+
+        if form_options == "smda":
+            content_as_dict = json.loads(binary_content)
+            smda_report = SmdaReport.fromDict(content_as_dict)
+            upload_sha256 = smda_report.sha256
+        else:
+            # check here if it is already part of corpus
+            upload_sha256 = hashlib.sha256(binary_content).hexdigest()
+
         with open(os.sep.join([current_app.instance_path, "temp", "uploads", upload_sha256]), "wb") as fout:
             fout.write(binary_content)
 
         minhash_band_range = parse_band_range(request)
-        if is_dump:
+        if form_options == "smda":
+            job_id = client.requestMatchesForSmdaReport(smda_report, force_recalculation=True, band_matches_required=minhash_band_range)
+        elif form_options == "dumped":
             job_id = client.requestMatchesForMappedBinary(binary=binary_content, disassemble_locally=False, base_address=base_address, force_recalculation=True, band_matches_required=minhash_band_range)
         else:
             job_id = client.requestMatchesForUnmappedBinary(binary=binary_content, disassemble_locally=False, force_recalculation=True, band_matches_required=minhash_band_range)
@@ -227,6 +240,6 @@ def query():
             flash('Sample submitted!', category='success')
             return url_for('data.job_by_id', job_id=job_id, refresh=3, forward=1), 202 # Accepted
         else:
-            flash('Sample could not be disassembled!', category='error')
+            flash('Sample could not be parsed / disassembled!', category='error')
             return "", 400 # Bad Request
     return render_template('query.html', families=[], show_submit_fields=False)
