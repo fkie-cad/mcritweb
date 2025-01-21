@@ -42,6 +42,7 @@ Note that most functionality of MCRITweb will only work if an MCRIT backend is c
 
 
 ## Version History
+ * 2025-01-21 v1.3.4: Fixed a bug in the job overview, where in-progress cross compare jobs would cause a server error (500)
  * 2024-03-19 v1.3.3: It is now possible to submit and query with SMDA reports through the WebUI. 
  * 2024-03-04 v1.3.2: Added safety checks for when there are no jobs to be rendered. 
  * 2024-01-26 v1.3.1: Fixed redundant queries in sample detail pages. Also minor convenience updates. 

@@ -471,7 +471,7 @@ def result_matches_for_cross(job_info, result_json):
             samples.append(sample_entry)
         else:
             reason = f"MCRIT was not able to retrieve information for all samples specified in the original job task. This might be a result of having deleted samples from the database since it was processed. Please consider starting a new job."
-            return render_template("result_corrupted.html", reason=reason, matching_result=job_info)
+            return render_template("result_corrupted.html", reason=reason, job_info=job_info)
     custom_order = request.args.get('custom','')
     samples_by_method = {}
     sample_indices = {}
@@ -491,7 +491,7 @@ def result_matches_for_cross(job_info, result_json):
                         break
                 else:
                     reason = f"MCRIT was not able to produce the chosen custom ordering, as some sample_ids are not part of the cross compare originally specified."
-                    return render_template("result_corrupted.html", reason=reason, matching_result=result_json)
+                    return render_template("result_corrupted.html", reason=reason, job_info=result_json)
         if ordered_samples != []:
             samples_by_method[method] = ordered_samples
         else:
@@ -751,7 +751,17 @@ def job_by_id(job_id):
     if 'addBinarySample' in job_info.parameters and not suppress_processing_message and auto_refresh:
         flash('We received your sample, currently processing!', category='info')
     child_jobs = sorted([client.getJobData(id) for id in job_info.all_dependencies], key=lambda x: x.number)
-    return render_template('job_overview.html', job_info=job_info, auto_refresh=auto_refresh, child_jobs=child_jobs)
+    samples_by_id = {}
+    families_by_id = {}
+    if child_jobs:
+        for job in child_jobs:
+            if job.sample_ids is not None:
+                for sample_id in [sid for sid in job.sample_ids if sid not in samples_by_id]:
+                    samples_by_id[sample_id] = client.getSampleById(sample_id)
+        for job in child_jobs:
+            if job.family_id is not None:
+                families_by_id[job.family_id] = client.getFamily(job.family_id)
+    return render_template('job_overview.html', families=families_by_id, samples=samples_by_id, job_info=job_info, auto_refresh=auto_refresh, child_jobs=child_jobs)
 
 
 @bp.route('/jobs/<job_id>/delete')
