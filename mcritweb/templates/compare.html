@@ -23,6 +23,14 @@ $(document).ready(function(){
     }
   }
 
+  // Auto-highlight first row if no row is already selected
+  if (selected_column === null && table.length > 0) {
+    selected_column = table.item(0);
+    selected = $(selected_column).children("th.sample-id").text();
+    selected_column.style.backgroundColor = "rgb(240, 240, 240)";
+    document.getElementById("button_match").style.display = "initial";
+  }
+
   $("tr.parent_table_sample").click(function(){
     if (selected_column === null) {
       document.getElementById("button_match").style.display = "initial";
