@@ -17,10 +17,15 @@ Families
 
 <h1>Overview of Families</h1>
 
-  <form style="width:100%" method="GET" required action="#">
-    <input type="text" class="form-control shadow-none" name="query" value="{{ query or '' }}" id="query" placeholder="Search" autofocus autocomplete="on">
-    <input type='submit' hidden>
-  </form>
+  <div class="d-flex align-items-center" style="width:100%">
+    <form class="flex-grow-1 me-3" method="GET" required action="#">
+      <input type="text" class="form-control shadow-none" name="query" value="{{ query or '' }}" id="query" placeholder="Search" autofocus autocomplete="on">
+      <input type='submit' hidden>
+    </form>
+    <div class="d-flex align-items-center">
+      <a href="{{ url_for('admin.help') }}#search"><i class="fas fa-book"></i> Search Syntax</a>
+    </div>
+  </div>
 
 {{ family_table(families, show_export=True, show_edit=True, sort_pagination=pagination)}}
 {% if families %}

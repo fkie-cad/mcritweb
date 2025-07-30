@@ -28,6 +28,7 @@ Search
     {% endif %}
   {% endfor %}
 
+  
   <form style="width:100%" method="GET" required action="#">
     <input type="text" class="form-control shadow-none" name="query" value="{{ query or '' }}" id="query" placeholder="Search" {% if focus_search.value %}autofocus{% endif %} autocomplete="on">
     <div>
@@ -43,6 +44,7 @@ Search
       <label class="form-check-label" for="flexCheckChecked">
         Functions
       </label>
+      | <a href="{{ url_for('admin.help') }}#search"><i class="fas fa-book"></i> Search Syntax</a>
     </div>
      <input type='submit' hidden>
   </form>

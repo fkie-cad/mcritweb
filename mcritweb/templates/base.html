@@ -119,6 +119,8 @@
           {% endif %}
           <hr class="dropdown-divider">
         {% endif %}
+        <a class="dropdown-item" href="{{ url_for('admin.help') }}">Documentation</a>
+        <hr class="dropdown-divider">
         <a class="dropdown-item" href="{{ url_for('index') }}">View profile</a>
         <a class="dropdown-item" href="{{ url_for('authentication.settings') }}">Settings</a>
         <a class="dropdown-item" href="{{ url_for('authentication.logout') }}">Logout</a>
