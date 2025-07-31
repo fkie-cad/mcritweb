@@ -113,12 +113,9 @@ class ServerInfo(object):
         # query to see if row exists
         record = database.execute("SELECT * FROM server;").fetchone()
         if record:
-            database.execute("UPDATE server SET url = ?",(self.url,))
-            database.execute("UPDATE server SET operation_mode = ?",(self.operation_mode,))
-            database.execute("UPDATE server SET registration_token = ?",(self.registration_token,))
-            database.execute("UPDATE server SET server_token = ?",(self.server_token,))
-            database.execute("UPDATE server SET server_uuid = ?",(self.server_uuid,))
-            database.execute("UPDATE server SET server_version = ?",(self.server_version,))
+            # Update the first (and should be only) server record
+            database.execute("UPDATE server SET url = ?, operation_mode = ?, registration_token = ?, server_token = ?, server_uuid = ?, server_version = ? LIMIT 1", 
+                          (self.url, self.operation_mode, self.registration_token, self.server_token, self.server_uuid, self.server_version))
         else:
             database.execute(
                 "INSERT INTO server (url, operation_mode, registration_token, server_token, server_uuid, server_version) VALUES (?,?,?,?,?,?)",
@@ -567,7 +564,7 @@ def migrate(app_context):
             user_ids.append(record[0])
         for user_id in user_ids:
             generated_apitoken = hashlib.md5(uuid.uuid4().bytes).hexdigest()
-            db.execute("UPDATE users SET apitoken = ? WHERE user_id = ?", (generated_apitoken, user_id))
+            db.execute("UPDATE user SET apitoken = ? WHERE id = ?", (generated_apitoken, user_id))
             print(f"EXECUTED MIGRATION: ADD APITOKEN {generated_apitoken} TO USER_ID {user_id} FROM TABLE USER")
     # since version v1.2.10, we have an additional server_token field, ensure it exists (empty)
     server_table_columns = list(map(lambda x: x[0], db.execute('SELECT * FROM server').description))

@@ -5,7 +5,7 @@ import logging
  
 import unittest
 
-from mcritweb.pagination import Pagination
+from mcritweb.views.pagination import Pagination
 
 
 LOG = logging.getLogger(__name__)
