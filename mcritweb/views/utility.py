@@ -107,10 +107,12 @@ def parse_integer_query_param(request, query_param:str):
     """ Try to find query_param in the request and parse it as int """
     param = None
     try:
-        if request.args.get(query_param).startswith("0x"):
-            param =  int(request.args.get(query_param), 16)
-        else:
-            param = int(request.args.get(query_param))
+        value = request.args.get(query_param)
+        if value is not None:
+            if value.startswith("0x"):
+                param = int(value, 16)
+            else:
+                param = int(value)
     except Exception:
         pass
     return param
@@ -119,9 +121,9 @@ def parse_integer_list_query_param(request, query_param:str):
     """ Try to find query_param in the request and parse it as list of int (no brackets) """
     param = None
     try:
-        if re.match("^\d+(?:[\s]*,[\s]*\d+)*$", request.args.get(query_param)):
-            param = [int(element.strip()) for element in request.args.get(query_param).split(',')]
-            param
+        value = request.args.get(query_param)
+        if value is not None and re.match("^\d+(?:[\s]*,[\s]*\d+)*$", value):
+            param = [int(element.strip()) for element in value.split(',')]
     except Exception:
         pass
     return param
@@ -152,7 +154,9 @@ def parse_integer_post_param(request, query_param:str):
     """ Try to find query_param in the request and parse it as int """
     param = None
     try:
-        param = int(request.form.get(query_param))
+        value = request.form.get(query_param)
+        if value is not None:
+            param = int(value)
     except Exception:
         pass
     return param

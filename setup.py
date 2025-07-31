@@ -12,7 +12,7 @@ setup(
         "Pillow",
         "numpy",
         "scipy", 
-        "fastcluster"
+        "fastcluster",
         "networkx",
         "mcrit",
         "levenshtein"
