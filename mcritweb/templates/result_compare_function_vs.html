@@ -26,7 +26,7 @@ Function: {{ function_id_a }} vs {{ function_id_b }}
 <div class="container">
 <span><h1>Function Comparison: {{ format_function_id(function_id_a) }} vs. {{ format_function_id(function_id_b) }}</h1></span>
     <div id="match_score">
-        <h3>Match Score: <span id="match_score_value">{{ "%d"|format(match_result.matched_score) }}</span></h3>
+        <h3>Match Score: <span id="match_score_value"></span>{% if match_result.matched_score is not none %}{{ "%d"|format(match_result.matched_score) }}{% endif %}</h3>
     </div>
 <span style="float:right"><a href="#function_xcfg">go to cfg</a></span>
 {% if entry_a is not none and entry_b is not none %}
