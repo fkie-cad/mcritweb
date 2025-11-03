@@ -45,6 +45,68 @@ def blocks_sample(sample_id):
 def compare_submit_query():
     return render_template("compare_submit_query.html")
 
+@bp.route('/cross_compare_from_hash_list', methods=['GET', 'POST'])
+@visitor_required
+@mcrit_server_required
+def cross_compare_from_hash_list():
+    client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
+
+    selected = ""
+    cached = request.args.get('cache','').strip(',')
+    cached_list = []
+    selected_list = []
+    is_forcing_rematch = True if request.args.get('rematch', 'false').lower() == "true" else False
+    if request.method == 'POST':
+        hash_list = request.form.get('hashlist', '').strip().splitlines()
+        # sanitize to sha256 hashes
+        sanitized_hashes = []
+        for h in hash_list:
+            h = h.strip()
+            if re.match(r'^[a-fA-F0-9]{64}$', h):
+                sanitized_hashes.append(h)
+            else:
+                flash(f"Hash '{h}' is not a valid SHA256 hash and was ignored", category="warning")
+        if not sanitized_hashes:
+            flash("No valid hashes provided", category="error")
+            return redirect(url_for('analyze.cross_compare_from_hash_list'))
+        # get sample ids from hashes
+        selected_samples = []
+        for h in sanitized_hashes:
+            sample_entry = client.getSampleBySha256(h)
+            if sample_entry is not None:
+                selected_samples.append(sample_entry)
+            else:
+                flash(f"Hash '{h}' does not correspond to any sample in the database and was ignored", category="warning")
+        if not selected_samples:
+            flash("No valid samples found for the provided hashes", category="error")
+            return redirect(url_for('analyze.cross_compare_from_hash_list'))
+        # redirect to cross_compare with selected samples
+        selected = ",".join([str(s.sample_id) for s in selected_samples])
+
+        selected_list = [int(x) for x in selected.split(',') if x != '']
+
+        pagination_selected = Pagination(request, len(selected_list), limit=10, query_param="ps")
+
+        # fill up search part with all samples
+        samples = []
+        pagination = CursorPagination(request, default_sort="sample_id")
+        results = client.search_samples("", **pagination.getSearchParams(), limit=10)
+        pagination.read_cursor_from_result(results)
+        if results is None:
+            flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
+        else:
+            for sample_dict in results['search_results'].values():
+                samples.append(SampleEntry.fromDict(sample_dict))
+
+        return redirect(url_for(
+            "analyze.cross_compare",
+            samples = ",".join([str(id) for id in selected_list]),
+            cache = ",".join([str(id) for id in cached_list]),
+            rematch = "true" if is_forcing_rematch else "false",
+        ))
+    else:
+        return render_template("cross_compare_from_hash_list.html")
+
 @bp.route('/cross_compare', methods=['GET','POST'])
 @visitor_required
 @mcrit_server_required

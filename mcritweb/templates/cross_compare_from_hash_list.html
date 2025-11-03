@@ -1,0 +1,31 @@
+{% from 'table/compare_nav.html' import compare_nav %}
+{% from 'table/pagination_widget.html' import pagination_widget, pagination_js, set_pagination_params %}
+{% from 'table/sample_row.html' import sample_header %}
+
+{% extends 'base.html' %}
+{% block title%}
+Set up Cross Compare from Hash List
+{% endblock %}
+
+{% block style %}
+
+{{ pagination_js() }}
+
+{% endblock %}
+{% block content %}
+
+
+{{ compare_nav("cross") }}
+<h1>Initialize Cross Compare from Hash List</h1>
+<div>
+    <form method="POST">
+        <p>Enter a list of hashes to compare:</p>
+        <div class="mb-3">
+            <label for="hashlistInput" class="form-label">Hash List (one SHA256 per line)</label>
+            <textarea class="form-control" id="hashlistInput" name="hashlist" rows="10" style="width:100%"></textarea>
+        </div>
+        <br>
+        <button type="submit" id="button2" class="btn btn-outline-primary">Create Cross Compare</button>
+    </form>
+</div>
+{% endblock %}
