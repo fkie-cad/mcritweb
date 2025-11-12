@@ -359,7 +359,7 @@ def search():
                 family = FamilyEntry.fromDict(family_entry)
                 families.append(family) 
 
-    samples = []
+    samples = {}
     sample_pagination = None
     if 'sample' in types:
         sample_pagination = CursorPagination(request, query_param_prefix="sample", default_sort="sample_id")
@@ -370,12 +370,15 @@ def search():
         else:
             sha_match = results['sha_match']
             if sha_match is not None:
-                samples.append(SampleEntry.fromDict(sha_match))
+                sample_entry = SampleEntry.fromDict(sha_match)
+                samples[sample_entry.sample_id] = sample_entry
             id_match = results['id_match']
             if id_match is not None:
-                samples.append(SampleEntry.fromDict(id_match))
+                samples[id_match.sample_id] = SampleEntry.fromDict(id_match)
             for sample_dict in results['search_results'].values():
-                samples.append(SampleEntry.fromDict(sample_dict))
+                samples[sample_dict.sample_id] = SampleEntry.fromDict(sample_dict)
+    # deduplicate in case we have cases such as filename == sha256
+    samples = list(samples.values())
 
     functions = []
     function_pagination = None

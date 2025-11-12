@@ -447,12 +447,12 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         family_pagination = Pagination(request, matching_result.num_family_matches, limit=10, query_param="famp")
         function_pagination = Pagination(request, matching_result.num_function_matches, query_param="funp")
         return render_template("result_compare_function.html", funid=filtered_function_id, job_info=job_info, famp=family_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
-    # 1vs1 result
-    elif job_info.parameters.startswith("getMatchesForSampleVs"):
+    # 1 vs 1 result
+    elif job_info.parameters.startswith("getMatchesForSampleVs("):
         # we need to slice function matches ourselves based on pagination
         function_pagination = Pagination(request, matching_result.num_function_matches, query_param="funp")
         return render_template("result_compare_vs.html", job_info=job_info, matching_result=matching_result, funp=function_pagination, scp=score_color_provider)
-    # unfiltered / default
+    # unfiltered / default -> also 1 vs group
     else:
         create_match_diagram(current_app, job_info.job_id, matching_result)
         family_pagination = Pagination(request, matching_result.num_family_matches, limit=10, query_param="famp")
@@ -769,6 +769,9 @@ def job_by_id(job_id):
 @contributor_required
 def delete_job_by_id(job_id):
     client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    print("job to be deleted:", job_id)
+    job_info = client.getJobData(job_id)
+    print("job info:", job_info)
     if job_id.startswith("state_"):
         state = job_id.replace("state_", "")
         jobs = client.getQueueData(state=state)

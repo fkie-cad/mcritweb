@@ -15,6 +15,18 @@ from mcritweb.views.cross_compare import score_to_color
 bp = Blueprint('analyze', __name__, url_prefix='/analyze')
 
 
+def get_unique_samples_from_search_result(search_result):
+    samples = []
+    sample_ids = set()
+    for sample_dict in search_result['search_results'].values():
+        sample_entry = SampleEntry.fromDict(sample_dict)
+        if sample_entry.sample_id not in sample_ids:
+            samples.append(sample_entry)
+            sample_ids.add(sample_entry.sample_id)
+    id_match = search_result['id_match']
+    if id_match is not None and id_match["sample_id"] not in sample_ids:
+        samples.append(SampleEntry.fromDict(id_match))
+    return samples
 
 
 @bp.route('/blocks/family/<int:family_id>')
@@ -94,9 +106,6 @@ def cross_compare_from_hash_list():
         pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
-        else:
-            for sample_dict in results['search_results'].values():
-                samples.append(SampleEntry.fromDict(sample_dict))
 
         return redirect(url_for(
             "analyze.cross_compare",
@@ -148,9 +157,7 @@ def cross_compare():
     if results is None:
         flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
     else:
-        for sample_dict in results['search_results'].values():
-            samples.append(SampleEntry.fromDict(sample_dict))
-
+        samples = get_unique_samples_from_search_result(results)
 
     return render_template(
         "cross_compare.html",
@@ -193,8 +200,7 @@ def compare():
     if results is None:
         flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
     else:
-        for sample_dict in results['search_results'].values():
-            samples.append(SampleEntry.fromDict(sample_dict))
+        samples = get_unique_samples_from_search_result(results)
 
     rematch = True if request.args.get('rematch', 'true').lower() == "true" else False
     return render_template(
@@ -216,15 +222,14 @@ def compare_versus():
     parameters = {}
     for a_or_b in "ab":
         query = request.args.get(f'query_{a_or_b}', "")
-        samples = []
+        samples = {}
         pagination = CursorPagination(request, default_sort="sample_id", query_param_prefix=a_or_b)
         results = client.search_samples(query, **pagination.getSearchParams(), limit=10)
         pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
         else:
-            for sample_dict in results['search_results'].values():
-                samples.append(SampleEntry.fromDict(sample_dict))
+            samples = get_unique_samples_from_search_result(results)
         selected=request.args.get(f'selected_{a_or_b}', "")
 
         parameters[f"samples_{a_or_b}"] = samples
