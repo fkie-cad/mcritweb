@@ -1,7 +1,6 @@
 {% from 'table/table.html' import function_table %}
 {% from 'table/function_row.html' import function_row_std_js %}
-{% from 'table/pagination_widget.html' import pagination_widget %}
-
+{% from 'table/pagination_widget.html' import pagination_widget, pagination_js, set_pagination_params %}
 {% extends 'base.html' %}
 
 {% block title%}
@@ -10,6 +9,7 @@ Functions
 
 {% block style %}
 {{ function_row_std_js() }}
+{{ pagination_js() }}
 {% endblock %}
 
 {% block content %}
@@ -23,6 +23,8 @@ Functions
       <a href="{{ url_for('admin.help') }}#search"><i class="fas fa-book"></i> Search Syntax</a>
     </div>
 </div>
+
+{{ set_pagination_params(pagination, _js_argument_provider="fetchState", _anchor="Search") }}
 {{ function_table(functions, sort_pagination=pagination) }}
 {% if functions %}
 {{ pagination_widget(pagination) }}

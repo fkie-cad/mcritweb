@@ -36,7 +36,7 @@
 {%- endmacro -%}
 
 {%- macro clipboard_btn(clipboard_value) -%}
-  <button class="btn btn-light btn-sm" title="Copy to Clipboard" data-toggle="tooltip" onclick="copy_to_clipboard(this, '{{ clipboard_value }}')"><i class="fa-regular fa-copy"></i></button>
+  <button class="btn btn-light btn-sm" style="max-height: 20px; max-width: 20px; padding: 0px;" title="Copy to Clipboard" data-toggle="tooltip" onclick="copy_to_clipboard(this, '{{ clipboard_value }}')"><i class="fa-regular fa-copy"></i></button>
 {%- endmacro -%}
 
 {%- macro clipboard_js() -%}

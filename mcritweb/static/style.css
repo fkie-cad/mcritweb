@@ -5,7 +5,8 @@ html {
   }
   
   body {
-    max-width: 1260px;
+    min-width: 900px;
+    max-width: 1824px;
     font-size: 0.9em;
     margin: 0 auto;
     background: white;

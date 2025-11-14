@@ -97,12 +97,12 @@ def cross_compare_from_hash_list():
 
         selected_list = [int(x) for x in selected.split(',') if x != '']
 
-        pagination_selected = Pagination(request, len(selected_list), limit=10, query_param="ps")
+        pagination_selected = Pagination(request, len(selected_list), limit=pagination.limit, query_param="ps")
 
         # fill up search part with all samples
         samples = []
         pagination = CursorPagination(request, default_sort="sample_id")
-        results = client.search_samples("", **pagination.getSearchParams(), limit=10)
+        results = client.search_samples("", **pagination.getSearchParams(), limit=pagination.limit)
         pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
@@ -129,7 +129,7 @@ def cross_compare():
     cached_list = [int(x) for x in cached.split(',') if x!='']
     selected_list = [int(x) for x in selected.split(',') if x != '']
 
-    pagination_selected = Pagination(request, len(selected_list), limit=10, query_param="ps")
+    pagination_selected = Pagination(request, len(selected_list), limit=10, query_param="ps", limit_param="psl")
     selected_dict = {x: client.getSampleById(x) for x in sorted(selected_list)[pagination_selected.start_index:pagination_selected.start_index+pagination_selected.limit]}
     invalid_ids = []
     for id, sample in selected_dict.items():
@@ -152,7 +152,7 @@ def cross_compare():
     query = request.args.get('query', "")
     samples = []
     pagination = CursorPagination(request, default_sort="sample_id")
-    results = client.search_samples(query, **pagination.getSearchParams(), limit=10)
+    results = client.search_samples(query, **pagination.getSearchParams(), limit=pagination.limit)
     pagination.read_cursor_from_result(results)
     if results is None:
         flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
@@ -195,7 +195,7 @@ def compare():
     query = request.args.get('query', "")
     samples = []
     pagination = CursorPagination(request, default_sort="sample_id")
-    results = client.search_samples(query, **pagination.getSearchParams(), limit=10)
+    results = client.search_samples(query, **pagination.getSearchParams(), limit=pagination.limit)
     pagination.read_cursor_from_result(results)
     if results is None:
         flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
@@ -224,7 +224,7 @@ def compare_versus():
         query = request.args.get(f'query_{a_or_b}', "")
         samples = {}
         pagination = CursorPagination(request, default_sort="sample_id", query_param_prefix=a_or_b)
-        results = client.search_samples(query, **pagination.getSearchParams(), limit=10)
+        results = client.search_samples(query, **pagination.getSearchParams(), limit=pagination.limit)
         pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")

@@ -4,10 +4,10 @@ from flask import Request, url_for
 
 class Pagination(object):
 
-    def __init__(self, request: Request, max_value: int, limit=50, query_param="p") -> None:
+    def __init__(self, request: Request, max_value: int, limit=50, query_param="p", limit_param="plimit") -> None:
         self.page = self._getPageFromQueryParam(request, query_param)
+        self.limit = self._getLimitFromQueryParam(request, limit_param, limit)
         self.max_value = max_value
-        self.limit = limit
         self._pagination_width = 2
         self.page = self.constrained_page
 
@@ -15,6 +15,7 @@ class Pagination(object):
         self.endpoint = request.endpoint
         self.original_args = dict(**request.view_args, **request.args)
         self.query_param = query_param
+        self.limit_param = limit_param
 
     def _getPageFromQueryParam(self, request, query_param):
         page = 1
@@ -23,6 +24,17 @@ class Pagination(object):
         except Exception:
             pass
         return max(1, page)
+
+    def _getLimitFromQueryParam(self, request, limit_param, default_limit):
+        limit = default_limit
+        try:
+            requested_limit = int(request.args.get(limit_param))
+            # Only allow specific limit values for security
+            if requested_limit in [10, 25, 50, 100, 250]:
+                limit = requested_limit
+        except Exception:
+            pass
+        return limit
 
     @property
     def max_page(self):

@@ -1,6 +1,6 @@
 {% from 'table/table.html' import sample_table %}
 {% from 'table/sample_row.html' import sample_row_std_js %}
-{% from 'table/pagination_widget.html' import pagination_widget %}
+{% from 'table/pagination_widget.html' import pagination_widget, pagination_js, set_pagination_params %}
 {% extends 'base.html' %}
 
 {% block title%}
@@ -9,6 +9,7 @@ Samples
 
 {% block style %}
 {{ sample_row_std_js() }}
+{{ pagination_js() }}
 {% endblock %}
 
 {% block content %}
@@ -23,6 +24,7 @@ Samples
     </div>
   </div>
 
+{{ set_pagination_params(pagination, _js_argument_provider="fetchState", _anchor="Search") }}
 {{ sample_table(samples, job_collection=job_collection, show_export=True, show_edit=True, sort_pagination=pagination) }}
 {% if samples %}
 {{ pagination_widget(pagination) }}

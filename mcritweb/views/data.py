@@ -297,7 +297,7 @@ def result_unique_blocks(job_info, blocks_result: dict):
             filtered_blocks = {pichash: block for pichash, block in filtered_blocks.items() if max_block_length >= block["length"] >= min_block_length}
         unique_blocks = filtered_blocks
         number_of_unique_blocks = len(filtered_blocks)
-        block_pagination = Pagination(request, number_of_unique_blocks, limit=100, query_param="blkp")
+        block_pagination = Pagination(request, number_of_unique_blocks, limit=100, query_param="blkp", limit_param="blkl")
         index = 0
         for pichash, result in sorted(unique_blocks.items(), key=lambda x: x[1]["score"], reverse=True):
             if index >= block_pagination.end_index:
@@ -415,8 +415,8 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
     if filtered_family_id is not None and client.isFamilyId(filtered_family_id):
         matching_result.filterToFamilyId(filtered_family_id)
         create_match_diagram(current_app, job_info.job_id, matching_result, filtered_family_id=filtered_family_id)
-        sample_pagination = Pagination(request, matching_result.num_sample_matches, limit=10, query_param="samp")
-        function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), query_param="funp")
+        sample_pagination = Pagination(request, matching_result.num_sample_matches, limit=10, query_param="samp", limit_param="sampl")
+        function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), limit=100, query_param="funp", limit_param="funl")
         return render_template("result_compare_family.html", famid=filtered_family_id, job_info=job_info, samp=sample_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
     # filtered for sample
     elif filtered_sample_id is not None and client.isSampleId(filtered_sample_id):
@@ -429,8 +429,8 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         matched_function_entries_by_id = client.getFunctionsByIds(matched_function_ids)
         for function_match in matching_result.filtered_function_matches:
             function_match.matched_offset = matched_function_entries_by_id[function_match.matched_function_id].offset
-        sample_pagination = Pagination(request, 1, limit=10, query_param="samp")
-        function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), query_param="funp")
+        sample_pagination = Pagination(request, 1, limit=10, query_param="samp", limit_param="sampl")
+        function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), limit=100, query_param="funp", limit_param="funl")
         return render_template("result_compare_sample.html", samid=filtered_sample_id, job_info=job_info, samp=sample_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
     # filter for function - treat family/sample part as if there was no filter
     elif filtered_function_id is not None and filtered_function_id in matching_result.function_id_to_family_ids_matched:
@@ -444,21 +444,21 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         for function_match in matching_result.filtered_function_matches:
             function_match.matched_offset = matched_function_entries_by_id[function_match.matched_function_id].offset
         # set up pagination
-        family_pagination = Pagination(request, matching_result.num_family_matches, limit=10, query_param="famp")
-        function_pagination = Pagination(request, matching_result.num_function_matches, query_param="funp")
+        family_pagination = Pagination(request, matching_result.num_family_matches, limit=10, query_param="famp", limit_param="fampl")
+        function_pagination = Pagination(request, matching_result.num_function_matches, limit=100, query_param="funp", limit_param="funl")
         return render_template("result_compare_function.html", funid=filtered_function_id, job_info=job_info, famp=family_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
     # 1 vs 1 result
     elif job_info.parameters.startswith("getMatchesForSampleVs("):
         # we need to slice function matches ourselves based on pagination
-        function_pagination = Pagination(request, matching_result.num_function_matches, query_param="funp")
+        function_pagination = Pagination(request, matching_result.num_function_matches, limit=100, query_param="funp", limit_param="funl")
         return render_template("result_compare_vs.html", job_info=job_info, matching_result=matching_result, funp=function_pagination, scp=score_color_provider)
     # unfiltered / default -> also 1 vs group
     else:
         create_match_diagram(current_app, job_info.job_id, matching_result)
-        family_pagination = Pagination(request, matching_result.num_family_matches, limit=10, query_param="famp")
-        library_pagination = Pagination(request, matching_result.num_library_matches, limit=10, query_param="libp")
-        function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), query_param="funp")
-        return render_template("result_compare_all.html", job_info=job_info, famp=family_pagination, libp=library_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
+        family_pagination = Pagination(request, matching_result.num_family_matches, limit=10, query_param="famp", limit_param="fampl")
+        library_pagination = Pagination(request, matching_result.num_library_matches, limit=10, query_param="libp", limit_param="libl")
+        function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), limit=100, query_param="funp", limit_param="funl")
+        return render_template("result_compare_all.html", job_info=job_info, famp=family_pagination, libp=library_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider)
 
 
 def result_matches_for_cross(job_info, result_json):
@@ -618,7 +618,7 @@ def linkhunt_for_sample_or_query(job_info, matching_result: MatchingResult):
         link_clusters = [l for l in link_clusters if l["score"] > filter_link_score]
         link_hunt_result = [l for l in link_hunt_result if l.matched_link_score > filter_link_score]
 
-    function_pagination = Pagination(request, len(link_hunt_result), query_param="funp")
+    function_pagination = Pagination(request, len(link_hunt_result), limit=100, query_param="funp", limit_param="funl")
     return render_template("linkhunt.html", job_info=job_info, funp=function_pagination, matching_result=matching_result, lc=link_clusters, lhr=link_hunt_result, scp=score_color_provider)
 
 
@@ -697,10 +697,10 @@ def jobs():
     }
     if active_category is None:
         max_count = statistics["totals"][state_category] if state_category in statistics["totals"] else 0
-        pagination = Pagination(request, max_count, query_param="p")
+        pagination = Pagination(request, max_count, limit=25, query_param="p", limit_param="l")
     else:
         max_count = sum(statistics[active_category].values()) if active_category else 0
-        pagination = Pagination(request, max_count, query_param="p")
+        pagination = Pagination(request, max_count, limit=25, query_param="p")
     jobs = client.getQueueData(start=pagination.start_index, limit=pagination.limit, method=active_category, state=state_category, ascending=ascending)
     samples_by_id = {}
     families_by_id = {}

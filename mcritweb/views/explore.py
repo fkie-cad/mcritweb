@@ -73,8 +73,8 @@ def families():
     query = request.args.get('query', "")
     client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
     families = []
-    pagination = CursorPagination(request, default_sort="family_id")
-    results = client.search_families(query, **pagination.getSearchParams(), limit=50)
+    pagination = CursorPagination(request, default_sort="family_id", limit=25)
+    results = client.search_families(query, **pagination.getSearchParams(), limit=pagination.limit)
     pagination.read_cursor_from_result(results)
     if results is None:
         flash(f"Ups, search for {query} in MCRIT's families failed!", category="error")
@@ -97,6 +97,11 @@ def modifySample():
             return None
         client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
         sample_id = request.form.get("sample_id", None)
+        redirection_job_id = request.form.get("redirection_job_id", None)
+        if redirection_job_id is not None and client.getJobData(redirection_job_id) is None: 
+            flash(f"Trying to redirect from invalid job_Id.", category="error")
+            return redirect(url_for('explore.samples'))
+        sample_entry = None
         if sample_id is None: 
             flash(f"No valid sample_id received.", category="error")
             return redirect(url_for('explore.samples'))
@@ -128,6 +133,10 @@ def modifySample():
         if any([item is not None for item in [new_family_name, new_version, new_is_library]]):
             client.modifySample(sample_id, family_name=new_family_name, version=new_version, is_library=new_is_library)
             time.sleep(0.3)
+        if redirection_job_id:
+            time.sleep(1)
+            flash(f"Delayed redirect for 1 second to let requested sample modification propagate", category="info")
+            return redirect(url_for('data.result', job_id=redirection_job_id))
         flash(f"Job to modify sample was scheduled.", category="info")
     return redirect(url_for('explore.samples'))
 
@@ -143,8 +152,8 @@ def samples():
     query = request.args.get('query', "")
     client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
     samples = []
-    pagination = CursorPagination(request, default_sort="sample_id")
-    results = client.search_samples(query, **pagination.getSearchParams(), limit=50)
+    pagination = CursorPagination(request, default_sort="sample_id", limit=25)
+    results = client.search_samples(query, **pagination.getSearchParams(), limit=pagination.limit)
     pagination.read_cursor_from_result(results)
     if results is None:
         flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
@@ -171,8 +180,8 @@ def functions():
     query = request.args.get('query', "")
     client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
     functions = []
-    pagination = CursorPagination(request, default_sort="function_id")
-    results = client.search_functions(query, **pagination.getSearchParams(), limit=50)
+    pagination = CursorPagination(request, default_sort="function_id", limit=25)
+    results = client.search_functions(query, **pagination.getSearchParams(), limit=pagination.limit)
     pagination.read_cursor_from_result(results)
     if results is None:
         flash(f"Ups, search for {query} in MCRIT's functions failed!", category="error")
@@ -197,8 +206,8 @@ def family_by_id(family_id):
         query = f"family_id:{family_id} {original_query}"
         client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
         samples = []
-        pagination = CursorPagination(request, default_sort="sample_id")
-        results = client.search_samples(query, **pagination.getSearchParams(), limit=50)
+        pagination = CursorPagination(request, default_sort="sample_id", limit=25)
+        results = client.search_samples(query, **pagination.getSearchParams(), limit=pagination.limit)
         pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
@@ -230,8 +239,8 @@ def sample_by_id(sample_id):
         original_query = request.args.get('query', "")
         query = f"sample_id:{sample_id} {original_query}"
         functions = []
-        pagination = CursorPagination(request, default_sort="function_id")
-        results = client.search_functions(query, **pagination.getSearchParams(), limit=50)
+        pagination = CursorPagination(request, default_sort="function_id", limit=100)
+        results = client.search_functions(query, **pagination.getSearchParams(), limit=pagination.limit)
         pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's functions failed!", category="error")
@@ -345,8 +354,8 @@ def search():
     families = []
     family_pagination = None
     if 'family' in types:
-        family_pagination = CursorPagination(request, query_param_prefix="family", default_sort="family_id")
-        results = client.search_families(query, **family_pagination.getSearchParams(), limit=15)
+        family_pagination = CursorPagination(request, query_param_prefix="family", default_sort="family_id", limit=25)
+        results = client.search_families(query, **family_pagination.getSearchParams(), limit=family_pagination.limit)
         family_pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's families failed!", category="error")
@@ -362,8 +371,8 @@ def search():
     samples = {}
     sample_pagination = None
     if 'sample' in types:
-        sample_pagination = CursorPagination(request, query_param_prefix="sample", default_sort="sample_id")
-        results = client.search_samples(query, **sample_pagination.getSearchParams(), limit=15)
+        sample_pagination = CursorPagination(request, query_param_prefix="sample", default_sort="sample_id", limit=25)
+        results = client.search_samples(query, **sample_pagination.getSearchParams(), limit=sample_pagination.limit)
         sample_pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
@@ -383,8 +392,8 @@ def search():
     functions = []
     function_pagination = None
     if 'function' in types:
-        function_pagination = CursorPagination(request, query_param_prefix="function", default_sort="function_id")
-        results = client.search_functions(query, **function_pagination.getSearchParams(), limit=15)
+        function_pagination = CursorPagination(request, query_param_prefix="function", default_sort="function_id", limit=25)
+        results = client.search_functions(query, **function_pagination.getSearchParams(), limit=function_pagination.limit)
         function_pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's functions failed!", category="error")

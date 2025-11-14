@@ -1,4 +1,4 @@
-{% from 'table/pagination_widget.html' import pagination_widget %}
+{% from 'table/pagination_widget.html' import pagination_widget, pagination_js, set_pagination_params %}
 {% from 'table/table.html' import job_table %}
 {% from 'table/job_row.html' import job_row_std_js %}
 {% from 'table/tabs.html' import add_tab, finalize_tabs %}
@@ -10,6 +10,7 @@ Jobs
 {% block style %}
 
 {{ job_row_std_js() }}
+{{ pagination_js() }}
 <script>$(document).ready(function () {
   $('#job-table').DataTable({
     autoWidth: false,

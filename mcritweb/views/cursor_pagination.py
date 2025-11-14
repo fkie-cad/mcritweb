@@ -2,7 +2,8 @@ from typing import Dict, Optional
 from flask import Request, url_for
 
 class CursorPagination:
-    def __init__(self, request: Request, limit=50, query_param_prefix="", default_sort=None) -> None:
+    def __init__(self, request: Request, limit=10, query_param_prefix="", default_sort=None) -> None:
+        self.default_limit = 10
         self.limit = limit
         self.query_param_prefix = query_param_prefix
         self.default_sort = default_sort
@@ -48,12 +49,18 @@ class CursorPagination:
         return prefix+'page'
 
     @property
+    def limit_param(self):
+        prefix = self._get_args_prefix()
+        return prefix+'limit'
+
+    @property
     def params_list(self):
         return [
             self.cursor_param,
             self.sort_by_param,
             self.is_ascending_param,
-            self.page_param
+            self.page_param,
+            self.limit_param,
         ]
 
     def _get_args_prefix(self):
@@ -66,13 +73,17 @@ class CursorPagination:
         self.cursor["current"] = args.get(self.cursor_param, None)
         self.is_ascending = args.get(self.is_ascending_param, "true").lower() != "false"
         self.sort_by = args.get(self.sort_by_param, self.default_sort)
+        self.limit = self.default_limit if self.limit is None else self.limit
         self.page = 1
         try:
             self.page = int(args.get(self.page_param))
             self.request_had_page = True
+            limit_value = int(args.get(self.limit_param))
+            if limit_value in [10, 25, 50, 100, 250]:
+                self.limit = limit_value
         except Exception:
             pass
-
+    
     def _repairPage(self):
         # NOTE:
         # Here we could have some logic to detect if new insertions into DB

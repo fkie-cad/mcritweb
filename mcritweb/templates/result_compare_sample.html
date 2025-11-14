@@ -1,4 +1,4 @@
-{% from 'table/pagination_widget.html' import pagination_widget %}
+{% from 'table/pagination_widget.html' import pagination_widget, pagination_js, set_pagination_params %}
 {% from 'table/column_table.html' import sample_column_table, matching_result_job_column_table %}
 {% from 'table/matching_statistics_table.html' import matching_statistics_table %}
 {% from 'table/links.html' import format_pichash, format_offset, format_family_name, format_family_id, format_sample_id, format_function_id %}
@@ -8,9 +8,10 @@
 Results for Job: {{ job_info.job_id }}
 {% endblock %}
 {% block style %}
+{{ pagination_js() }}
 {% endblock %}
 {% block content %}
-<h1>Results for Job: {{ matching_result.job_parameters }}</h1>
+<h1>Results for Job: {{ matching_result.method }}</h1>
 
 <p>Showing matches against sample: {{ matching_result.other_sample_entry.sample_id }} {% if matching_result.other_sample_entry.family %} (family: {{ matching_result.other_sample_entry.family }}) {% else %} {% endif %}</p>
 

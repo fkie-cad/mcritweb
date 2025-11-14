@@ -1,6 +1,6 @@
 {% from 'table/table.html' import function_table, job_table %}
 {% from 'table/function_row.html' import function_row_std_js %}
-{% from 'table/pagination_widget.html' import pagination_widget %}
+{% from 'table/pagination_widget.html' import pagination_widget, pagination_js, set_pagination_params %}
 {% from 'table/job_row.html' import job_row_std_js %}
 {% from 'table/links.html' import clipboard_btn %}
 {% from 'table/column_table.html' import sample_column_table %}
@@ -12,6 +12,7 @@ Sample: {{ entry.sample_id }}
 {% block style %}
 {{ function_row_std_js() }}
 {{ job_row_std_js() }}
+{{ pagination_js() }}
 {% endblock %}
 
 {% block content %}

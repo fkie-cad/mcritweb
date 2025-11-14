@@ -1,5 +1,5 @@
 {% from 'table/links.html' import format_pichash, format_function_id, format_sample_id, format_family_name %}
-{% from 'table/pagination_widget.html' import pagination_widget %}
+{% from 'table/pagination_widget.html' import pagination_widget, pagination_js, set_pagination_params %}
 {% extends 'base.html' %}
 {% block title%}
 {% if family_entry is not none %}
@@ -10,6 +10,7 @@ Unique Blocks for Sample: {{ sample_id }}
 {% endblock %}
 
 {% block style %}
+{{ pagination_js() }}
 {% endblock %}
 
 {% block content %}

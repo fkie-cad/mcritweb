@@ -1,7 +1,6 @@
-{% from 'table/pagination_widget.html' import pagination_widget %}
 {% from 'table/table.html' import family_table%}
 {% from 'table/family_row.html' import family_row_std_js %}
-
+{% from 'table/pagination_widget.html' import pagination_widget, pagination_js, set_pagination_params %}
 {% extends 'base.html' %}
 
 {% block title%}
@@ -10,13 +9,11 @@ Families
 
 {% block style %}
 {{ family_row_std_js() }}
+{{ pagination_js() }}
 {% endblock %}
 
-
 {% block content %}
-
 <h1>Overview of Families</h1>
-
   <div class="d-flex align-items-center" style="width:100%">
     <form class="flex-grow-1 me-3" method="GET" required action="#">
       <input type="text" class="form-control shadow-none" name="query" value="{{ query or '' }}" id="query" placeholder="Search" autofocus autocomplete="on">
@@ -27,6 +24,7 @@ Families
     </div>
   </div>
 
+{{ set_pagination_params(pagination, _js_argument_provider="fetchState", _anchor="Search") }}
 {{ family_table(families, show_export=True, show_edit=True, sort_pagination=pagination)}}
 {% if families %}
 {{ pagination_widget(pagination) }}
