@@ -24,8 +24,8 @@ Samples
     </div>
   </div>
 
-{{ set_pagination_params(pagination, _js_argument_provider="fetchState", _anchor="Search") }}
-{{ sample_table(samples, job_collection=job_collection, show_export=True, show_edit=True, sort_pagination=pagination) }}
+
+{{ sample_table(samples, job_collection=job_collection, show_export=True, show_edit=True, sort_pagination=pagination, column_setup=user_column_setup) }}
 {% if samples %}
 {{ pagination_widget(pagination) }}
 {% endif %}

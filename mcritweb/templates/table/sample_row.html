@@ -61,34 +61,46 @@
 
 
 
-{% macro sample_header(no_family=False, compact_view=False, show_analyze=True, show_export=False, show_hint=False, show_edit=False, sort_pagination=None) %}
+{% macro sample_header(no_family=False, compact_view=False, show_analyze=True, show_export=False, show_hint=False, show_edit=False, sort_pagination=None, column_setup=None) %}
   {# accept but discard additional kwargs #}
   {% if False %}{{ kwargs }}{% endif %} 
+  {% if column_setup is none %}
+    {% set column_setup = ["sample_id", "sha256", "family", "version", "filename", "bitness", "num_functions", "is_library"] %}
+  {% endif %}
   <tr>
-    {% call sortable_header_col(sort_pagination, "sample_id") %}
-      <i class="fa-solid fa-virus" title="Sample ID"></i>
-    {% endcall %}
-    {% call sortable_header_col(sort_pagination, "sha256", align="right") %}
-      SHA256
-    {% endcall %}
-    {% if not no_family %}
-      {% call sortable_header_col(sort_pagination, "family") %}
-        Family
-      {% endcall %}
-    {% endif %}
-    {% if not compact_view %}
-      {% call sortable_header_col(sort_pagination, "version") %}
-        Version 
-      {% endcall %}
-      {% call sortable_header_col(sort_pagination, "filename") %}
-        Filename
-      {% endcall %}
+    {% for column_type in column_setup %}
+      {% if column_type == "sample_id" %}
+        {% call sortable_header_col(sort_pagination, "sample_id") %}
+          <i class="fa-solid fa-virus" title="Sample ID"></i>
+        {% endcall %}
+      {% elif column_type == "sha256" %}
+        {% call sortable_header_col(sort_pagination, "sha256", align="right") %}
+          SHA256
+        {% endcall %}
+      {% elif column_type == "family" %}
+        {% if not no_family %}
+          {% call sortable_header_col(sort_pagination, "family") %}
+            Family
+          {% endcall %}
+        {% endif %}
+      {% elif column_type == "version" and not compact_view %}
+        {% call sortable_header_col(sort_pagination, "version") %}
+          Version
+        {% endcall %}
+      {% elif column_type == "filename" and not compact_view %}
+        {% call sortable_header_col(sort_pagination, "filename") %}
+          Filename
+        {% endcall %}
+      {% elif column_type == "bitness" and not compact_view %}
         <th style="text-align: right;" scope="col">Bitness</th>
-    {% endif %}
-    {% call sortable_header_col(sort_pagination, "statistics.num_functions", align="right") %}
-    Functions
-    {% endcall %}
-    <th style="text-align: right;" scope="col">Library</th>
+      {% elif column_type == "num_functions" %}
+        {% call sortable_header_col(sort_pagination, "statistics.num_functions", align="right") %}
+          Functions
+        {% endcall %}
+      {% elif column_type == "is_library" %}
+        <th style="text-align: right;" scope="col">Library</th>
+      {% endif %}
+    {% endfor %}
     {% if show_hint %}
       <th scope="col"></th>
     {% endif %}
@@ -99,20 +111,32 @@
 {% endmacro %}
   
   
-{% macro sample_row(sample, no_family=False, compact_view=False, show_analyze=True, show_export=False, show_edit=False, show_hint=False, job_collection=None) %}
+{% macro sample_row(sample, no_family=False, compact_view=False, show_analyze=True, show_export=False, show_edit=False, show_hint=False, job_collection=None, column_setup=None) %}
+  {% if column_setup is none %}
+    {% set column_setup = ["sample_id", "sha256", "family", "version", "filename", "bitness", "num_functions", "is_library"] %}
+  {% endif %}
   <tr class="sample-row parent_{{ kwargs['parent'] }}" >
-    <th align="left" valign="middle" scope="row" class="sample-id">{{ "%d"|format(sample.sample_id) }}</th>
-    <td align="right" valign="middle" class="font-monospace">{{ sample.getShortSha256() }}</td>
-    {% if not no_family %}
-      <td valign="middle">{{ format_family_name(sample.family, sample.family_id) }}</td>
-    {% endif %}
-    {% if not compact_view %}
-      <td valign="middle">{{ sample.version }}</td>
-      <td valign="middle">{{ sample.getShortFilename() }}</td>
-      <td align="right" valign="middle">{{ "%d"|format(sample.bitness) }}</td>
-    {% endif %}
-    <td align="right" valign="middle">{{ "%d"|format(sample.statistics['num_functions']) }}</td>
-    <td align="center" valign="middle"><i {% if sample.is_library %} style="color:green;" class="fa-solid fa-square-check" {% else %} style="color:darkred;" class="fa-solid fa-times-circle"> {% endif %}</i></td>
+    {% for column_type in column_setup %}
+      {% if column_type == "sample_id" %}
+       <th align="left" valign="middle" scope="row" class="sample-id">{{ "%d"|format(sample.sample_id) }}</th>
+      {% elif column_type == "sha256" %}
+        <td align="right" valign="middle" class="font-monospace">{{ sample.getShortSha256() }}</td>
+      {% elif column_type == "family" %}
+        {% if not no_family %}
+          <td valign="middle">{{ format_family_name(sample.family, sample.family_id) }}</td>
+        {% endif %}
+      {% elif column_type == "version" and not compact_view %}
+        <td valign="middle">{{ sample.version }}</td>
+      {% elif column_type == "filename" and not compact_view %}
+        <td valign="middle">{{ sample.getShortFilename() }}</td>
+      {% elif column_type == "bitness" and not compact_view %}
+        <td align="right" valign="middle">{{ "%d"|format(sample.bitness) }}</td>
+      {% elif column_type == "num_functions" %}
+        <td align="right" valign="middle">{{ "%d"|format(sample.statistics['num_functions']) }}</td>
+      {% elif column_type == "is_library" %}
+        <td align="center" valign="middle"><i {% if sample.is_library %} style="color:green;" class="fa-solid fa-square-check" {% else %} style="color:darkred;" class="fa-solid fa-times-circle"> {% endif %}</i></td>
+      {% endif %}
+    {% endfor %}
     {% if show_hint %}
       <td>
         <span class="hint--left" data-hint="Sample_ID: {{ sample.sample_id }}&#10;SHA256: {{ sample.sha256 }}&#10;Family: {{ sample.family }}&#10;Version: {{ sample.version }}&#10;Filename: {{ sample.filename }} &#10;Architecture: {{ sample.architecture }}&#10;Bitness: {{ sample.bitness }} &#10;Base_Address: 0x{{ '%0x' % sample.base_addr }}&#10;Binary_Size: {{ '{:,.0f}'.format(sample.binary_size) }}&#10;Binweight: {{ '{:,.0f}'.format(sample.binweight) }}"><i class="fa-solid fa-circle-info"></i></span>

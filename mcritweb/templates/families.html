@@ -24,8 +24,7 @@ Families
     </div>
   </div>
 
-{{ set_pagination_params(pagination, _js_argument_provider="fetchState", _anchor="Search") }}
-{{ family_table(families, show_export=True, show_edit=True, sort_pagination=pagination)}}
+{{ family_table(families, show_export=True, show_edit=True, sort_pagination=pagination, column_setup=user_column_setup) }}
 {% if families %}
 {{ pagination_widget(pagination) }}
 {% endif %}

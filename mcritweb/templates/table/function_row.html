@@ -13,51 +13,77 @@
 {% endmacro %}
 
 
-{% macro function_header(for_sample_view=False, sort_pagination=None) %}
+{% macro function_header(for_sample_view=False, sort_pagination=None, column_setup=None) %}
+  {% if column_setup is none %}
+    {% set column_setup = ["function_id", "family_id", "sample_id", "pic_hash", "has_minhash", "offset", "function_name", "num_instructions", "num_blocks"] %}
+  {% endif %}
   <tr>
-    {% call sortable_header_col(sort_pagination, "function_id") %}
-      <i class="fa-solid fa-project-diagram " title="Function ID"></i>
-    {% endcall %}
-    {% if not for_sample_view %}
-      {% call sortable_header_col(sort_pagination, "family_id", align="right") %}
-        <i class="fa-solid fa-bug " title="Family ID"></i>
-      {% endcall %}
-      {% call sortable_header_col(sort_pagination, "sample_id", align="right") %}
-        <i class="fa-solid fa-virus " title="Sample ID"></i>
-      {% endcall %}
-    {% endif %}
-    <th style="text-align: right;" scope="col">Pichash</th>
-    <th style="text-align: center;" scope="col">Minhash</th>
-    {% call sortable_header_col(sort_pagination, "offset", align="right") %}
-      Offset
-    {% endcall %}
-    {% call sortable_header_col(sort_pagination, "function_name") %}
-      Name
-    {% endcall %}
-    {% call sortable_header_col(sort_pagination, "num_instructions", align="right") %}
-      INS
-    {% endcall %}
-    {% call sortable_header_col(sort_pagination, "num_blocks", align="right") %}
-      BLK
-    {% endcall %}
+    {% for column_type in column_setup %}
+      {% if column_type == "function_id" %}
+        {% call sortable_header_col(sort_pagination, "function_id") %}
+          <i class="fa-solid fa-project-diagram " title="Function ID"></i>
+        {% endcall %}
+      {% elif column_type == "family_id" and not for_sample_view %}
+        {% call sortable_header_col(sort_pagination, "family_id") %}
+          <i class="fa-solid fa-bug " title="Family ID"></i>
+        {% endcall %}
+      {% elif column_type == "sample_id" and not for_sample_view %}
+        {% call sortable_header_col(sort_pagination, "sample_id") %}
+          <i class="fa-solid fa-virus " title="Sample ID"></i>
+        {% endcall %}
+      {% elif column_type == "pic_hash" %}
+        <th style="text-align: right;" scope="col">Pichash</th>
+      {% elif column_type == "has_minhash" %}
+        <th style="text-align: center;" scope="col">Minhash</th>
+      {% elif column_type == "offset" %}
+        {% call sortable_header_col(sort_pagination, "offset", align="right") %}
+          Offset
+        {% endcall %}
+      {% elif column_type == "function_name" %}
+        {% call sortable_header_col(sort_pagination, "function_name") %}
+          Name
+        {% endcall %}
+      {% elif column_type == "num_instructions" %}
+        {% call sortable_header_col(sort_pagination, "num_instructions", align="right") %}
+          INS
+        {% endcall %}
+      {% elif column_type == "num_blocks" %}
+        {% call sortable_header_col(sort_pagination, "num_blocks", align="right") %}
+          BLK
+        {% endcall %}
+      {% endif %}
+    {% endfor %}
     <th scope="col"></th>
   </tr>
 {% endmacro %}
       
       
-{% macro function_row(function, for_sample_view=False) %}
+{% macro function_row(function, for_sample_view=False, column_setup=None) %}
+  {% if column_setup is none %}
+    {% set column_setup = ["function_id", "family_id", "sample_id", "pic_hash", "has_minhash", "offset", "function_name", "num_instructions", "num_blocks"] %}
+  {% endif %}
   <tr class="function-row parent_{{ kwargs['parent'] }}" >
-    <th align="left" valign="middle" scope="row" class="function-id">{{ "%d"|format(function.function_id) }}</th>
-    {% if not for_sample_view %}
-      <td align="right" valign="middle" scope="row" class="family-id">{{ format_family_id(function.family_id) }}</th>
-      <td align="right" valign="middle" scope="row" class="sample-id">{{ format_sample_id(function.sample_id) }}</th>
-    {% endif %}
-    <td align="right" valign="middle" class="font-monospace">{{ format_pichash(function.pichash) }}</td>
-    <td align="center" valign="middle"><i {% if function.minhash|length > 0 %} style="color:green;" class="fa-solid fa-square-check" {% else %} style="color:darkred;" class="fa-solid fa-times-circle"> {% endif %}</i></td>
-    <td align="right" valign="middle" class="font-monospace">{{ format_offset(function.offset) }}</td>
-    <td valign="middle">{{ function.function_name }}</td>
-    <td align="right" valign="middle" class="font-monospace">{{ "%d"|format(function.num_instructions) }}</td>
-    <td align="right" valign="middle" class="font-monospace">{{ "%d"|format(function.num_blocks) }}</td>
+    {% for column_type in column_setup %}
+      {% if column_type == "function_id" %}
+        <th align="left" valign="middle" scope="row" class="function-id">{{ "%d"|format(function.function_id) }}</th>
+      {% elif column_type == "family_id" and not for_sample_view %}
+        <td align="right" valign="middle" scope="row" class="family-id">{{ format_family_id(function.family_id) }}</td>
+      {% elif column_type == "sample_id" and not for_sample_view %}
+        <td align="right" valign="middle" scope="row" class="sample-id">{{ format_sample_id(function.sample_id) }}</td>
+      {% elif column_type == "pic_hash" %}
+        <td align="right" valign="middle" class="font-monospace">{{ format_pichash(function.pichash) }}</td>
+      {% elif column_type == "has_minhash" %}
+        <td align="center" valign="middle"><i {% if function.minhash|length > 0 %} style="color:green;" class="fa-solid fa-square-check" {% else %} style="color:darkred;" class="fa-solid fa-times-circle"> {% endif %}</i></td>
+      {% elif column_type == "offset" %}
+        <td align="right" valign="middle" class="font-monospace">{{ format_offset(function.offset) }}</td>
+      {% elif column_type == "function_name" %}
+        <td valign="middle">{{ function.function_name }}</td>
+      {% elif column_type == "num_instructions" %}
+        <td align="right" valign="middle" class="font-monospace">{{ "%d"|format(function.num_instructions) }}</td>
+      {% elif column_type == "num_blocks" %}
+        <td align="right" valign="middle" class="font-monospace">{{ "%d"|format(function.num_blocks) }}</td>
+      {% endif %}
+    {% endfor %}
     <td align="center">
       <a class="btn btn-outline-dark btn-sm" href="{{ url_for('analyze.compare', query='sample_id:' + '%d' % function.sample_id) }}" role="button"><i class="fa-solid fa-flask" title="New: 1 vs N"></i></a>
     </td>

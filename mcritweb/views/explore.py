@@ -83,8 +83,8 @@ def families():
             families.append(FamilyEntry.fromDict(family_dict))
     all_families = client.getFamilies()
     family_names = [family_entry.family_name for family_entry in all_families.values()]
-    return render_template("families.html", families=families, family_names=family_names, pagination=pagination, query=query)
-
+    user_column_setup = ["family_id", "family_name", "num_samples", "num_functions", "is_library"]
+    return render_template("families.html", families=families, family_names=family_names, pagination=pagination, query=query, user_column_setup=user_column_setup)
 
 @bp.route('/modifySample', methods=['POST'])
 @contributor_required
@@ -167,7 +167,8 @@ def samples():
 
     all_families = client.getFamilies()
     family_names = [family_entry.family_name for family_entry in all_families.values()]
-    return render_template("samples.html", samples=samples, family_names=family_names, job_collection=job_collection, pagination=pagination, query=query)
+    user_column_setup = ["sample_id", "sha256", "family", "version", "filename", "bitness", "num_functions", "is_library"]
+    return render_template("samples.html", samples=samples, family_names=family_names, job_collection=job_collection, pagination=pagination, query=query, user_column_setup=user_column_setup)
 
 
 @bp.route('/functions')
@@ -189,7 +190,8 @@ def functions():
         for function_dict in results['search_results'].values():
             #functions.append(FunctionEntry.fromDict(function_dict))
             functions.append(function_dict)
-    return render_template("functions.html", functions=functions, pagination=pagination, query=query)
+    user_column_setup = ["function_id", "family_id", "sample_id", "pic_hash", "has_minhash", "offset", "function_name", "num_instructions", "num_blocks"] 
+    return render_template("functions.html", functions=functions, pagination=pagination, query=query, user_column_setup=user_column_setup)
 
 ##############################################################
 ### Single Entries: Families, Samples, Function
@@ -220,8 +222,8 @@ def family_by_id(family_id):
         jobs = client.getQueueData()
         job_collection = JobCollection(jobs)
         job_collection.filterToSampleIds([s.sample_id for s in samples])
-
-        return render_template("single_family.html", family=family_info, samples=samples, family_names=family_names, job_collection=job_collection, pagination=pagination, query=original_query)
+        user_column_setup = ["sample_id", "sha256", "family", "version", "filename", "bitness", "num_functions", "is_library"]
+        return render_template("single_family.html", family=family_info, samples=samples, family_names=family_names, job_collection=job_collection, pagination=pagination, query=original_query, user_column_setup=user_column_setup)
     else:
         flash("The given Family ID doesn't exist", category='error')
         return redirect(url_for('explore.families'))
@@ -257,7 +259,8 @@ def sample_by_id(sample_id):
             if job.sample_ids is not None:
                 for sample_id in [sid for sid in job.sample_ids if sid not in samples_by_id]:
                     samples_by_id[sample_id] = client.getSampleById(sample_id)
-        return render_template("single_sample.html", entry=sample_entry, functions=functions, pagination=pagination, query=original_query, samples=samples_by_id, job_collection=job_collection, family_names=family_names)
+        user_column_setup = ["function_id", "family_id", "sample_id", "pic_hash", "has_minhash", "offset", "function_name", "num_instructions", "num_blocks"]
+        return render_template("single_sample.html", entry=sample_entry, functions=functions, pagination=pagination, query=original_query, samples=samples_by_id, job_collection=job_collection, family_names=family_names, user_column_setup=user_column_setup)
     else:
         flash("The given Sample ID doesn't exist", category='error')
         return redirect(url_for('explore.samples'))
@@ -404,6 +407,9 @@ def search():
             for function_dict in results['search_results'].values():
                 functions.append(FunctionEntry.fromDict(function_dict))
 
+    family_column_setup = ["family_id", "family_name", "num_samples", "num_functions", "is_library"]
+    sample_column_setup = ["sample_id", "sha256", "family", "version", "filename", "bitness", "num_functions", "is_library"]
+    function_column_setup = ["function_id", "family_id", "sample_id", "pic_hash", "has_minhash", "offset", "function_name", "num_instructions", "num_blocks"]
     return render_template(
         "search.html",
         families=families,
@@ -414,4 +420,7 @@ def search():
         function_pagination=function_pagination,
         query=query,
         search_types=types,
+        family_column_setup=family_column_setup,
+        sample_column_setup=sample_column_setup,
+        function_column_setup=function_column_setup
     )

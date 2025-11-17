@@ -164,7 +164,7 @@ Sample: {{ entry.sample_id }}
     <input type='submit' hidden>
   </form>
   <h3>Functions</h3>
-{{ function_table(functions, for_sample_view=True, sort_pagination=pagination) }}
+{{ function_table(functions, for_sample_view=True, sort_pagination=pagination, column_setup=user_column_setup) }}
 {% if functions %}
 {{ pagination_widget(pagination) }}
 {% endif %}

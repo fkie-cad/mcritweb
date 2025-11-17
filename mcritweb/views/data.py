@@ -165,6 +165,7 @@ def match_functions(function_id_a, function_id_b):
     client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
     if client.isFunctionId(function_id_a) and client.isFunctionId(function_id_b):
         match_info = client.getMatchFunctionVs(function_id_a, function_id_b)
+        print(match_info)
         function_entry = FunctionEntry.fromDict(match_info["function_entry_a"])
         pichash_matches_a = client.getMatchesForPicHash(function_entry.pichash, summary=True)
         sample_entry_a = SampleEntry.fromDict(match_info["sample_entry_a"])

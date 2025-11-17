@@ -52,7 +52,7 @@ Search
   {% if families |length > 0 or (family_pagination and family_pagination.hasCurrent) %}
     <h3 id="family-results">Families</h3>
     {{ set_pagination_params(family_pagination, _anchor="family-results") }}
-    {{ family_table(families, sort_pagination=family_pagination) }}
+    {{ family_table(families, sort_pagination=family_pagination, column_setup=family_column_setup) }}
     {% if families %}
     {{ pagination_widget(family_pagination) }}
     {% endif %}
@@ -61,7 +61,7 @@ Search
   {% if samples |length > 0 or (sample_pagination and sample_pagination.hasCurrent) %}
     <h3 id="sample-results">Samples</h3>
     {{ set_pagination_params(sample_pagination, _anchor="sample-results") }}
-    {{ sample_table(samples, sort_pagination=sample_pagination) }}
+    {{ sample_table(samples, sort_pagination=sample_pagination, column_setup=sample_column_setup) }}
     {% if samples %}
     {{ pagination_widget(sample_pagination) }}
     {% endif %}
@@ -70,7 +70,7 @@ Search
   {% if functions |length > 0 or (function_pagination and function_pagination.hasCurrent) %}
     <h3 id="function-results">Functions</h3>
     {{ set_pagination_params(function_pagination, _anchor="function-results") }}
-    {{ function_table(functions, sort_pagination=function_pagination) }}
+    {{ function_table(functions, sort_pagination=function_pagination, column_setup=function_column_setup) }}
     {% if functions %}
     {{ pagination_widget(function_pagination) }}
     {% endif %}

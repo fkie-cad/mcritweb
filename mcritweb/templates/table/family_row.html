@@ -50,37 +50,57 @@
 {% endmacro %}
 
 
-{% macro family_header(sort_pagination=None) %}
+{% macro family_header(sort_pagination=None, column_setup=None) %}
   {# accept but discard additional kwargs #}
-  {% if False %}{{ kwargs }}{% endif %} 
-  <tr>
-    {% call sortable_header_col(sort_pagination, "family_id") %}
-      <i class="fa-solid fa-bug" title="Family ID"></i>
-    {% endcall %}
-    {% call sortable_header_col(sort_pagination, "family_name") %}
-      Family
-    {% endcall %}
-    {% call sortable_header_col(sort_pagination, "num_samples", align="right") %}
-      Samples
-    {% endcall %}
-    {% call sortable_header_col(sort_pagination, "num_functions", align="right") %}
-      Functions
-    {% endcall %}
-    {% call sortable_header_col(sort_pagination, "num_library_samples", align="center") %}
-      Library
-    {% endcall %}
+  {% if False %}{{ kwargs }}{% endif %}
+  {% if column_setup is none %}
+    {% set column_setup = ["family_id", "family_name", "num_samples", "num_functions", "is_library"] %}
+  {% endif %}
+  {% for column_type in column_setup %}
+    {% if column_type == "family_id" %}
+      {% call sortable_header_col(sort_pagination, "family_id") %}
+        <i class="fa-solid fa-bug" title="Family ID"></i>
+      {% endcall %}
+    {% elif column_type == "family_name" %}
+      {% call sortable_header_col(sort_pagination, "family_name") %}
+        Family
+      {% endcall %}
+    {% elif column_type == "num_samples" %}
+      {% call sortable_header_col(sort_pagination, "num_samples", align="right") %}
+        Samples
+      {% endcall %}
+    {% elif column_type == "num_functions" %}
+      {% call sortable_header_col(sort_pagination, "num_functions", align="right") %}
+        Functions
+      {% endcall %}
+    {% elif column_type == "is_library" %}
+      {% call sortable_header_col(sort_pagination, "num_library_samples", align="center") %}
+        Library
+      {% endcall %}
+    {% endif %}
+  {% endfor %}
     <th scope="col"></th>
   </tr>
 {% endmacro %}  
   
-{% macro family_row(family, show_export=False, show_edit=False) %}
+{% macro family_row(family, show_export=False, show_edit=False, column_setup=None) %}
+  {% if column_setup is none %}
+    {% set column_setup = ["family_id", "family_name", "num_samples", "num_functions", "is_library"] %}
+  {% endif %}
   <tr class="family-row parent_{{ kwargs['parent'] }}" >
-    <th align="right" valign="middle" class="id" scope="row">{{ "%d"|format(family.family_id) }}</th>
-    <td valign="middle" >{{ format_family_name(family.family_name, None) }}<a name="malpedia" href="https://malpedia.caad.fkie.fraunhofer.de/details/{{ family.family }}" target="_blank"><i class="fa-solid fa-external-link-alt "></i></a></td>
-    <!-- <td valign="middle" >{{ family.family or "Unnamed"}} <a name="malpedia" href="https://malpedia.caad.fkie.fraunhofer.de/details/{{ family.family }}" target="_blank"> <img src="{{ url_for('static', filename='malpedia_small.png') }}" width="25" height="25" > </a></td> -->
-    <td align="right" valign="middle">{{ "%d"|format(family.num_samples) }}</td>
-    <td align="right" valign="middle">{{ "%d"|format(family.num_functions) }}</td>
-    <td align="center" valign="middle"><i {% if family.is_library %} style="color:green;" class="fa-solid fa-square-check" {% else %} style="color:darkred;" class="fa-solid fa-times-circle"> {% endif %}</i></td>
+  {% for column_type in column_setup %}
+    {% if column_type == "family_id" %}
+      <th align="right" valign="middle" class="id" scope="row">{{ "%d"|format(family.family_id) }}</th>
+    {% elif column_type == "family_name" %}
+      <td valign="middle" >{{ format_family_name(family.family_name, None) }}<a name="malpedia" href="https://malpedia.caad.fkie.fraunhofer.de/details/{{ family.family }}" target="_blank"><i class="fa-solid fa-external-link-alt "></i></a></td>
+    {% elif column_type == "num_samples" %}
+      <td align="right" valign="middle">{{ "%d"|format(family.num_samples) }}</td>
+    {% elif column_type == "num_functions" %}
+      <td align="right" valign="middle">{{ "%d"|format(family.num_functions) }}</td>
+    {% elif column_type == "is_library" %}
+      <td align="center" valign="middle"><i {% if family.is_library %} style="color:green;" class="fa-solid fa-square-check" {% else %} style="color:darkred;" class="fa-solid fa-times-circle"> {% endif %}</i></td>
+    {% endif %}
+  {% endfor %}
     <td align="center" valign="middle">
       <a class="btn btn-outline-dark btn-sm" name="compare" href="{{ url_for('analyze.compare', query=family.family_name, rematch='true') }}" role="button" target="_self"><i class="fa-solid fa-flask"></i></a>
       <a class="btn btn-outline-dark btn-sm" name="family_blocks" href="{{ url_for('analyze.blocks_family', family_id=family.family_id) }}" role="button" target="_self"><i class="fa-solid fa-cubes-stacked"></i></a>

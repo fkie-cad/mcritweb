@@ -24,8 +24,7 @@ Functions
     </div>
 </div>
 
-{{ set_pagination_params(pagination, _js_argument_provider="fetchState", _anchor="Search") }}
-{{ function_table(functions, sort_pagination=pagination) }}
+{{ function_table(functions, sort_pagination=pagination, column_setup=user_column_setup) }}
 {% if functions %}
 {{ pagination_widget(pagination) }}
 {% endif %}
