@@ -412,13 +412,18 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
     matching_result.applyFilterValues()
 
     client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    user_column_setup_family_library = ["family_name", "version", "sample_id", "sha256", "filename", "num_functions", "num_minhash", "num_pichash", "direct_score", "direct_nonlib_score", "frequency_score", "frequency_nonlib_score", "uniq_score"] 
+    user_column_setup_function_all = ["matched_function_id", "offset", "num_bytes", "num_matched_families", "num_matched_samples", "num_matched_functions", "best_score", "num_minhash", "num_pichash", "is_library_match", "is_unique_match"]
+    # note that in getMatchesForSampleVs - we can never determine if a function is unique across the data set, so we ignore the field
+    user_column_setup_function_sample = ["function_id_a", "offset_a", "offset_b", "function_id_b", "num_bytes", "best_score", "is_minhash_match", "is_pichash_match", "is_library_match", "is_unique_match"]
+    user_column_setup_function_function = ["function_id_a", "offset_a", "offset_b", "function_id_b", "family_name_b", "sample_id_b", "best_score", "is_minhash_match", "is_pichash_match", "is_library_match", "is_unique_match"]
     # filtered for family
     if filtered_family_id is not None and client.isFamilyId(filtered_family_id):
         matching_result.filterToFamilyId(filtered_family_id)
         create_match_diagram(current_app, job_info.job_id, matching_result, filtered_family_id=filtered_family_id)
         sample_pagination = Pagination(request, matching_result.num_sample_matches, limit=10, query_param="samp", limit_param="sampl")
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), limit=100, query_param="funp", limit_param="funl")
-        return render_template("result_compare_family.html", famid=filtered_family_id, job_info=job_info, samp=sample_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
+        return render_template("result_compare_family.html", famid=filtered_family_id, job_info=job_info, samp=sample_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider, ucs_famlib=user_column_setup_family_library, ucs_functions=user_column_setup_function_all) 
     # filtered for sample
     elif filtered_sample_id is not None and client.isSampleId(filtered_sample_id):
         matching_result.filterToSampleId(filtered_sample_id)
@@ -432,7 +437,7 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
             function_match.matched_offset = matched_function_entries_by_id[function_match.matched_function_id].offset
         sample_pagination = Pagination(request, 1, limit=10, query_param="samp", limit_param="sampl")
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), limit=100, query_param="funp", limit_param="funl")
-        return render_template("result_compare_sample.html", samid=filtered_sample_id, job_info=job_info, samp=sample_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
+        return render_template("result_compare_sample.html", samid=filtered_sample_id, job_info=job_info, samp=sample_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider, ucs_famlib=user_column_setup_family_library, ucs_functions=user_column_setup_function_sample) 
     # filter for function - treat family/sample part as if there was no filter
     elif filtered_function_id is not None and filtered_function_id in matching_result.function_id_to_family_ids_matched:
         if not matching_result.is_query:
@@ -447,19 +452,25 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         # set up pagination
         family_pagination = Pagination(request, matching_result.num_family_matches, limit=10, query_param="famp", limit_param="fampl")
         function_pagination = Pagination(request, matching_result.num_function_matches, limit=100, query_param="funp", limit_param="funl")
-        return render_template("result_compare_function.html", funid=filtered_function_id, job_info=job_info, famp=family_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider) 
+        return render_template("result_compare_function.html", funid=filtered_function_id, job_info=job_info, famp=family_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider, ucs_famlib=user_column_setup_family_library, ucs_functions=user_column_setup_function_function) 
     # 1 vs 1 result
     elif job_info.parameters.startswith("getMatchesForSampleVs("):
+        # get offsets for matched functions
+        matched_function_ids = list(set([f.matched_function_id for f in matching_result.filtered_function_matches]))
+        matched_function_entries_by_id = client.getFunctionsByIds(matched_function_ids)
+        for function_match in matching_result.filtered_function_matches:
+            function_match.matched_offset = matched_function_entries_by_id[function_match.matched_function_id].offset
         # we need to slice function matches ourselves based on pagination
         function_pagination = Pagination(request, matching_result.num_function_matches, limit=100, query_param="funp", limit_param="funl")
-        return render_template("result_compare_vs.html", job_info=job_info, matching_result=matching_result, funp=function_pagination, scp=score_color_provider)
+        return render_template("result_compare_vs.html", job_info=job_info, matching_result=matching_result, funp=function_pagination, scp=score_color_provider, ucs_famlib=user_column_setup_family_library, ucs_functions=user_column_setup_function_sample)
     # unfiltered / default -> also 1 vs group
     else:
         create_match_diagram(current_app, job_info.job_id, matching_result)
         family_pagination = Pagination(request, matching_result.num_family_matches, limit=10, query_param="famp", limit_param="fampl")
         library_pagination = Pagination(request, matching_result.num_library_matches, limit=10, query_param="libp", limit_param="libl")
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), limit=100, query_param="funp", limit_param="funl")
-        return render_template("result_compare_all.html", job_info=job_info, famp=family_pagination, libp=library_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider)
+        print("wat")
+        return render_template("result_compare_all.html", job_info=job_info, famp=family_pagination, libp=library_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider, ucs_famlib=user_column_setup_family_library, ucs_functions=user_column_setup_function_all)
 
 
 def result_matches_for_cross(job_info, result_json):
