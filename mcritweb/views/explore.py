@@ -7,7 +7,7 @@ from mcrit.storage.FunctionEntry import FunctionEntry
 from mcrit.queue.JobCollection import JobCollection
 
 from mcritweb.views.authentication import visitor_required, contributor_required
-from mcritweb.views.utility import get_server_url, get_server_token, mcrit_server_required, get_username
+from mcritweb.views.utility import get_server_url, get_server_token, mcrit_server_required, get_username, get_session_user_id, get_user_column_setup
 from mcritweb.views.cursor_pagination import CursorPagination
 
 import mcritweb.views.cfg_explorer_detector as cfg_explorer_detector
@@ -83,7 +83,7 @@ def families():
             families.append(FamilyEntry.fromDict(family_dict))
     all_families = client.getFamilies()
     family_names = [family_entry.family_name for family_entry in all_families.values()]
-    user_column_setup = ["family_id", "family_name", "num_samples", "num_functions", "is_library"]
+    user_column_setup = get_user_column_setup("family_table")
     return render_template("families.html", families=families, family_names=family_names, pagination=pagination, query=query, user_column_setup=user_column_setup)
 
 @bp.route('/modifySample', methods=['POST'])
@@ -167,7 +167,7 @@ def samples():
 
     all_families = client.getFamilies()
     family_names = [family_entry.family_name for family_entry in all_families.values()]
-    user_column_setup = ["sample_id", "sha256", "family", "version", "filename", "bitness", "num_functions", "is_library"]
+    user_column_setup = get_user_column_setup("samples_table")
     return render_template("samples.html", samples=samples, family_names=family_names, job_collection=job_collection, pagination=pagination, query=query, user_column_setup=user_column_setup)
 
 
@@ -190,7 +190,7 @@ def functions():
         for function_dict in results['search_results'].values():
             #functions.append(FunctionEntry.fromDict(function_dict))
             functions.append(function_dict)
-    user_column_setup = ["function_id", "family_id", "sample_id", "pic_hash", "has_minhash", "offset", "function_name", "num_instructions", "num_blocks"] 
+    user_column_setup = get_user_column_setup("functions_table")
     return render_template("functions.html", functions=functions, pagination=pagination, query=query, user_column_setup=user_column_setup)
 
 ##############################################################
@@ -222,7 +222,7 @@ def family_by_id(family_id):
         jobs = client.getQueueData()
         job_collection = JobCollection(jobs)
         job_collection.filterToSampleIds([s.sample_id for s in samples])
-        user_column_setup = ["sample_id", "sha256", "family", "version", "filename", "bitness", "num_functions", "is_library"]
+        user_column_setup = get_user_column_setup("samples_table")
         return render_template("single_family.html", family=family_info, samples=samples, family_names=family_names, job_collection=job_collection, pagination=pagination, query=original_query, user_column_setup=user_column_setup)
     else:
         flash("The given Family ID doesn't exist", category='error')
@@ -259,7 +259,7 @@ def sample_by_id(sample_id):
             if job.sample_ids is not None:
                 for sample_id in [sid for sid in job.sample_ids if sid not in samples_by_id]:
                     samples_by_id[sample_id] = client.getSampleById(sample_id)
-        user_column_setup = ["function_id", "family_id", "sample_id", "pic_hash", "has_minhash", "offset", "function_name", "num_instructions", "num_blocks"]
+        user_column_setup = get_user_column_setup("functions_table")
         return render_template("single_sample.html", entry=sample_entry, functions=functions, pagination=pagination, query=original_query, samples=samples_by_id, job_collection=job_collection, family_names=family_names, user_column_setup=user_column_setup)
     else:
         flash("The given Sample ID doesn't exist", category='error')
@@ -407,9 +407,9 @@ def search():
             for function_dict in results['search_results'].values():
                 functions.append(FunctionEntry.fromDict(function_dict))
 
-    family_column_setup = ["family_id", "family_name", "num_samples", "num_functions", "is_library"]
-    sample_column_setup = ["sample_id", "sha256", "family", "version", "filename", "bitness", "num_functions", "is_library"]
-    function_column_setup = ["function_id", "family_id", "sample_id", "pic_hash", "has_minhash", "offset", "function_name", "num_instructions", "num_blocks"]
+    family_column_setup = get_user_column_setup("family_table")
+    sample_column_setup = get_user_column_setup("samples_table")
+    function_column_setup = get_user_column_setup("functions_table")
     return render_template(
         "search.html",
         families=families,

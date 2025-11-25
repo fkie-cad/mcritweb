@@ -11,7 +11,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 
 from mcritweb import db
-from mcritweb.db import UserInfo, ServerInfo, UserFilters
+from mcritweb.db import UserInfo, ServerInfo, UserFilters, UserColumnSettings
 from mcritweb.views.utility import parse_integer_query_param, parse_checkbox_query_param, get_session_user_id
 
 
@@ -165,13 +165,16 @@ def settings():
         return redirect(url_for('index'))
     user_info = UserInfo.fromDb(user_id=user_id)
     user_filters = UserFilters.fromDb(user_id)
+    user_column_settings = UserColumnSettings.fromDb(user_id)
     # if we don't have them yet, create them
     if user_filters is None:
         user_filters = UserFilters.fromDict(user_id, {})
         user_filters.saveToDb()
-    return render_template('settings.html', user_info=user_info, user_filters=user_filters)
-    
-    
+    if user_column_settings is None:
+        user_column_settings = UserColumnSettings.fromDict(user_id, {})
+        user_column_settings.saveToDb()
+    return render_template('settings.html', user_info=user_info, user_filters=user_filters, user_column_settings=user_column_settings.toUserColumnSettings())
+
 def admin_required(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):

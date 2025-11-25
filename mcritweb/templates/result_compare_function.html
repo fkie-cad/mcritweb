@@ -47,8 +47,8 @@ Results for Job: {{ job_info.job_id }}
 <table class="table table-hover">
   <thead class="thead-light">
     <tr>
-      {% set ucs_functions = ["function_id_a", "offset_a", "offset_b", "function_id_b", "family_name_b", "sample_id_b", "best_score", "is_minhash_match", "is_pichash_match", "is_library_match", "is_unique_match"] %}
     {% if ucs_functions is none %}
+      {% set ucs_functions = ["function_id_a", "offset_a", "offset_b", "function_id_b", "family_name_b", "sample_id_b", "best_score", "is_minhash_match", "is_pichash_match", "is_library_match", "is_unique_match"] %}
     {% endif %}
     {% for column_type in ucs_functions %}
       {% if column_type == "function_id_a" %}

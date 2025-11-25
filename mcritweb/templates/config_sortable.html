@@ -1,10 +1,7 @@
-{% from 'table/links.html' import clipboard_btn %}
-{% extends 'base.html' %}
-{% block title%}
-Settings
-{% endblock %}
 
+{% extends 'base.html' %}
 {% block style %}
+
 <script src="{{ url_for('static', filename='sortablejs/Sortable.min.js') }}"></script>
 <style>
     .list-group.col {
@@ -16,117 +13,14 @@ Settings
 </style>
 {% endblock %}
 
+{% block title%}
+Sortable Test
+{% endblock %}
 {% block content %}
-<center>
-<ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
-  <li class="nav-item" role="presentation">
-    <button class="nav-link active" id="pills-info-tab" data-bs-toggle="pill" data-bs-target="#pills-info" type="button" role="tab" aria-controls="pills-info" aria-selected="true">User Information</button>
-  </li>
-  {% if g.user.role == 'admin' or g.user.role == 'contributor' %}
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="pills-username-tab" data-bs-toggle="pill" data-bs-target="#pills-username" type="button" role="tab" aria-controls="pills-username" aria-selected="false">Change username</button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="pills-password-tab" data-bs-toggle="pill" data-bs-target="#pills-password" type="button" role="tab" aria-controls="pills-password" aria-selected="false">Change password</button>
-  </li>
-  {% endif %}
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="pills-default-filter-tab" data-bs-toggle="pill" data-bs-target="#pills-default-filter" type="button" role="tab" aria-controls="pills-default-filter" aria-selected="false">Change default result filter</button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="pills-column-settings-tab" data-bs-toggle="pill" data-bs-target="#pills-column-settings" type="button" role="tab" aria-controls="pills-column-settings" aria-selected="false">Change table column settings</button>
-  </li>
-</ul>
-<div class="tab-content" id="pills-tabContent">
-  <div class="tab-pane fade show active" id="pills-info" role="tabpanel" aria-labelledby="pills-info-tab">
-    <table class="table table-striped w-auto">
-      <tr>
-        <th>Entity</th>
-        <th>Value</th>
-      </tr>
-      <tr>
-        <td>Username:</td>
-        <td>{{user_info.username}}</td>
-      </tr>
-      <tr>
-        <td>Role:</td>
-        <td>{{user_info.role}}</td>
-      </tr>
-      <tr>
-        <td>Registration:</td>
-        <td>{{user_info.registration_date}}</td>
-      </tr>
-      {% if user_info.role == "admin" or user_info.role == "contributor" %}
-      <tr>
-        <td>apitoken:</td>
-        <td>{{user_info.apitoken}} {{ clipboard_btn(user_info.apitoken) }}</td>
-      </tr>
-      {% endif %}
-    </table>
-</div>
-{% if g.user.role == 'admin' or g.user.role == 'contributor' %}
-  <div class="tab-pane fade" id="pills-username" role="tabpanel" aria-labelledby="pills-username-tab">
-      <form action = "{{ url_for('admin.change_username') }}" method='post'>
-          <div class="form-group">
-            <input name='username' class="form-control" id="username" aria-describedby="usernameHelp" placeholder="Enter new username" autofocus required >
-          </div>
-          <div class="form-group">
-            <input type="password" name='inputPassword1' class="form-control" id="inputPassword1" placeholder="Enter password" required>
-          </div>
-          <button type="submit" class="btn btn-primary">Confirm change</button>
-      </form>
-  </div>
-  <div class="tab-pane fade" id="pills-password" role="tabpanel" aria-labelledby="pills-password-tab">
-      <form action = "{{ url_for('admin.change_password') }}" method='post'>
-          <div class="form-group">
-            <input type="password" name='inputPassword2' class="form-control" id="inputPassword2" placeholder="Enter old password" required>
-          </div>
-          <div class="form-group">
-              <input type="password" class="form-control" name="inputPassword3" id="inputPassword3" placeholder="Enter new password" >
-            </div>
-          <div class="form-group">
-              <input type="password" class="form-control" name="inputPassword4" id="inputPassword4" placeholder="Confirm new password" >
-            </div>
-          <button type="submit" class="btn btn-primary">Confirm change</button>
-      </form>
-  </div>
-  {% endif %}
-  <div class="tab-pane fade" id="pills-default-filter" role="tabpanel" aria-labelledby="pills-default-filter-tab">
-    <form class="form-inline" action = "{{ url_for('admin.change_default_filter') }}" method='post'>
-        <div class="form-group row text-start">
-          <h3>Family / Sample result filter</h3> 
-          <label class="col-8">Filter results to (nonlib) direct score</label>
-          <input class="col-2" type="text" name='filter_direct_min_score' id="filter_direct_min_score" placeholder="regular" {% if user_filters.filter_direct_min_score is not none %}value={{user_filters.filter_direct_min_score}}{% endif %}>
-          <input class="col-2" type="text" name='filter_direct_nonlib_min_score' id="filter_direct_nonlib_min_score" placeholder="nonlib" {% if user_filters.filter_direct_nonlib_min_score is not none %}value={{user_filters.filter_direct_nonlib_min_score}}{% endif %}>
-          <label class="col-8">Filter results to (nonlib) frequency score</label>
-          <input class="col-2" type="text" name='filter_frequency_min_score' id="filter_frequency_min_score" placeholder="regular" {% if user_filters.filter_frequency_min_score is not none %}value={{user_filters.filter_frequency_min_score}}{% endif %}>
-          <input class="col-2" type="text" name='filter_frequency_nonlib_min_score' id="filter_frequency_nonlib_min_score" placeholder="nonlib" {% if user_filters.filter_frequency_nonlib_min_score is not none %}value={{user_filters.filter_frequency_nonlib_min_score}}{% endif %}>
-          <label class="col-8" for="block_count">only show families/samples with unique matches</label>
-          <input class="col-4" type="checkbox" name='filter_unique_only' id="filter_unique_only" aria-describedby="filter_unique_only" {% if user_filters.filter_unique_only %}checked{% endif %}>
-          <label class="col-8" for="block_count">exclude own family</label>
-          <input class="col-4" type="checkbox" name='filter_exclude_own_family' id="filter_exclude_own_family" aria-describedby="filter_exclude_own_family" {% if user_filters.filter_exclude_own_family %}checked{% endif %}>
-          <h3>Function result filter</h3> 
-          <label class="col-8">Filter results to min score</label>
-          <input class="col-4" type="text" name='filter_function_min_score' id="filter_function_min_score" aria-describedby="filter_function_min_score" placeholder="min score (0-100)" {% if user_filters.filter_function_min_score is not none %}value={{user_filters.filter_function_min_score}}{% endif %}>
-          <label class="col-8">Filter results to max score</label>
-          <input class="col-4" type="text" name='filter_function_max_score' id="filter_function_max_score" aria-describedby="filter_function_max_score" placeholder="max score (0-100)" {% if user_filters.filter_function_max_score is not none %}value={{user_filters.filter_function_max_score}}{% endif %}>
-          <label class="col-8">Filter results to max num families/samples</label>
-          <input class="col-4" type="text" name='filter_max_num_families' id="filter_max_num_families" aria-describedby="filter_max_num_families" placeholder="max. families" {% if user_filters.filter_max_num_families is not none %}value={{user_filters.filter_max_num_families}}{% endif %}>
-          <label class="col-8" for="block_count">exclude functions with library hits</label>
-          <input class="col-4" type="checkbox" name='filter_exclude_library' id="filter_exclude_library" aria-describedby="filter_exclude_library" {% if user_filters.filter_exclude_library %}checked{% endif %}>
-          <label class="col-8" for="block_count">exclude PIC hits</label>
-          <input class="col-4" type="checkbox" name='filter_exclude_pic' id="filter_exclude_pic" aria-describedby="filter_exclude_pic" {% if user_filters.filter_exclude_pic %}checked{% endif %}>
-        </div>
-        <button type="submit" class="btn btn-primary">Confirm change</button>
-    </form>
-  </div>
-  <div class="tab-pane fade" id="pills-column-settings" role="tabpanel" aria-labelledby="pills-column-settings-tab">
-    <div class="container mt-4 mb-4">
-      <p>Drag items between or within the columns to customize the table view.<br />
-         Only active items will be shown in the tables, using the order specified.<br />
-         Note: direct / and frequency score columns in Result Family / Library Table can only be order next to each other respectively (enforced when saving).
-      </p>
-  <span><h3>Family Table</h3></span>
+<div class="container">
+    <span><h1>Column Setup for Tables across MCRIT</h1></span>
+    <!-- start modifications here -->
+    <span><h3>Family Table</h3></span>
     <div class="row" style="display: flex; justify-content: space-between;">
         <div class="col"><strong>Active</strong></div>
         <div class="col"><strong>Available</strong></div>
@@ -180,7 +74,7 @@ Settings
         </div>
     </div>
 
-    <span><h3>Result Family / Library Table</h3></span>
+    <span><h3>Result Family Table</h3></span>
     <div class="row" style="display: flex; justify-content: space-between;">
         <div class="col"><strong>Active</strong></div>
         <div class="col"><strong>Available</strong></div>
@@ -253,14 +147,8 @@ Settings
     </div>
 
     <div class="text-center mt-4 mb-4">
-        <button id="saveButton" class="btn btn-primary btn-lg me-3" onclick="saveColumnSettings()">Save Column Settings</button>
-        <button id="resetButton" class="btn btn-secondary btn-lg" onclick="resetColumnSettings()">Reset to Default</button>
+        <button id="saveButton" class="btn btn-primary btn-lg" onclick="saveColumnSettings()">Save Column Settings</button>
     </div>
-    </div>
-  </div>
-</div>
-</center>
-
 
     <script type="text/javascript">
         // Family Table
@@ -343,34 +231,29 @@ Settings
                 }
             };
 
-            // Create a hidden form and submit it
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = "{{ url_for('admin.change_column_settings') }}";
-            form.style.display = 'none';
-
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'column_settings';
-            input.value = JSON.stringify(columnSettings);
-
-            form.appendChild(input);
-            document.body.appendChild(form);
-            form.submit();
-        }
-
-        function resetColumnSettings() {
-            if (confirm('Are you sure you want to reset all column settings to default? This will undo all your customizations.')) {
-                // Create a hidden form for the reset action
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = "{{ url_for('admin.reset_column_settings') }}";
-                form.style.display = 'none';
-
-                document.body.appendChild(form);
-                form.submit();
-            }
+            // Send POST request
+            fetch("{{ url_for('admin.change_column_settings') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    column_settings: columnSettings
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Column settings saved successfully!');
+                } else {
+                    alert('Error saving column settings: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error saving column settings: ' + error.message);
+            });
         }
     </script>
-
+    <!-- end modifications here -->
 {% endblock %}

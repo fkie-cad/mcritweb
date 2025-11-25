@@ -13,7 +13,7 @@ from smda.intel.IntelInstructionEscaper import IntelInstructionEscaper
 from mcrit.client.McritClient import McritClient
 
 from mcritweb import db
-from mcritweb.db import ServerInfo
+from mcritweb.db import ServerInfo, UserColumnSettings
 
 
 def get_server_url():
@@ -48,7 +48,8 @@ def get_session_user_id():
             return user_id
     except:
         return None
-    
+
+
 def get_username(request=None):
     username = "guest"
     if g.user is not None:
@@ -61,6 +62,20 @@ def get_username(request=None):
     elif request and "username" in request.headers:
         username = request.headers.get("username")
     return username
+
+
+def get_user_column_setup(table_type:str):
+    if table_type not in UserColumnSettings._default_settings.keys():
+        raise Exception(f"Unknown table type for user column settings: {table_type}")
+    # load user column setup from database
+    user_id = get_session_user_id()
+    user_column_settings = UserColumnSettings.fromDb(user_id)
+    # if we don't have them yet, create them
+    if user_column_settings is None:
+        user_column_settings = UserColumnSettings(user_id)
+        user_column_settings.saveToDb()
+    ucs_dict = user_column_settings.toUserColumnSettings()
+    return ucs_dict[table_type]["active"]
 
 
 def parse_band_range(request, from_form=False):

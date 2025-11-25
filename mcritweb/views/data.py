@@ -14,7 +14,7 @@ from mcrit.queue.LocalQueue import Job
 from smda.common.SmdaReport import SmdaReport
 from flask import current_app, Blueprint, render_template, request, redirect, url_for, Response, flash, session, send_from_directory, json
 
-from mcritweb.db import UserFilters
+from mcritweb.db import UserColumnSettings, UserFilters
 from mcritweb.views.analyze import query as analyze_query
 from mcritweb.views.utility import get_server_url, get_server_token, get_username, mcrit_server_required, parseBitnessFromFilename, parseBaseAddrFromFilename, get_matches_node_colors, parse_integer_query_param, parse_integer_list_query_param, parse_checkbox_query_param, parse_str_query_param, get_session_user_id
 from mcritweb.views.pagination import Pagination
@@ -344,12 +344,12 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
     filter_exclude_library = parse_checkbox_query_param(request, "filter_exclude_library")
     filter_exclude_pic = parse_checkbox_query_param(request, "filter_exclude_pic")
     filter_func_unique = parse_checkbox_query_param(request, "filter_func_unique")
+    user_id = get_session_user_id()
     if (all(flag is None for flag in [filter_direct_min_score, filter_frequency_min_score, filter_family_name,
                 filter_function_min_score, filter_function_max_score, filter_min_num_samples, filter_max_num_samples, filter_max_num_families, filter_function_offset])
             and not any([filter_unique_only, filter_exclude_own_family, filter_exclude_library, filter_exclude_pic, filter_func_unique])
             and not filter_action == "clear"):
         # load default filters
-        user_id = get_session_user_id()
         # adjust filters based on family/sample filtering
         user_filters = UserFilters.fromDb(user_id)
         # if we don't have them yet, create them
@@ -412,11 +412,19 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
     matching_result.applyFilterValues()
 
     client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
-    user_column_setup_family_library = ["family_name", "version", "sample_id", "sha256", "filename", "num_functions", "num_minhash", "num_pichash", "direct_score", "direct_nonlib_score", "frequency_score", "frequency_nonlib_score", "uniq_score"] 
-    user_column_setup_function_all = ["matched_function_id", "offset", "num_bytes", "num_matched_families", "num_matched_samples", "num_matched_functions", "best_score", "num_minhash", "num_pichash", "is_library_match", "is_unique_match"]
+
+    # load user column setup from database
+    user_column_settings = UserColumnSettings.fromDb(user_id)
+    # if we don't have them yet, create them
+    if user_column_settings is None:
+        user_column_settings = UserColumnSettings(user_id)
+        user_column_settings.saveToDb()
+    ucs_dict = user_column_settings.toUserColumnSettings()
+    user_column_setup_family_library = ucs_dict["result_family_table"]["active"]
+    user_column_setup_function_all = ucs_dict["result_function_unfiltered_table"]["active"]
     # note that in getMatchesForSampleVs - we can never determine if a function is unique across the data set, so we ignore the field
-    user_column_setup_function_sample = ["function_id_a", "offset_a", "offset_b", "function_id_b", "num_bytes", "best_score", "is_minhash_match", "is_pichash_match", "is_library_match", "is_unique_match"]
-    user_column_setup_function_function = ["function_id_a", "offset_a", "offset_b", "function_id_b", "family_name_b", "sample_id_b", "best_score", "is_minhash_match", "is_pichash_match", "is_library_match", "is_unique_match"]
+    user_column_setup_function_sample = ucs_dict["result_function_sample_filtered_table"]["active"]
+    user_column_setup_function_function = ucs_dict["result_function_function_filtered_table"]["active"]
     # filtered for family
     if filtered_family_id is not None and client.isFamilyId(filtered_family_id):
         matching_result.filterToFamilyId(filtered_family_id)

@@ -157,7 +157,7 @@ Results for Job: {{ job_info.job_id }}
   <thead class="thead-light">
     <tr>
     {% if ucs_functions is none %}
-    {% set ucs_functions = ["matched_function_id", "offset", "num_bytes", "num_matched_families", "num_matched_samples", "num_matched_functions", "best_score", "num_minhash", "num_pichash", "is_library_match", "is_unique_match"] %}
+      {% set ucs_functions = ["matched_function_id", "offset", "num_bytes", "num_matched_families", "num_matched_samples", "num_matched_functions", "best_score", "num_minhash", "num_pichash", "is_library_match", "is_unique_match"] %}
     {% endif %}
     {% for column_type in ucs_functions %}
     {% if column_type == "matched_function_id" %}

@@ -250,6 +250,250 @@ class UserFilters(object):
         database.commit()
 
 
+class UserColumnSettings(object):
+
+    # Define the default column configuration template
+    _default_settings = {
+        "family_table": {
+            "active": ["family_id", "family_name", "num_samples", "num_functions", "is_library"],
+            "available": []
+        },
+        "samples_table": {
+            "active": ["sample_id", "sha256", "family", "version", "filename", "bitness", "num_functions", "is_library"],
+            "available": []
+        },
+        "functions_table": {
+            "active": ["function_id", "family_id", "sample_id", "pic_hash", "has_minhash", "offset", "function_name", "num_instructions", "num_blocks"],
+            "available": []
+        },
+        "result_family_table": {
+            "active": ["family_name", "version", "sample_id", "sha256", "filename", "num_functions", "num_minhash", "num_pichash", "direct_score", "direct_nonlib_score", "frequency_score", "frequency_nonlib_score", "uniq_score"],
+            "available": []
+        },
+        "result_function_unfiltered_table": {
+            "active": ["matched_function_id", "offset", "num_bytes", "num_matched_families", "num_matched_samples", "num_matched_functions", "best_score", "num_minhash", "num_pichash", "is_library_match", "is_unique_match"],
+            "available": []
+        },
+        "result_function_sample_filtered_table": {
+            "active": ["function_id_a", "offset_a", "offset_b", "function_id_b", "num_bytes", "best_score", "is_minhash_match", "is_pichash_match", "is_library_match", "is_unique_match"],
+            "available": []
+        },
+        "result_function_function_filtered_table": {
+            "active": ["function_id_a", "offset_a", "offset_b", "function_id_b", "family_name_b", "sample_id_b", "best_score", "is_minhash_match", "is_pichash_match", "is_library_match", "is_unique_match"],
+            "available": []
+        },
+    }
+
+    def __init__(self, user_id=None) -> None:
+        self.user_id = user_id if user_id is not None else None
+
+        # Dynamically create attributes based on the template with default positions
+        for table_name, columns in self._default_settings.items():
+            for position, column in enumerate(columns["active"]):
+                attr_name = f"{table_name}_{column}"
+                setattr(self, attr_name, position)  # Default to position (0, 1, 2, ...)
+
+    @classmethod
+    def fromDb(cls, user_id):
+        db = get_db()
+        cursor = db.cursor()
+        record = cursor.execute("SELECT * FROM user_column_settings WHERE user_id = ?;", (user_id,)).fetchone()
+        if record:
+            user_column_settings = cls()
+            user_column_settings.user_id = user_id
+            
+            # Set all column attributes from database record
+            for table_name, columns in user_column_settings._default_settings.items():
+                for default_position, column in enumerate(columns["active"]):
+                    attr_name = f"{table_name}_{column}"
+                    if attr_name in record.keys():
+                        setattr(user_column_settings, attr_name, record[attr_name])
+                    else:
+                        setattr(user_column_settings, attr_name, default_position)  # Default to position
+        else:
+            user_column_settings = None
+        return user_column_settings
+    
+    @classmethod
+    def fromDict(cls, user_id, settings_dict):
+        user_column_settings = cls()
+        user_column_settings.user_id = user_id
+        
+        # Process the column settings dictionary
+        if settings_dict and "column_settings" in settings_dict:
+            column_settings = settings_dict["column_settings"]
+
+            # Reset all to -1 (not selected) first
+            for table_name, columns in user_column_settings._default_settings.items():
+                for column in columns["active"]:
+                    attr_name = f"{table_name}_{column}"
+                    setattr(user_column_settings, attr_name, -1)
+            
+            # Set active columns with their positions based on input
+            for table_name, table_config in column_settings.items():
+                if table_name in user_column_settings._default_settings:
+                    active_columns = table_config.get("active", [])
+                    for position, column in enumerate(active_columns):
+                        attr_name = f"{table_name}_{column}"
+                        if hasattr(user_column_settings, attr_name):
+                            setattr(user_column_settings, attr_name, position)
+
+        else:
+            # If no column settings were provided, use defaults
+            for table_name, columns in user_column_settings._default_settings.items():
+                for default_position, column in enumerate(columns["active"]):
+                    attr_name = f"{table_name}_{column}"
+                    setattr(user_column_settings, attr_name, default_position)
+
+        return user_column_settings
+
+    def _sanitize_column_settings(self):
+        """Sanitize column settings to ensure proper integer positions and ordering"""
+        for table_name, columns in self._default_settings.items():
+            # Collect all active columns with their positions
+            active_positions = []
+            
+            for default_position, column in enumerate(columns["active"]):
+                attr_name = f"{table_name}_{column}"
+                current_value = getattr(self, attr_name, default_position)
+                
+                # Convert None and non-integers to -1
+                if current_value is None or not isinstance(current_value, int):
+                    setattr(self, attr_name, -1)
+                elif current_value >= 0:
+                    # Collect positions for reordering
+                    active_positions.append((current_value, column))
+            
+            # Sort by position and reassign sequential positions starting from 0
+            active_positions.sort(key=lambda x: x[0])
+            
+            # Special handling for result_family_table score pairs
+            if table_name == "result_family_table":
+                active_positions = self._enforce_score_pair_ordering(active_positions)
+            
+            for new_position, (old_position, column) in enumerate(active_positions):
+                attr_name = f"{table_name}_{column}"
+                setattr(self, attr_name, new_position)
+
+    def _enforce_score_pair_ordering(self, active_positions):
+        """Ensure that score pairs are placed next to each other in result_family_table"""
+        # Convert to a list of column names for easier manipulation
+        columns = [column for position, column in active_positions]
+        
+        # Handle direct_score and direct_nonlib_score pair
+        if "direct_score" in columns and "direct_nonlib_score" in columns:
+            direct_score_idx = columns.index("direct_score")
+            direct_nonlib_score_idx = columns.index("direct_nonlib_score")
+            
+            # If they're not adjacent, move direct_nonlib_score right after direct_score
+            if direct_nonlib_score_idx != direct_score_idx + 1:
+                # Remove direct_nonlib_score from its current position
+                columns.pop(direct_nonlib_score_idx)
+                # Insert it right after direct_score (adjust index if we removed from before)
+                insert_idx = direct_score_idx + 1
+                if direct_nonlib_score_idx < direct_score_idx:
+                    insert_idx = direct_score_idx  # direct_score index shifted down
+                columns.insert(insert_idx, "direct_nonlib_score")
+        
+        # Handle frequency_score and frequency_nonlib_score pair
+        if "frequency_score" in columns and "frequency_nonlib_score" in columns:
+            frequency_score_idx = columns.index("frequency_score")
+            frequency_nonlib_score_idx = columns.index("frequency_nonlib_score")
+            
+            # If they're not adjacent, move frequency_nonlib_score right after frequency_score
+            if frequency_nonlib_score_idx != frequency_score_idx + 1:
+                # Remove frequency_nonlib_score from its current position
+                columns.pop(frequency_nonlib_score_idx)
+                # Insert it right after frequency_score (adjust index if we removed from before)
+                insert_idx = frequency_score_idx + 1
+                if frequency_nonlib_score_idx < frequency_score_idx:
+                    insert_idx = frequency_score_idx  # frequency_score index shifted down
+                columns.insert(insert_idx, "frequency_nonlib_score")
+        
+        # Convert back to (position, column) pairs
+        return [(position, column) for position, column in enumerate(columns)]
+
+    def toDict(self):
+        # Sanitize data before processing
+        self._sanitize_column_settings()
+        
+        result = {
+            "user_id": self.user_id,
+        }
+        
+        # Add all column settings with their positions
+        for table_name, columns in self._default_settings.items():
+            for default_position, column in enumerate(columns["active"]):
+                attr_name = f"{table_name}_{column}"
+                result[attr_name] = getattr(self, attr_name, default_position)
+        
+        return result
+    
+    def toUserColumnSettings(self):
+        """Convert to the format expected by the frontend"""
+        # Sanitize data before processing
+        self._sanitize_column_settings()
+        
+        result = {}
+        
+        for table_name, columns in self._default_settings.items():
+            result[table_name] = {
+                "active": [],
+                "available": []
+            }
+            
+            # Create list of (position, column) pairs for active columns
+            active_columns_with_positions = []
+            
+            for default_position, column in enumerate(columns["active"]):
+                attr_name = f"{table_name}_{column}"
+                position = getattr(self, attr_name, default_position)
+                
+                if position >= 0:
+                    active_columns_with_positions.append((position, column))
+                else:
+                    result[table_name]["available"].append(column)
+            
+            # Sort by position and extract column names
+            active_columns_with_positions.sort(key=lambda x: x[0])
+            result[table_name]["active"] = [column for position, column in active_columns_with_positions]
+        
+        return result
+    
+    def saveToDb(self):
+        # Sanitize data before saving
+        self._sanitize_column_settings()
+        
+        database = get_db()
+        # Query to see if row exists
+        record = database.execute("SELECT * FROM user_column_settings WHERE user_id = ?;", (self.user_id,)).fetchone()
+        
+        # Build column names and values dynamically
+        column_names = []
+        column_values = []
+        
+        for table_name, columns in self._default_settings.items():
+            for default_position, column in enumerate(columns["active"]):
+                attr_name = f"{table_name}_{column}"
+                column_names.append(attr_name)
+                position = getattr(self, attr_name, default_position)
+                column_values.append(position)
+        
+        if record:
+            # Update existing record
+            update_clauses = [f"{name} = ?" for name in column_names]
+            query = f"UPDATE user_column_settings SET {', '.join(update_clauses)} WHERE user_id = ?;"
+            database.execute(query, column_values + [self.user_id])
+        else:
+            # Insert new record
+            placeholders = ', '.join(['?'] * (len(column_names) + 1))  # +1 for user_id
+            columns_str = ', '.join(['user_id'] + column_names)
+            query = f"INSERT INTO user_column_settings ({columns_str}) VALUES ({placeholders});"
+            database.execute(query, [self.user_id] + column_values)
+        
+        database.commit()
+
+
 def get_db():
     if 'db' not in g:
         g.db = sqlite3.connect(
@@ -271,6 +515,8 @@ def init_db():
     with current_app.open_resource('sql' + os.sep + 'create_table_user.sql') as f:
         db.executescript(f.read().decode('utf8'))
     with current_app.open_resource('sql' + os.sep + 'create_table_user_filters.sql') as f:
+        db.executescript(f.read().decode('utf8'))
+    with current_app.open_resource('sql' + os.sep + 'create_table_user_column_settings.sql') as f:
         db.executescript(f.read().decode('utf8'))
     with current_app.open_resource('sql' + os.sep + 'create_table_server.sql') as f:
         db.executescript(f.read().decode('utf8'))
@@ -329,7 +575,13 @@ def migrate(app_context):
         db.execute('ALTER TABLE server ADD server_token VARCHAR')
         db.execute("UPDATE server SET server_token = ?;", ("",))
         print(f"EXECUTED MIGRATION: ADD SERVER_TOKEN TO TABLE SERVER")
-
+    # since version v1.4.0, we have user_column_settings, ensure table exists
+    try:
+        db.execute('SELECT * FROM user_column_settings').fetchone()
+    except sqlite3.OperationalError:
+        with app_context.open_resource('sql' + os.sep + 'create_table_user_column_settings.sql') as f:
+            db.executescript(f.read().decode('utf8'))
+        print(f"EXECUTED MIGRATION: CREATED TABLE USER_COLUMN_SETTINGS")
 
 
 def is_first_user():
@@ -357,101 +609,6 @@ def get_operation_mode():
     if record:  
         operation_mode = record["operation_mode"]
     return operation_mode
-
-def set_user_result_filters(user_id, filter_values):
-    # init db usage
-    db = get_db()
-    cursor = db.cursor()
-    # check existing entry
-    current_filters = get_user_result_filters(user_id)
-    if has_user_result_filters(user_id):
-        # update values
-        db.execute("UPDATE user_filters SET filter_direct_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_direct_min_score"])), user_id))
-        db.execute("UPDATE user_filters SET filter_direct_nonlib_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_direct_nonlib_min_score"])), user_id))
-        db.execute("UPDATE user_filters SET filter_frequency_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_frequency_min_score"])), user_id))
-        db.execute("UPDATE user_filters SET filter_frequency_nonlib_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_frequency_nonlib_min_score"])), user_id))
-        db.execute("UPDATE user_filters SET filter_unique_only = ? WHERE user_id = ?", (1 if filter_values["filter_unique_only"] else 0, user_id))
-        db.execute("UPDATE user_filters SET filter_exclude_own_family = ? WHERE user_id = ?", (1 if filter_values["filter_exclude_own_family"] else 0, user_id))
-        db.execute("UPDATE user_filters SET filter_function_min_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_function_min_score"])), user_id))
-        db.execute("UPDATE user_filters SET filter_function_max_score = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_function_max_score"])), user_id))
-        db.execute("UPDATE user_filters SET filter_max_num_families = ? WHERE user_id = ?", (min(100, max(0, filter_values["filter_max_num_families"])), user_id))
-        db.execute("UPDATE user_filters SET filter_exclude_library = ? WHERE user_id = ?", (1 if filter_values["filter_exclude_library"] else 0, user_id))
-        db.execute("UPDATE user_filters SET filter_exclude_pic = ? WHERE user_id = ?", (1 if filter_values["filter_exclude_pic"] else 0, user_id))
-        db.commit()
-    else:
-        # insert inital values
-        db.execute(
-            "INSERT INTO user_filters (user_id, filter_direct_min_score, filter_direct_nonlib_min_score, filter_frequency_min_score, filter_frequency_nonlib_min_score, filter_unique_only, filter_exclude_own_family, filter_function_min_score, filter_function_max_score, filter_max_num_families, filter_exclude_library, filter_exclude_pic) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-            (user_id,
-             min(100, max(0, filter_values["filter_direct_min_score"])),
-             min(100, max(0, filter_values["filter_direct_nonlib_min_score"])),
-             min(100, max(0, filter_values["filter_frequency_min_score"])), 
-             min(100, max(0, filter_values["filter_frequency_nonlib_min_score"])), 
-             1 if filter_values["filter_unique_only"] else 0, 
-             1 if filter_values["filter_exclude_own_family"] else 0, 
-             min(100, max(0, filter_values["filter_function_min_score"])),
-             min(100, max(0, filter_values["filter_function_max_score"])), 
-             max(0, filter_values["filter_max_num_families"]), 
-             1 if filter_values["filter_exclude_library"] else 0, 
-             1 if filter_values["filter_exclude_pic"] else 0,
-             ))
-        db.commit()
-
-def has_user_result_filters(user_id):
-    db = get_db()
-    cursor = db.cursor()
-    record = cursor.execute("SELECT * FROM user_filters WHERE user_id = ?;", (user_id,)).fetchone()
-    return True if record else False
-
-def get_user_result_filters(user_id):
-    filter_values = None
-    db = get_db()
-    cursor = db.cursor()
-    record = cursor.execute("SELECT * FROM user_filters WHERE user_id = ?;", (user_id,)).fetchone()
-    if record:
-        record = dict(record)
-        filter_values = {
-        "filter_direct_min_score": None if record["filter_direct_min_score"] == 0 else record["filter_direct_min_score"],
-        "filter_direct_nonlib_min_score": None if record["filter_direct_nonlib_min_score"] == 0 else record["filter_direct_nonlib_min_score"],
-        "filter_frequency_min_score": None if record["filter_frequency_min_score"] == 0 else record["filter_frequency_min_score"],
-        "filter_frequency_nonlib_min_score": None if record["filter_frequency_nonlib_min_score"] == 0 else record["filter_frequency_nonlib_min_score"],
-        "filter_unique_only": True if record["filter_unique_only"] else False,
-        "filter_exclude_own_family": True if record["filter_exclude_own_family"] else False,
-        # this is never stored as preference in the DB as its not as generic as the others
-        "filter_family_name": None,
-        "filter_function_min_score": None if record.get("filter_function_min_score", 0) == 0 else record["filter_function_min_score"],
-        "filter_function_max_score": None if record.get("filter_function_max_score", 100) == 100 else record["filter_function_max_score"],
-        # this is never stored as preference in the DB as its not as generic as the others
-        "filter_function_offset": None,
-        "filter_max_num_families": None if record.get("filter_max_num_families", 0) == 0 else record["filter_max_num_families"],
-        # we don't store filter_max_num_samples separately but instead duplicate from family value
-        "filter_min_num_samples": None if record.get("filter_min_num_samples", 0) == 0 else record["filter_min_num_samples"],
-        "filter_max_num_samples": None if record.get("filter_max_num_samples", 0) == 0 else record["filter_max_num_samples"],
-        "filter_exclude_library": True if record["filter_exclude_library"] else False,
-        "filter_exclude_pic": True if record["filter_exclude_pic"] else False
-        }
-    # we appear to not have default filter values stored due to DB migration, so return empty filter dict instead
-    elif user_id:
-        filter_values = {
-        "filter_direct_min_score": None,
-        "filter_direct_nonlib_min_score": None,
-        "filter_frequency_min_score": None,
-        "filter_frequency_nonlib_min_score": None,
-        "filter_unique_only": False,
-        "filter_exclude_own_family": False,
-        # this is never stored as preference in the DB as its not as generic as the others
-        "filter_family_name": None,
-        "filter_function_min_score": None,
-        "filter_function_max_score": None,
-        # this is never stored as preference in the DB as its not as generic as the others
-        "filter_function_offset": None,
-        "filter_max_num_families": None,
-        "filter_min_num_samples": None,
-        "filter_max_num_samples": None,
-        "filter_exclude_library": False,
-        "filter_exclude_pic": False,
-        }
-    return filter_values
 
 def get_user_by_apitoken(apitoken):
     user_id = None

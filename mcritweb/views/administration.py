@@ -1,4 +1,6 @@
+import json
 import re
+
 from werkzeug.security import check_password_hash, generate_password_hash
 from flask import current_app, Blueprint, render_template, g, request, flash, redirect, url_for, session
 
@@ -6,7 +8,7 @@ from mcrit.client.McritClient import McritClient
 
 from mcritweb.views.utility import get_server_url, get_server_token, get_username
 from mcritweb import db
-from mcritweb.db import UserInfo, ServerInfo, UserFilters
+from mcritweb.db import UserInfo, ServerInfo, UserFilters, UserColumnSettings
 from mcritweb.views.authentication import admin_required, login_required, multi_user
 from mcritweb.views.utility import get_server_url, get_mcritweb_version_from_setup, parse_integer_post_param, parse_checkbox_post_param, get_session_user_id
 
@@ -123,6 +125,56 @@ def change_default_filter():
     user_info = UserInfo.fromDb(user_id)
     user_filters = UserFilters.fromDb(user_info.user_id)
     return render_template('settings.html', user_info=user_info, user_filters=user_filters)
+
+@bp.route('/change_column_settings' , methods=('GET', 'POST'))
+@login_required
+def change_column_settings():
+
+    user_id = get_session_user_id()
+    if user_id is None:
+        flash('User ID was not recognized', category='error')
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        try:
+            # Read JSON data from form field
+            column_settings_json = request.form.get('column_settings')
+            if column_settings_json:
+                json_data = json.loads(column_settings_json)
+                # Create column_settings dict in the expected format
+                column_settings_dict = {'column_settings': json_data}
+                user_column_settings = UserColumnSettings.fromDict(user_id, column_settings_dict)
+                user_column_settings.saveToDb()
+                flash('Default column settings successfully changed', category='success')
+            else:
+                flash('No column settings data received', category='error')
+
+        except Exception as e:
+            flash(f'Error processing column settings {str(e)}.', category='error')
+
+    # For GET request, redirect to the sortable config page
+    user_info = UserInfo.fromDb(user_id)
+    user_filters = UserFilters.fromDb(user_info.user_id)
+    user_column_settings = UserColumnSettings.fromDb(user_info.user_id)
+    return redirect(url_for('authentication.settings'))
+
+@bp.route('/reset_column_settings', methods=('POST',))
+@login_required
+def reset_column_settings():
+    user_id = get_session_user_id()
+    if user_id is None:
+        flash('User ID was not recognized', category='error')
+        return redirect(url_for('index'))
+    
+    try:
+        # Reset to default settings by creating a UserColumnSettings with defaults and saving
+        user_column_settings = UserColumnSettings(user_id)
+        user_column_settings.saveToDb()
+        flash('Column settings reset to default successfully!', category='success')
+    except Exception as e:
+        flash(f'Error resetting column settings: {str(e)}', category='error')
+    
+    return redirect(url_for('authentication.settings'))
 
 @bp.route('/users/')
 @bp.route('/users/<tab>')
