@@ -42,8 +42,10 @@ Note that most functionality of MCRITweb will only work if an MCRIT backend is c
 
 
 ## Version History
- * 2025-08-22 v1.3.6: Bugfix for function compare page not rendering.
- * 2025-07-30 v1.3.5: Preselect sample in 1:N job, show matching score on function compare pages (if available), documentation accessible directly in mcritweb.
+ * 2025-12-09 v1.4.0: Customizable column setup for all tables per user, QoL improvements for cross jobs (start from SHA256 list, edit meta data in results view), minor fixes
+ * 2025-08-22 v1.3.7: Bugfix for function compare page not rendering.
+ * 2025-07-30 v1.3.6: Preselect sample in 1:N job, show matching score on function compare pages (if available), documentation accessible directly in mcritweb.
+ * 2025-07-30 v1.3.5: Documentation now available within MCRITweb, links to search syntax besides the search fields. Function 1v1 shows match score.
  * 2025-01-21 v1.3.4: Fixed a bug in the job overview, where in-progress cross compare jobs would cause a server error (500)
  * 2024-03-19 v1.3.3: It is now possible to submit and query with SMDA reports through the WebUI. 
  * 2024-03-04 v1.3.2: Added safety checks for when there are no jobs to be rendered. 
