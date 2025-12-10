@@ -116,8 +116,10 @@ def create_app(test_config=None):
                 for job in jobs:
                     if job.family_id is not None:
                         families_by_id[job.family_id] = client.getFamily(job.family_id)
-                results = client.search_samples("", is_ascending=False, cursor=None, sort_by="sample_id", limit=5)
-                for sample_dict in results['search_results'].values():
+            
+            sample_results = client.search_samples("", is_ascending=False, cursor=None, sort_by="sample_id", limit=5)
+            if sample_results:
+                for sample_dict in sample_results['search_results'].values():
                     latest_samples.append(SampleEntry.fromDict(sample_dict))
             return render_template("index.html", samples=samples_by_id, families=families_by_id, latest_samples=latest_samples, jobs=jobs)
 
