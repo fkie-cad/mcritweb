@@ -477,7 +477,6 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         family_pagination = Pagination(request, matching_result.num_family_matches, limit=10, query_param="famp", limit_param="fampl")
         library_pagination = Pagination(request, matching_result.num_library_matches, limit=10, query_param="libp", limit_param="libl")
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), limit=100, query_param="funp", limit_param="funl")
-        print("wat")
         return render_template("result_compare_all.html", job_info=job_info, famp=family_pagination, libp=library_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider, ucs_famlib=user_column_setup_family_library, ucs_functions=user_column_setup_function_all)
 
 

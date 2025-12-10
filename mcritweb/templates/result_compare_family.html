@@ -81,7 +81,7 @@ Results for Job: {{ job_info.job_id }}
     </tr>
   </thead>
   <tbody>
-    {% for matched_sample in matching_result.getBestSampleMatchesPerFamily(samp.start_index, samp.limit, malware_only=True) %}
+    {% for matched_sample in matching_result.getSampleMatches(samp.start_index, samp.limit) %}
       <tr style="background-color:#{{ scp.getMatchHexColorFromResult(matched_sample, 'matched_percent_score_weighted') }}">
         {% for column_type in ucs_famlib %}
           {% if column_type == "family_name" %}
