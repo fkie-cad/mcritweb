@@ -73,15 +73,17 @@ Compare
   function createJob() {
     var params = fetchState();
     var samples_string = {{selected_ids|safe}}.join(",")+","+params.cache;
-    window.location.href="/analyze/start_cross_compare?samples="+samples_string+"&rematch="+params.rematch+"&minhashBandRange="+params.minhashBandRange;
+    window.location.href="/analyze/start_cross_compare?samples="+samples_string+"&rematch="+params.rematch+"&onlySelected="+params.onlySelected+"&minhashBandRange="+params.minhashBandRange;
   }
   function fetchState() {
     var string = selected.join(',');
-    var checkedValue = $("#force_rematch").is(":checked");
+    var force_rematch_value = $("#force_rematch").is(":checked");
+    var only_selected_value = $("#only_selected").is(":checked");
     var minhashBandRange = document.getElementById('minhashBandRange').value;
     return {
-      "rematch": checkedValue,
+      "rematch": force_rematch_value,
       "cache": string,
+      "onlySelected": only_selected_value,
       "minhashBandRange": minhashBandRange
     };
   }
@@ -170,24 +172,32 @@ function handleSliderChange(val) {
     </table>
     {{ pagination_widget(pagination) }}
     <center>
-      <div class="form-group">
-    <div class="col-sm-6 d-inline-flex justify-content-center">
-        <input class="form-check-input shadow-none" type="checkbox" name="rematch" value="true" id="force_rematch" {% if rematch %}checked{% else %}{% endif %}>
-        <label class="form-check-label" for="flexCheckChecked">
-          &nbsp;Force rematch    
-        </label>
-    </div>
-    <div class="col-sm-8 d-inline-flex justify-content-center">
-      <div class="col-sm-2">
-        <label class="form-check-label" for="minhashBandRange">
-          Minhash Matching:
-        </label>
+    <div class="form-group">
+      <div class="col-sm-6 d-inline-flex justify-content-center">
+        <div class="col-sm-4 d-inline-flex justify-content-center">
+          <input class="form-check-input shadow-none" type="checkbox" name="input_rematch" value="true" id="force_rematch" {% if rematch %}checked{% else %}{% endif %}>
+          <label class="form-check-label" for="flexCheckChecked">
+            &nbsp;Force rematch    
+          </label>
+        </div>
+          <div class="col-sm-4 d-inline-flex justify-content-center">
+          <input class="form-check-input shadow-none" type="checkbox" name="input_only_selected" value="true" id="only_selected" {% if only_selected %}checked{% else %}{% endif %}>
+          <label class="form-check-label" for="flexCheckChecked">
+            &nbsp;Compare only selected samples
+          </label>
+        </div>
       </div>
-      <div class="col-sm-2" id="minhashBandRange-currentSelection">&nbsp;{{ minhash_slider_mapping[request.args.get('minhashBandRange', '2')|int] }}</div>
-      <div class="col-sm-4">
-        <input type="range" class="form-range" min="0" max="3" value="{{ request.args.get('minhashBandRange', '2') }}" step="1" id="minhashBandRange" oninput="handleSliderChange(this.value)"/>
+      <div class="col-sm-8 d-inline-flex justify-content-center">
+        <div class="col-sm-2">
+          <label class="form-check-label" for="minhashBandRange">
+            Minhash Matching:
+          </label>
+        </div>
+        <div class="col-sm-2" id="minhashBandRange-currentSelection">&nbsp;{{ minhash_slider_mapping[request.args.get('minhashBandRange', '2')|int] }}</div>
+        <div class="col-sm-4">
+          <input type="range" class="form-range" min="0" max="3" value="{{ request.args.get('minhashBandRange', '2') }}" step="1" id="minhashBandRange" oninput="handleSliderChange(this.value)"/>
+        </div>
       </div>
-    </div>
 </div>
       <br>
       <button type="button"  onclick="goInitCrossFromHashlist()" id="button2" class="btn btn-outline-primary">Initialize from hash list</button>

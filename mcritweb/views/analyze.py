@@ -68,6 +68,7 @@ def cross_compare_from_hash_list():
     cached_list = []
     selected_list = []
     is_forcing_rematch = True if request.args.get('rematch', 'false').lower() == "true" else False
+    is_only_selected = True if request.args.get('onlySelected', 'false').lower() == "true" else False
     if request.method == 'POST':
         hash_list = request.form.get('hashlist', '').strip().splitlines()
         # sanitize to sha256 hashes
@@ -113,6 +114,7 @@ def cross_compare_from_hash_list():
             samples = ",".join([str(id) for id in selected_list]),
             cache = ",".join([str(id) for id in cached_list]),
             rematch = "true" if is_forcing_rematch else "false",
+            onlySelected = "true" if is_only_selected else "false",
         ))
     else:
         return render_template("cross_compare_from_hash_list.html")
@@ -126,6 +128,7 @@ def cross_compare():
     selected = request.args.get('samples', '').strip(',')
     cached = request.args.get('cache','').strip(',')
     is_forcing_rematch = True if request.args.get('rematch', 'false').lower() == "true" else False
+    is_only_selected = True if request.args.get('onlySelected', 'false').lower() == "true" else False
 
     cached_list = [int(x) for x in cached.split(',') if x!='']
     selected_list = [int(x) for x in selected.split(',') if x != '']
@@ -169,6 +172,7 @@ def cross_compare():
         pagination_selected=pagination_selected,
         cached=cached_list,
         rematch=is_forcing_rematch,
+        only_selected=is_only_selected,
         query=query,
     )
 
@@ -180,10 +184,11 @@ def start_cross_compare():
     client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
     selected = request.args.get('samples', '')
     rematch = request.args.get('rematch', '')
+    only_selected = request.args.get('onlySelected', '')
     minhash_band_range = parse_band_range(request)
     if selected != '':
         selected_list = [int(x) for x in selected.split(',') if x != '']
-        job_id = client.requestMatchesCross(selected_list, force_recalculation=rematch, band_matches_required=minhash_band_range)
+        job_id = client.requestMatchesCross(selected_list, force_recalculation=rematch, sample_group_only=only_selected, band_matches_required=minhash_band_range)
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
 
