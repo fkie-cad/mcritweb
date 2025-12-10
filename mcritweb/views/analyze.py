@@ -97,7 +97,6 @@ def cross_compare_from_hash_list():
 
         selected_list = [int(x) for x in selected.split(',') if x != '']
 
-        pagination_selected = Pagination(request, len(selected_list), limit=pagination.limit, query_param="ps")
 
         # fill up search part with all samples
         samples = []
@@ -106,6 +105,8 @@ def cross_compare_from_hash_list():
         pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
+            
+        # unused? -> pagination_selected = Pagination(request, len(selected_list), limit=25, query_param="ps")
 
         return redirect(url_for(
             "analyze.cross_compare",
