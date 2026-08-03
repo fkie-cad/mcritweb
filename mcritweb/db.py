@@ -111,11 +111,12 @@ class ServerInfo(object):
     def saveToDb(self):
         database = get_db()
         # query to see if row exists
-        record = database.execute("SELECT * FROM server;").fetchone()
+        record = database.execute("SELECT rowid FROM server LIMIT 1;").fetchone()
         if record:
-            # Update the first (and should be only) server record
-            database.execute("UPDATE server SET url = ?, operation_mode = ?, registration_token = ?, server_token = ?, server_uuid = ?, server_version = ? LIMIT 1", 
-                          (self.url, self.operation_mode, self.registration_token, self.server_token, self.server_uuid, self.server_version))
+            database.execute(
+                "UPDATE server SET url = ?, operation_mode = ?, registration_token = ?, server_token = ?, server_uuid = ?, server_version = ? WHERE rowid = ?",
+                (self.url, self.operation_mode, self.registration_token, self.server_token, self.server_uuid, self.server_version, record["rowid"]),
+            )
         else:
             database.execute(
                 "INSERT INTO server (url, operation_mode, registration_token, server_token, server_uuid, server_version) VALUES (?,?,?,?,?,?)",
@@ -579,6 +580,9 @@ def migrate(app_context):
         with app_context.open_resource('sql' + os.sep + 'create_table_user_column_settings.sql') as f:
             db.executescript(f.read().decode('utf8'))
         print(f"EXECUTED MIGRATION: CREATED TABLE USER_COLUMN_SETTINGS")
+
+    db.commit()
+    db.close()
 
 
 def is_first_user():

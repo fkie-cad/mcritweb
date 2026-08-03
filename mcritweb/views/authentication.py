@@ -90,15 +90,16 @@ def register():
                     server_info.saveToDb()
                 except Exception as e:
                     error = f"Server values invalid: {str(e)}"
-            user_info.registered = datetime.utcnow()
-            user_info.last_login = 'no login'
-            user_info.apitoken = hashlib.md5(uuid.uuid4().bytes).hexdigest()
-            try:
-                user_info.saveToDb()
-            except sqlite3.IntegrityError:
-                error = f"User {username} is already registered."
-            else:
-                return redirect(url_for("authentication.login"))
+            if error is None:
+                user_info.registered = datetime.utcnow()
+                user_info.last_login = 'no login'
+                user_info.apitoken = hashlib.md5(uuid.uuid4().bytes).hexdigest()
+                try:
+                    user_info.saveToDb()
+                except sqlite3.IntegrityError:
+                    error = f"User {username} is already registered."
+                else:
+                    return redirect(url_for("authentication.login"))
         flash(error, category='error')
     proposed_registration_token = ""
     if g.first_user:
