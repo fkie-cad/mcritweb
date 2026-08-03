@@ -48,9 +48,9 @@ class Pagination(object):
     def pages(self):
         start_page = max(1, self.constrained_page - self._pagination_width)
         end_page = min(self.max_page, self.constrained_page + self._pagination_width)
-        
+
         pages = list(range(start_page, end_page + 1))
-        
+
         if not pages:
             pages = [1]
         return pages
