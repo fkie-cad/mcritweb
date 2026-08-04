@@ -90,25 +90,28 @@ class MatchReportRenderer(object):
             # TODO: find a way to get function_infos
             self.function_infos = {}
         for match in self.match_report.function_matches:
-            if match_report.is_query and match.function_id > 0:
-                match.function_id = -1 * match.function_id
+            # For query reports, our maps are keyed by the negated function_id, so that they line
+            # up with self.function_infos. Keep this a local, display-only id: MatchingResult now
+            # shares its entry objects between function_matches and filtered_function_matches,
+            # so writing it back would corrupt the function_ids of the filtered report.
+            function_id = -1 * match.function_id if (match_report.is_query and match.function_id > 0) else match.function_id
             # matches
-            if match.function_id not in self.matches_by_function_id:
-                self.matches_by_function_id[match.function_id] = []
-            self.matches_by_function_id[match.function_id].append(match)
+            if function_id not in self.matches_by_function_id:
+                self.matches_by_function_id[function_id] = []
+            self.matches_by_function_id[function_id].append(match)
             # families
-            if match.function_id not in self.function_family_match_map:
-                self.function_family_match_map[match.function_id] = set([])
-            self.function_family_match_map[match.function_id].add(match.matched_family_id)
+            if function_id not in self.function_family_match_map:
+                self.function_family_match_map[function_id] = set([])
+            self.function_family_match_map[function_id].add(match.matched_family_id)
             # samples
-            if match.function_id not in self.function_sample_match_map:
-                self.function_sample_match_map[match.function_id] = set([])
-            self.function_sample_match_map[match.function_id].add(match.matched_sample_id)
+            if function_id not in self.function_sample_match_map:
+                self.function_sample_match_map[function_id] = set([])
+            self.function_sample_match_map[function_id].add(match.matched_sample_id)
             # libraries
-            if match.function_id not in self.function_library_match_map:
-                self.function_library_match_map[match.function_id] = set([])
+            if function_id not in self.function_library_match_map:
+                self.function_library_match_map[function_id] = set([])
             if match.match_is_library:
-                self.function_library_match_map[match.function_id].add(match.matched_family_id)
+                self.function_library_match_map[function_id].add(match.matched_family_id)
         # this mapping to libraries remains regardless of report is filtered in any way
         for function_id, lib_mapping in self.match_report.library_matches.items():
             if lib_mapping:
