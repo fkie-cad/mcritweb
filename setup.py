@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="mcritweb",
-    version="1.4.0",
+    version="1.4.2",
     packages=["mcritweb"],
     include_package_data=True,
     install_requires=[
@@ -12,9 +12,9 @@ setup(
         "Pillow",
         "numpy",
         "scipy", 
-        "fastcluster"
+        "fastcluster",
         "networkx",
-        "mcrit",
+        "mcrit>=1.5.3",
         "levenshtein"
     ],
 )
