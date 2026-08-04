@@ -10,7 +10,8 @@ from mcritweb.views.utility import get_server_url, get_server_token, get_usernam
 from mcritweb import db
 from mcritweb.db import UserInfo, ServerInfo, UserFilters, UserColumnSettings
 from mcritweb.views.authentication import admin_required, login_required, multi_user
-from mcritweb.views.utility import get_server_url, get_mcritweb_version_from_setup, parse_integer_post_param, parse_checkbox_post_param, get_session_user_id
+from mcritweb.views.utility import get_server_url, get_mcritweb_version_from_setup, get_session_user_id
+from mcritweb.views.params import parse_integer_post_param, parse_checkbox_post_param
 
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')

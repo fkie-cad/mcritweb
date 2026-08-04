@@ -7,7 +7,8 @@ from mcrit.storage.SampleEntry import SampleEntry
 from smda.common.SmdaReport import SmdaReport
 
 from mcritweb.views.authentication import visitor_required, contributor_required
-from mcritweb.views.utility import get_server_url, get_server_token, mcrit_server_required, get_username, parse_band_range
+from mcritweb.views.utility import get_server_url, get_server_token, mcrit_server_required, get_username
+from mcritweb.views.params import parse_band_range
 from mcritweb.views.pagination import Pagination
 from mcritweb.views.cursor_pagination import CursorPagination
 from mcritweb.views.cross_compare import score_to_color

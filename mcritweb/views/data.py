@@ -16,7 +16,9 @@ from flask import current_app, Blueprint, render_template, request, redirect, ur
 
 from mcritweb.db import UserColumnSettings, UserFilters
 from mcritweb.views.analyze import query as analyze_query
-from mcritweb.views.utility import get_server_url, get_server_token, get_username, mcrit_server_required, parseBitnessFromFilename, parseBaseAddrFromFilename, get_matches_node_colors, parse_integer_query_param, parse_integer_list_query_param, parse_checkbox_query_param, parse_str_query_param, get_session_user_id
+from mcritweb.views.utility import get_server_url, get_server_token, get_username, mcrit_server_required, get_session_user_id
+from mcritweb.views.params import parseBitnessFromFilename, parseBaseAddrFromFilename, parse_integer_query_param, parse_integer_list_query_param, parse_checkbox_query_param, parse_str_query_param
+from mcritweb.views.functiondiff import get_matches_node_colors
 from mcritweb.views.pagination import Pagination
 from mcritweb.views.cross_compare import get_sample_to_job_id, score_to_color
 from mcritweb.views.authentication import visitor_required, contributor_required

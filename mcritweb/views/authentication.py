@@ -12,7 +12,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from mcritweb import db
 from mcritweb.db import UserInfo, ServerInfo, UserFilters, UserColumnSettings
-from mcritweb.views.utility import parse_integer_query_param, parse_checkbox_query_param, get_session_user_id
+from mcritweb.views.utility import get_session_user_id
+from mcritweb.views.params import parse_integer_query_param, parse_checkbox_query_param
 
 
 bp = Blueprint('authentication', __name__, url_prefix='/')
