@@ -26,13 +26,23 @@ def get_server_token():
     return server_info.server_token
 
 
+# (connect, read) seconds for the reachability probe. Without a timeout, requests
+# waits indefinitely, so an unresponsive backend hangs the page until the WSGI or
+# NGINX timeout fires - 300s in the docker-mcrit deployment.
+SERVER_PROBE_TIMEOUT = (3.05, 10)
+
+
 def default_server_probe():
     """True if the configured MCRIT server answers and accepts our token.
 
     NOTE: this is a blocking HTTP round-trip, performed on every request to a route
     decorated with mcrit_server_required.
     """
-    result = requests.get(f"{get_server_url()}/", headers={"username":"mcritweb", "apitoken": get_server_token()})
+    result = requests.get(
+        f"{get_server_url()}/",
+        headers={"username":"mcritweb", "apitoken": get_server_token()},
+        timeout=SERVER_PROBE_TIMEOUT,
+    )
     return result.status_code != 401
 
 

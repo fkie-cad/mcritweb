@@ -82,5 +82,39 @@ def test_admin_only_route_rejects_a_contributor(client, as_role):
     assert response.status_code == 403
 
 
+def test_authorization_is_checked_before_the_backend(app, client, as_role):
+    """Decorator order: @<role>_required must run before @mcrit_server_required.
+
+    Otherwise an unauthorized request to an unreachable instance is answered with
+    "No connection to the MCRIT server" instead of being rejected on its merits,
+    and every rejected request pays for a backend round-trip first.
+    """
+    probed = []
+
+    def failing_probe():
+        probed.append(True)
+        raise RuntimeError("backend is down")
+
+    app.config["MCRIT_SERVER_PROBE"] = failing_probe
+
+    as_role("pending")
+    response = client.get("/explore/families")
+    assert response.status_code == 403, "role check must reject before the backend is consulted"
+    assert probed == [], "the backend was probed despite the role check failing"
+
+
+def test_backend_check_still_applies_to_authorized_users(app, client, as_role):
+    """The reordering must not disable the check for users who pass authorization."""
+    def failing_probe():
+        raise RuntimeError("backend is down")
+
+    app.config["MCRIT_SERVER_PROBE"] = failing_probe
+
+    as_role("admin")
+    response = client.get("/explore/families")
+    assert response.status_code == 302
+    assert response.headers["Location"] in ("/", "http://localhost/")
+
+
 if __name__ == "__main__":
     unittest.main()

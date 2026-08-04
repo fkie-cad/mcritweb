@@ -64,8 +64,8 @@ def modifyFamily():
     return redirect(url_for('explore.families'))
 
 @bp.route('/families')
-@mcrit_server_required
 @visitor_required
+@mcrit_server_required
 def families():
     family_id = request.args.get('family_id')
     if family_id is not None:
@@ -142,8 +142,8 @@ def modifySample():
 
 
 @bp.route('/samples')
-@mcrit_server_required
 @visitor_required
+@mcrit_server_required
 def samples():
     sample_id = request.args.get('sample_id')
     if not sample_id is None:
@@ -172,8 +172,8 @@ def samples():
 
 
 @bp.route('/functions')
-@mcrit_server_required
 @visitor_required
+@mcrit_server_required
 def functions():
     function_id = request.args.get('function_id')
     if not function_id is None:
@@ -198,8 +198,8 @@ def functions():
 ##############################################################
 
 @bp.route('/families/<int:family_id>')
-@mcrit_server_required
 @visitor_required
+@mcrit_server_required
 def family_by_id(family_id):
     client = get_client()
     family_info = client.getFamily(family_id, with_samples=False)

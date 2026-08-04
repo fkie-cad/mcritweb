@@ -81,8 +81,8 @@ def diagram_file(filename):
 ################################################################
 
 @bp.route('/import',methods=('GET', 'POST'))
-@mcrit_server_required
 @contributor_required
+@mcrit_server_required
 def import_view():
     if request.method == 'POST':
         f = request.files.get('file', '')
@@ -102,8 +102,8 @@ def import_complete():
 
 
 @bp.route('/export',methods=('GET', 'POST'))
-@mcrit_server_required
 @contributor_required
+@mcrit_server_required
 def export_view():
     if request.method == 'POST':
         requested_samples = request.form['samples']
@@ -131,8 +131,8 @@ def export_view():
     return render_template("export.html")
 
 @bp.route('/specific_export/<type>/<item_id>')
-@mcrit_server_required
 @contributor_required
+@mcrit_server_required
 def specific_export(type, item_id):
     client = get_client()
     if type == 'family':
@@ -161,8 +161,8 @@ def specific_export(type, item_id):
 ################################################################
 
 @bp.route('/matches/function/<function_id_a>/<function_id_b>')
-@mcrit_server_required
 @visitor_required
+@mcrit_server_required
 def match_functions(function_id_a, function_id_b):
     client = get_client()
     if client.isFunctionId(function_id_a) and client.isFunctionId(function_id_b):
@@ -195,8 +195,8 @@ def match_functions(function_id_a, function_id_b):
 ################################################################
 
 @bp.route('/result/<job_id>')
-@mcrit_server_required
 @visitor_required
+@mcrit_server_required
 # TODO:  refactor, simplify
 def result(job_id):
     client = get_client()
@@ -535,8 +535,8 @@ def result_matches_for_cross(job_info, result_json):
 ################################################################
 
 @bp.route('/linkhunt/<job_id>')
-@mcrit_server_required
 @visitor_required
+@mcrit_server_required
 # TODO:  refactor, simplify
 def linkhunt(job_id):
     client = get_client()
@@ -648,8 +648,8 @@ def linkhunt_for_sample_or_query(job_info, matching_result: MatchingResult):
 ################################################################
 
 @bp.route('/jobs',methods=('GET', 'POST'))
-@mcrit_server_required
 @visitor_required
+@mcrit_server_required
 def jobs():
     query = None
     if request.method == 'POST':
@@ -737,8 +737,8 @@ def jobs():
 
 
 @bp.route('/jobs/<job_id>')
-@mcrit_server_required
 @visitor_required
+@mcrit_server_required
 def job_by_id(job_id):
     auto_refresh = 0
     auto_forward = 0
@@ -786,8 +786,8 @@ def job_by_id(job_id):
 
 
 @bp.route('/jobs/<job_id>/delete')
-@mcrit_server_required
 @contributor_required
+@mcrit_server_required
 def delete_job_by_id(job_id):
     client = get_client()
     print("job to be deleted:", job_id)
@@ -816,8 +816,8 @@ def delete_job_by_id(job_id):
 ################################################################
 
 @bp.route('/request_filename_info', methods=['POST'])
-@mcrit_server_required
 @contributor_required
+@mcrit_server_required
 def request_filename_info():
     try:
         data_as_dict = json.loads(request.data)
@@ -859,8 +859,8 @@ def request_filename_info():
 
 
 @bp.route('/submit_or_query', methods=('POST',))
-@mcrit_server_required
 @contributor_required
+@mcrit_server_required
 def submit_or_query():
     form_type = request.form['form_type']
     # NOTE: we do not use redirect to prevent resending of large file data
@@ -873,8 +873,8 @@ def submit_or_query():
 
 
 @bp.route('/submit',methods=('GET', 'POST'))
-@mcrit_server_required
 @contributor_required
+@mcrit_server_required
 def submit():
     client = get_client()
     if request.method == 'POST':

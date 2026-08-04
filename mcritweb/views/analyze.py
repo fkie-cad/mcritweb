@@ -268,8 +268,8 @@ def compare_vs(sample_id_a, sample_id_b):
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
 @bp.route('/query',methods=('GET', 'POST'))
-@mcrit_server_required
 @visitor_required
+@mcrit_server_required
 def query():
     client = get_client()
     if request.method == 'POST':
