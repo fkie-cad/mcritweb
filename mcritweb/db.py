@@ -218,17 +218,23 @@ class UserFilters(object):
         # query to see if row exists
         record = database.execute("SELECT * FROM user_filters WHERE user_id = ?;", (self.user_id,)).fetchone()
         if record:
-            database.execute("UPDATE user_filters SET filter_direct_min_score = ?",(min(100, max(0, self.filter_direct_min_score)),))
-            database.execute("UPDATE user_filters SET filter_direct_nonlib_min_score = ?",(min(100, max(0, self.filter_direct_nonlib_min_score)),))
-            database.execute("UPDATE user_filters SET filter_frequency_min_score = ?",(min(100, max(0, self.filter_frequency_min_score)),))
-            database.execute("UPDATE user_filters SET filter_frequency_nonlib_min_score = ?",(min(100, max(0, self.filter_frequency_nonlib_min_score)),))
-            database.execute("UPDATE user_filters SET filter_unique_only = ?",(1 if self.filter_unique_only else 0,))
-            database.execute("UPDATE user_filters SET filter_exclude_own_family = ?",(1 if self.filter_exclude_own_family else 0,))
-            database.execute("UPDATE user_filters SET filter_function_min_score = ?",(min(100, max(0, self.filter_function_min_score)),))
-            database.execute("UPDATE user_filters SET filter_function_max_score = ?",(min(100, max(0, self.filter_function_max_score)),))
-            database.execute("UPDATE user_filters SET filter_max_num_families = ?",(max(0, self.filter_max_num_families),))
-            database.execute("UPDATE user_filters SET filter_exclude_library = ?",(1 if self.filter_exclude_library else 0,))
-            database.execute("UPDATE user_filters SET filter_exclude_pic = ?",(1 if self.filter_exclude_pic else 0,))
+            # NOTE: the WHERE clause is load-bearing - without it every user's filters are
+            # overwritten with this user's values (see issue #81)
+            database.execute(
+                "UPDATE user_filters SET filter_direct_min_score = ?, filter_direct_nonlib_min_score = ?, filter_frequency_min_score = ?, filter_frequency_nonlib_min_score = ?, filter_unique_only = ?, filter_exclude_own_family = ?, filter_function_min_score = ?, filter_function_max_score = ?, filter_max_num_families = ?, filter_exclude_library = ?, filter_exclude_pic = ? WHERE user_id = ?;",
+                (min(100, max(0, self.filter_direct_min_score)),
+                min(100, max(0, self.filter_direct_nonlib_min_score)),
+                min(100, max(0, self.filter_frequency_min_score)),
+                min(100, max(0, self.filter_frequency_nonlib_min_score)),
+                1 if self.filter_unique_only else 0,
+                1 if self.filter_exclude_own_family else 0,
+                min(100, max(0, self.filter_function_min_score)),
+                min(100, max(0, self.filter_function_max_score)),
+                max(0, self.filter_max_num_families),
+                1 if self.filter_exclude_library else 0,
+                1 if self.filter_exclude_pic else 0,
+                self.user_id,
+            ))
         else:
             # insert inital values
             database.execute("INSERT INTO user_filters (user_id, filter_direct_min_score, filter_direct_nonlib_min_score, filter_frequency_min_score, filter_frequency_nonlib_min_score, filter_unique_only, filter_exclude_own_family, filter_function_min_score, filter_function_max_score, filter_max_num_families, filter_exclude_library, filter_exclude_pic) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
