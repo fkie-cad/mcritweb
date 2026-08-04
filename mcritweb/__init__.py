@@ -2,17 +2,22 @@ import os
 import datetime
 
 from flask import Flask, render_template, g, redirect, url_for, request
-from flask_dropzone import Dropzone
 
-from . import db
-from .views import explore, analyze, authentication, administration, data, api
-from .views.utility import ensure_local_data_paths, get_mcritweb_version_from_setup, get_server_url, get_server_token, get_username
 
-from mcrit.client.McritClient import McritClient
-from mcrit.storage.SampleEntry import SampleEntry
-
-dropzone = Dropzone()
 def create_app(test_config=None):
+    # NOTE: these are imported here rather than at module scope on purpose. Importing any
+    # mcritweb submodule executes this file first, so module-level blueprint imports would
+    # drag the entire application stack (mcrit, smda, numpy, PIL, networkx) into every
+    # import - including a test that only wants a pure-python helper. See issue #88.
+    from flask_dropzone import Dropzone
+
+    from . import db
+    from .views import explore, analyze, authentication, administration, data, api
+    from .views.utility import ensure_local_data_paths, get_mcritweb_version_from_setup, get_server_url, get_server_token, get_username
+
+    from mcrit.client.McritClient import McritClient
+    from mcrit.storage.SampleEntry import SampleEntry
+
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(
