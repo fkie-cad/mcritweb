@@ -99,6 +99,7 @@ def get_user_column_setup(table_type:str):
     ucs_dict = user_column_settings.toUserColumnSettings()
     return ucs_dict[table_type]["active"]
 
+
 def ensure_local_data_paths(app, clear_data=False):
     # nuke both cache and temp folders
     nuke_paths = [
@@ -131,7 +132,7 @@ def get_mcritweb_version_from_setup():
     with open(setup_path, "r") as fin:
         for line in fin.readlines():
             line = line.strip()
-            match = re.search("version=\"(?P<version_str>\d+\.\d+\.\d+)\",", line)
+            match = re.search(r'version=\"(?P<version_str>\d+\.\d+\.\d+)\",', line)
             if match:
                 mcritweb_version = match.group("version_str")
     return mcritweb_version

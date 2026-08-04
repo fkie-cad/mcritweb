@@ -33,7 +33,7 @@ def change_username():
     password = request.form['inputPassword1']
     error_msg = None
     user_info = UserInfo.fromDb(user_id=session['user_id'])
-    if re.match("^(?=[a-zA-Z0-9._]{3,20}$)(?!.*[_.]{2})[^_.].*[^_.]$", new_username) is None:
+    if re.match(r"^(?=[a-zA-Z0-9._]{3,20}$)(?!.*[_.]{2})[^_.].*[^_.]$", new_username) is None:
         error_msg = "Username has invalid format."
     if  not check_password_hash(user_info.password, password):
         error_msg = 'Incorrect Password!'
