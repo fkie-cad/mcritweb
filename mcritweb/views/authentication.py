@@ -62,7 +62,7 @@ def register():
         if not username:
             error = 'Username is required.'
         elif re.match("^(?=[a-zA-Z0-9._]{3,20}$)(?!.*[_.]{2})[^_.].*[^_.]$", username) is None:
-            error = "Username has wrong format. Must be 3-20 characters, alphanumeric with dots and underscores allowed, but cannot start or end with dots/underscores."
+            error = "Username has wrong format. Must be 3-20 characters, alphanumeric with dots and underscores allowed, but cannot start or end with dots/underscores, nor contain two of them in a row."
         elif username.lower() in ["guest", "mcritweb", "mcrit", "admin", "root", "system", "test", "demo"]:
             error = "Username is reserved."
         elif not password:
@@ -88,8 +88,11 @@ def register():
                 server_info.server_version = current_app.config['MCRITWEB_VERSION']
                 try:
                     server_info.saveToDb()
-                except Exception as e:
-                    error = f"Server values invalid: {str(e)}"
+                except Exception:
+                    # never surface the exception text: /register is unauthenticated and the
+                    # message can carry the database path or SQL fragments
+                    current_app.logger.exception("Failed to persist server settings during first-user registration")
+                    error = "Server values invalid. Please check the server settings and try again."
             if error is None:
                 user_info.registered = datetime.utcnow()
                 user_info.last_login = 'no login'

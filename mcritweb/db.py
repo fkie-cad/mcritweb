@@ -538,51 +538,54 @@ def migrate(app_context):
             app_context.config['DATABASE'],
             detect_types=sqlite3.PARSE_DECLTYPES
         )
-    # check if DB was initialized before taking further action.
+    # close on every exit path, including the early return and any failing migration
     try:
-        db.execute('SELECT * FROM user').fetchone()
-    except sqlite3.OperationalError:
-        print("Database tables not initialized yet, skipping migrations.")
-        return
-    # since version v0.11.0, users can have default filter, ensure table exists
-    table_needs_creation = False
-    try:
-        user_info = db.execute('SELECT * FROM user_filters').fetchone()
-    except:
-        table_needs_creation = True
-    if table_needs_creation:
-        with app_context.open_resource('sql' + os.sep + 'create_table_user_filters.sql') as f:
-            db.executescript(f.read().decode('utf8'))
-        print(f"EXECUTED MIGRATION: CREATED TABLE USER_FILTERS")
-    # since version v0.12.0, users have an apitoken, ensure it exists (initializd)
-    cursor = db.cursor()
-    user_table_columns = list(map(lambda x: x[0], db.execute('SELECT * FROM user').description))
-    if "apitoken" not in user_table_columns:
-        db.execute('ALTER TABLE user ADD apitoken VARCHAR')
+        # check if DB was initialized before taking further action.
+        try:
+            db.execute('SELECT * FROM user').fetchone()
+        except sqlite3.OperationalError:
+            print("Database tables not initialized yet, skipping migrations.")
+            return
+        # since version v0.11.0, users can have default filter, ensure table exists
+        table_needs_creation = False
+        try:
+            user_info = db.execute('SELECT * FROM user_filters').fetchone()
+        except:
+            table_needs_creation = True
+        if table_needs_creation:
+            with app_context.open_resource('sql' + os.sep + 'create_table_user_filters.sql') as f:
+                db.executescript(f.read().decode('utf8'))
+            print(f"EXECUTED MIGRATION: CREATED TABLE USER_FILTERS")
+        # since version v0.12.0, users have an apitoken, ensure it exists (initializd)
         cursor = db.cursor()
-        user_ids = []
-        for record in cursor.execute("select * from user;").fetchall():
-            user_ids.append(record[0])
-        for user_id in user_ids:
-            generated_apitoken = hashlib.md5(uuid.uuid4().bytes).hexdigest()
-            db.execute("UPDATE user SET apitoken = ? WHERE id = ?", (generated_apitoken, user_id))
-            print(f"EXECUTED MIGRATION: ADD APITOKEN {generated_apitoken} TO USER_ID {user_id} FROM TABLE USER")
-    # since version v1.2.10, we have an additional server_token field, ensure it exists (empty)
-    server_table_columns = list(map(lambda x: x[0], db.execute('SELECT * FROM server').description))
-    if "server_token" not in server_table_columns:
-        db.execute('ALTER TABLE server ADD server_token VARCHAR')
-        db.execute("UPDATE server SET server_token = ?;", ("",))
-        print(f"EXECUTED MIGRATION: ADD SERVER_TOKEN TO TABLE SERVER")
-    # since version v1.4.0, we have user_column_settings, ensure table exists
-    try:
-        db.execute('SELECT * FROM user_column_settings').fetchone()
-    except sqlite3.OperationalError:
-        with app_context.open_resource('sql' + os.sep + 'create_table_user_column_settings.sql') as f:
-            db.executescript(f.read().decode('utf8'))
-        print(f"EXECUTED MIGRATION: CREATED TABLE USER_COLUMN_SETTINGS")
+        user_table_columns = list(map(lambda x: x[0], db.execute('SELECT * FROM user').description))
+        if "apitoken" not in user_table_columns:
+            db.execute('ALTER TABLE user ADD apitoken VARCHAR')
+            cursor = db.cursor()
+            user_ids = []
+            for record in cursor.execute("select * from user;").fetchall():
+                user_ids.append(record[0])
+            for user_id in user_ids:
+                generated_apitoken = hashlib.md5(uuid.uuid4().bytes).hexdigest()
+                db.execute("UPDATE user SET apitoken = ? WHERE id = ?", (generated_apitoken, user_id))
+                print(f"EXECUTED MIGRATION: ADD APITOKEN {generated_apitoken} TO USER_ID {user_id} FROM TABLE USER")
+        # since version v1.2.10, we have an additional server_token field, ensure it exists (empty)
+        server_table_columns = list(map(lambda x: x[0], db.execute('SELECT * FROM server').description))
+        if "server_token" not in server_table_columns:
+            db.execute('ALTER TABLE server ADD server_token VARCHAR')
+            db.execute("UPDATE server SET server_token = ?;", ("",))
+            print(f"EXECUTED MIGRATION: ADD SERVER_TOKEN TO TABLE SERVER")
+        # since version v1.4.0, we have user_column_settings, ensure table exists
+        try:
+            db.execute('SELECT * FROM user_column_settings').fetchone()
+        except sqlite3.OperationalError:
+            with app_context.open_resource('sql' + os.sep + 'create_table_user_column_settings.sql') as f:
+                db.executescript(f.read().decode('utf8'))
+            print(f"EXECUTED MIGRATION: CREATED TABLE USER_COLUMN_SETTINGS")
 
-    db.commit()
-    db.close()
+        db.commit()
+    finally:
+        db.close()
 
 
 def is_first_user():

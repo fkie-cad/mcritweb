@@ -17,6 +17,10 @@ class MockRequest():
 
     def __init__(self, params) -> None:
         self.args = params
+        # Pagination reads these in __init__ for later url_for() link generation.
+        # The tests never call get_link(), so placeholder values are enough.
+        self.endpoint = "test.endpoint"
+        self.view_args = {}
 
 
 class PaginationTestSuite(unittest.TestCase):
