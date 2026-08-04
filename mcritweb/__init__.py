@@ -4,7 +4,7 @@ import datetime
 from flask import Flask, render_template, g, redirect, url_for, request
 
 
-def create_app(test_config=None):
+def create_app(test_config=None, instance_path=None):
     # NOTE: these are imported here rather than at module scope on purpose. Importing any
     # mcritweb submodule executes this file first, so module-level blueprint imports would
     # drag the entire application stack (mcrit, smda, numpy, PIL, networkx) into every
@@ -19,7 +19,9 @@ def create_app(test_config=None):
     from mcrit.storage.SampleEntry import SampleEntry
 
     # create and configure the app
-    app = Flask(__name__, instance_relative_config=True)
+    # instance_path is overridable so tests get their own cache/temp/uploads tree
+    # instead of writing into the deployment's instance folder
+    app = Flask(__name__, instance_relative_config=True, instance_path=instance_path)
     app.config.from_mapping(
         SECRET_KEY='dev',
         DATABASE=os.path.join(app.instance_path, 'mcritweb.sqlite'),

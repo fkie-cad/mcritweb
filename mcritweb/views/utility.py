@@ -10,7 +10,7 @@ import shutil
 import requests
 import functools
 
-from flask import redirect, url_for, flash, session, g
+from flask import current_app, redirect, url_for, flash, session, g
 
 from mcritweb import db
 from mcritweb.db import ServerInfo, UserColumnSettings
@@ -26,12 +26,24 @@ def get_server_token():
     return server_info.server_token
 
 
+def default_server_probe():
+    """True if the configured MCRIT server answers and accepts our token.
+
+    NOTE: this is a blocking HTTP round-trip, performed on every request to a route
+    decorated with mcrit_server_required.
+    """
+    result = requests.get(f"{get_server_url()}/", headers={"username":"mcritweb", "apitoken": get_server_token()})
+    return result.status_code != 401
+
+
 def mcrit_server_required(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
+        # resolved from config so tests can substitute it, in the same way the
+        # backend client itself is substituted via MCRIT_CLIENT_FACTORY (issue #88)
+        probe = current_app.config.get("MCRIT_SERVER_PROBE", default_server_probe)
         try:
-            result = requests.get(f"{get_server_url()}/", headers={"username":"mcritweb", "apitoken": get_server_token()})
-            if result.status_code == 401:
+            if not probe():
                 flash('Connected to MCRIT server but could not authenticate - Did you configure a token in the server settings?', category='error')
                 return redirect(url_for('index'))
         except:
