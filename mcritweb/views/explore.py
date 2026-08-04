@@ -1,13 +1,13 @@
 import time
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from mcrit.client.McritClient import McritClient
 from mcrit.storage.FamilyEntry import FamilyEntry
 from mcrit.storage.SampleEntry import SampleEntry
 from mcrit.storage.FunctionEntry import FunctionEntry
 from mcrit.queue.JobCollection import JobCollection
 
 from mcritweb.views.authentication import visitor_required, contributor_required
-from mcritweb.views.utility import get_server_url, get_server_token, mcrit_server_required, get_username, get_session_user_id, get_user_column_setup
+from mcritweb.views.utility import mcrit_server_required, get_session_user_id, get_user_column_setup
+from mcritweb.views.client import get_client
 from mcritweb.views.cursor_pagination import CursorPagination
 
 import mcritweb.views.cfg_explorer_detector as cfg_explorer_detector
@@ -28,7 +28,7 @@ def modifyFamily():
         data = data.decode("utf-8")
         if not request.form.to_dict(flat=False):
             return None
-        client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
+        client = get_client()
         family_id = request.form.get("family_id", None)
         if family_id is None: 
             flash(f"No valid family_id received.", category="error")
@@ -71,7 +71,7 @@ def families():
     if family_id is not None:
         return redirect(url_for('explore.family_by_id', family_id=family_id, p=request.args.get('p')))
     query = request.args.get('query', "")
-    client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     families = []
     pagination = CursorPagination(request, default_sort="family_id", limit=25)
     results = client.search_families(query, **pagination.getSearchParams(), limit=pagination.limit)
@@ -95,7 +95,7 @@ def modifySample():
         data = data.decode("utf-8")
         if not request.form.to_dict(flat=False):
             return None
-        client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
+        client = get_client()
         sample_id = request.form.get("sample_id", None)
         redirection_job_id = request.form.get("redirection_job_id", None)
         if redirection_job_id is not None and client.getJobData(redirection_job_id) is None: 
@@ -150,7 +150,7 @@ def samples():
         return redirect(url_for('explore.sample_by_id', sample_id=sample_id, p=request.args.get('p')))
 
     query = request.args.get('query', "")
-    client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     samples = []
     pagination = CursorPagination(request, default_sort="sample_id", limit=25)
     results = client.search_samples(query, **pagination.getSearchParams(), limit=pagination.limit)
@@ -179,7 +179,7 @@ def functions():
     if not function_id is None:
         return redirect(url_for('explore.function_by_id', function_id=function_id, p=request.args.get('p')))
     query = request.args.get('query', "")
-    client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     functions = []
     pagination = CursorPagination(request, default_sort="function_id", limit=25)
     results = client.search_functions(query, **pagination.getSearchParams(), limit=pagination.limit)
@@ -201,12 +201,12 @@ def functions():
 @mcrit_server_required
 @visitor_required
 def family_by_id(family_id):
-    client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     family_info = client.getFamily(family_id, with_samples=False)
     if family_info:
         original_query = request.args.get('query', "")
         query = f"family_id:{family_id} {original_query}"
-        client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
+        client = get_client()
         samples = []
         pagination = CursorPagination(request, default_sort="sample_id", limit=25)
         results = client.search_samples(query, **pagination.getSearchParams(), limit=pagination.limit)
@@ -233,7 +233,7 @@ def family_by_id(family_id):
 @visitor_required
 @mcrit_server_required
 def sample_by_id(sample_id):
-    client = McritClient(mcrit_server= get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     sample_entry = client.getSampleById(sample_id)
     if sample_entry:
         if sample_id < 0:
@@ -270,7 +270,7 @@ def sample_by_id(sample_id):
 @visitor_required
 @mcrit_server_required
 def function_by_id(function_id):
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     function_entry = client.getFunctionById(function_id)
     if function_entry:
         sample_entry = client.getSampleById(function_entry.sample_id)
@@ -285,7 +285,7 @@ def function_by_id(function_id):
 @visitor_required
 @mcrit_server_required
 def fetchDotGraph(function_id):
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     function_entry = client.getFunctionById(function_id, with_xcfg=True)
     if function_entry:
         smda_function = function_entry.toSmdaFunction()
@@ -319,7 +319,7 @@ def findLoops():
 @visitor_required
 @mcrit_server_required
 def getPicBlockMatches(picblockhash):
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     return client.getMatchesForPicBlockHash(int(picblockhash, 16), summary=True)
 
 ##############################################################
@@ -330,7 +330,7 @@ def getPicBlockMatches(picblockhash):
 @visitor_required
 @mcrit_server_required
 def statistics():
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     stats = client.getStatus()
     return render_template("statistics.html", stats=stats)
 
@@ -351,7 +351,7 @@ def search():
         types = request.args["type"].split(",")
     if not query:
         return render_template("search.html", search_types=types)
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
 
     #TODO: show id/sha matches in extra place
     families = []

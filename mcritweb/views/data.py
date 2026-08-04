@@ -4,7 +4,6 @@ import datetime
 import hashlib
 import logging
 from datetime import datetime
-from mcrit.client.McritClient import McritClient
 from mcrit.storage.MatchingResult import MatchingResult
 from mcrit.storage.MatchedFunctionEntry import MatchedFunctionEntry
 from mcrit.storage.FunctionEntry import FunctionEntry
@@ -16,7 +15,8 @@ from flask import current_app, Blueprint, render_template, request, redirect, ur
 
 from mcritweb.db import UserColumnSettings, UserFilters
 from mcritweb.views.analyze import query as analyze_query
-from mcritweb.views.utility import get_server_url, get_server_token, get_username, mcrit_server_required, get_session_user_id
+from mcritweb.views.utility import mcrit_server_required, get_session_user_id
+from mcritweb.views.client import get_client
 from mcritweb.views.params import parseBitnessFromFilename, parseBaseAddrFromFilename, parse_integer_query_param, parse_integer_list_query_param, parse_checkbox_query_param, parse_str_query_param
 from mcritweb.views.functiondiff import get_matches_node_colors
 from mcritweb.views.pagination import Pagination
@@ -86,7 +86,7 @@ def diagram_file(filename):
 def import_view():
     if request.method == 'POST':
         f = request.files.get('file', '')
-        client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+        client = get_client()
         session["last_import"] = client.addImportData(json.load(f))
     return render_template("import.html")
 
@@ -107,7 +107,7 @@ def import_complete():
 def export_view():
     if request.method == 'POST':
         requested_samples = request.form['samples']
-        client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+        client = get_client()
         if requested_samples == "":
             export_file = json.dumps(client.getExportData())
             return Response(
@@ -134,7 +134,7 @@ def export_view():
 @mcrit_server_required
 @contributor_required
 def specific_export(type, item_id):
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     if type == 'family':
         samples = client.getSamplesByFamilyId(item_id)
         sample_ids = [x.sample_id for x in samples.values()]
@@ -164,7 +164,7 @@ def specific_export(type, item_id):
 @mcrit_server_required
 @visitor_required
 def match_functions(function_id_a, function_id_b):
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     if client.isFunctionId(function_id_a) and client.isFunctionId(function_id_b):
         match_info = client.getMatchFunctionVs(function_id_a, function_id_b)
         print(match_info)
@@ -199,7 +199,7 @@ def match_functions(function_id_a, function_id_b):
 @visitor_required
 # TODO:  refactor, simplify
 def result(job_id):
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     # check if we have the respective report already locally cached
     result_json = load_cached_result(current_app, job_id)
     job_info = client.getJobData(job_id)
@@ -265,7 +265,7 @@ def build_yara_rule(job_info, blocks_result, blocks_statistics):
     return yara_rule
 
 def result_unique_blocks(job_info, blocks_result: dict):
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     payload_params = json.loads(job_info.payload["params"])
     sample_ids = payload_params["0"]
     sample_id = sample_ids[0]
@@ -413,7 +413,7 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
     matching_result.getUniqueFamilyMatchInfoForSample(None)
     matching_result.applyFilterValues()
 
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
 
     # load user column setup from database
     user_column_settings = UserColumnSettings.fromDb(user_id)
@@ -483,7 +483,7 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
 
 
 def result_matches_for_cross(job_info, result_json):
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     samples = []
     sample_ids = [int(id) for id in next(iter(result_json.values()))["clustered_sequence"]]
     for sample_id in sample_ids:
@@ -539,7 +539,7 @@ def result_matches_for_cross(job_info, result_json):
 @visitor_required
 # TODO:  refactor, simplify
 def linkhunt(job_id):
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     # check if we have the respective report already locally cached
     result_json = load_cached_result(current_app, job_id)
     job_info = client.getJobData(job_id)
@@ -573,7 +573,7 @@ def linkhunt(job_id):
         return render_template("result_incompatible.html", job_id=job_id)
 
 def linkhunt_for_sample_or_query(job_info, matching_result: MatchingResult):
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     score_color_provider = ScoreColorProvider()
     # generic filtering of function results
     filter_action = parse_str_query_param(request, "filter_button_action")
@@ -655,7 +655,7 @@ def jobs():
     if request.method == 'POST':
         query = request.form['Search']
     # used for job/method collections
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     # sort order
     ascending = request.args.get('ascending', 'false').lower() == "true"
     statistics = client.getQueueStatistics()
@@ -742,7 +742,7 @@ def jobs():
 def job_by_id(job_id):
     auto_refresh = 0
     auto_forward = 0
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     suppress_processing_message = False
     FMT = '%Y-%m-%d-%H:%M:%S'
     try:
@@ -789,7 +789,7 @@ def job_by_id(job_id):
 @mcrit_server_required
 @contributor_required
 def delete_job_by_id(job_id):
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     print("job to be deleted:", job_id)
     job_info = client.getJobData(job_id)
     print("job info:", job_info)
@@ -876,7 +876,7 @@ def submit_or_query():
 @mcrit_server_required
 @contributor_required
 def submit():
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     if request.method == 'POST':
         f = request.files.get('file')
         if f is None:

@@ -5,10 +5,9 @@ import math
 from collections import defaultdict
 
 from PIL import Image, ImageFont, ImageDraw
-from mcrit.client.McritClient import McritClient
 from mcrit.storage.MatchingResult import MatchingResult
 
-from mcritweb.views.utility import get_server_url, get_server_token, get_username
+from mcritweb.views.client import get_client
 
 
 
@@ -81,7 +80,7 @@ class MatchReportRenderer(object):
 
     def processReport(self, match_report):
         self.match_report = match_report
-        client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+        client = get_client()
         self.sample_info = self.match_report.reference_sample_entry
         self.sample_infos = {matched_sample.sample_id: matched_sample for matched_sample in self.match_report.getSampleMatches()}
         if client.isSampleId(self.sample_info.sample_id):

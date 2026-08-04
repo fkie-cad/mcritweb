@@ -10,9 +10,8 @@ import hashlib
 
 from rapidfuzz.distance import Levenshtein
 from smda.intel.IntelInstructionEscaper import IntelInstructionEscaper
-from mcrit.client.McritClient import McritClient
 
-from mcritweb.views.utility import get_server_url, get_server_token, get_username
+from mcritweb.views.client import get_client
 
 
 def get_full_picblock_matches(function_entry_a, function_entry_b):
@@ -28,7 +27,7 @@ def get_full_picblock_matches(function_entry_a, function_entry_b):
     return node_colors
 
 def get_all_picblock_matches(function_a, function_b):
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     smda_function_a = function_a.toSmdaFunction()
     smda_function_b = function_b.toSmdaFunction()
     sample_a = client.getSampleById(function_a.sample_id)
@@ -166,7 +165,7 @@ def get_matches_node_colors(function_id_a, function_id_b):
     # thresholded edit distance match over escaped instruction sequence: green to orange
     node_colors = {"a": {}, "b": {}}
 
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     function_entry = client.getFunctionById(function_id_a, with_xcfg=True)
     other_function_entry = client.getFunctionById(function_id_b, with_xcfg=True)
     smda_function_a = function_entry.toSmdaFunction()

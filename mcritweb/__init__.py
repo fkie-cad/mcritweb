@@ -13,9 +13,9 @@ def create_app(test_config=None):
 
     from . import db
     from .views import explore, analyze, authentication, administration, data, api
-    from .views.utility import ensure_local_data_paths, get_mcritweb_version_from_setup, get_server_url, get_server_token, get_username
+    from .views.utility import ensure_local_data_paths, get_mcritweb_version_from_setup
+    from .views.client import get_client
 
-    from mcrit.client.McritClient import McritClient
     from mcrit.storage.SampleEntry import SampleEntry
 
     # create and configure the app
@@ -108,7 +108,7 @@ def create_app(test_config=None):
         if request.method == 'POST':
             return redirect(url_for("explore.search", query=request.form["Search"]))
         else:
-            client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+            client = get_client()
             jobs = client.getQueueData(0, 5, method="getMatchesForSample", state="finished", ascending=False)
             samples_by_id = {}
             families_by_id = {}

@@ -4,11 +4,11 @@ from hashlib import sha256
 import json
 import re
 from flask import Blueprint, request, Response
-from mcrit.client.McritClient import McritClient
 from smda.common.SmdaReport import SmdaReport
 
 from mcritweb.views.authentication import token_required
-from mcritweb.views.utility import get_server_url, get_server_token, mcrit_server_required, get_username
+from mcritweb.views.utility import mcrit_server_required, get_username
+from mcritweb.views.client import get_client
 
 
 bp = Blueprint('api', __name__, url_prefix='/api')
@@ -41,7 +41,7 @@ def handle_raw_response(response):
 def api_router(api_path):
     api_path = api_path.rstrip("/")
     username = get_username(request)
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=username, raw_responses=True)
+    client = get_client(username=username, raw_responses=True)
     print(f"api_router - {api_path} - {username}")
     if re.match("status", api_path):
         print("status")

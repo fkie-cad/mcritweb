@@ -4,9 +4,8 @@ import re
 from werkzeug.security import check_password_hash, generate_password_hash
 from flask import current_app, Blueprint, render_template, g, request, flash, redirect, url_for, session
 
-from mcrit.client.McritClient import McritClient
 
-from mcritweb.views.utility import get_server_url, get_server_token, get_username
+from mcritweb.views.client import get_client
 from mcritweb import db
 from mcritweb.db import UserInfo, ServerInfo, UserFilters, UserColumnSettings
 from mcritweb.views.authentication import admin_required, login_required, multi_user
@@ -229,7 +228,7 @@ def server():
     print(server_info)
     operation_mode_str = "Multi-User" if server_info.operation_mode == "multi" else "Single-User"
     running_server_version = get_mcritweb_version_from_setup()
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     mcrit_version = client.getVersion()
     return render_template('admin_server.html', operation_mode=operation_mode_str, server_info=server_info, running_version=running_server_version, mcrit_version=mcrit_version)
 
@@ -249,7 +248,7 @@ def change_server():
         flash('No information needed change', category='success')
     operation_mode_str = "Multi-User" if server_info.operation_mode == "multi" else "Single-User"
     running_server_version = get_mcritweb_version_from_setup()
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     mcrit_version = client.getVersion()
     return render_template('admin_server.html', operation_mode=operation_mode_str, server_info=server_info, running_version=running_server_version, mcrit_version=mcrit_version)
 
@@ -259,7 +258,7 @@ def change_server():
 def reset_server():
     reset_confirmation = request.form.get('reset_server', '')
     if reset_confirmation and reset_confirmation == "RESET":
-        client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+        client = get_client()
         client.respawn()
         from mcritweb.views.utility import ensure_local_data_paths
         ensure_local_data_paths(current_app, clear_data=True)
@@ -271,7 +270,7 @@ def reset_server():
 @bp.route('/schedule_rebuild_index' , methods=('GET', 'POST'))
 @admin_required
 def schedule_rebuild_index():
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     job_id = client.rebuildIndex()
     flash('A job for rebuilding the MinHash Index has been scheduled.', category='success')
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
@@ -280,7 +279,7 @@ def schedule_rebuild_index():
 @bp.route('/schedule_recalc_pichashes' , methods=('GET', 'POST'))
 @admin_required
 def schedule_recalc_pichashes():
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     job_id = client.recalculatePicHashes()
     flash('A job for recalculating all PicHashes has been scheduled.', category='success')
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
@@ -289,7 +288,7 @@ def schedule_recalc_pichashes():
 @bp.route('/schedule_recalc_minhashes' , methods=('GET', 'POST'))
 @admin_required
 def schedule_recalc_minhashes():
-    client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
+    client = get_client()
     job_id = client.recalculateMinHashes()
     flash('A job for recalculating and indexing all MinHashes has been scheduled.', category='success')
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
