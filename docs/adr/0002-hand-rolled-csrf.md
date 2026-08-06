@@ -9,16 +9,13 @@ and it is the right long-term answer. We wrote `mcritweb/csrf.py` instead, rough
 sixty lines: a random token per session, a `before_request` check on every method
 that is not `GET`/`HEAD`/`OPTIONS`/`TRACE`, and an `exempt()` for `/api`.
 
-Three reasons, in order of weight:
+Two reasons, in order of weight:
 
 1. **Flask is hard-pinned at 2.2.5** (ADR-0001). Adding a dependency that has to
    resolve against a 2023 Flask, when the plan is to lift that pin in #27, means
    pinning `flask-wtf` too and then moving both. The extension is easier to adopt
    *after* the upgrade than before it.
-2. **It would arrive untested.** The checked-out virtualenv has no `pip`, so the
-   dependency could not be exercised locally at all — CI would have been the first
-   place the code ran.
-3. **`wtforms` comes along for nothing.** This application builds no WTForms forms
+2. **`wtforms` comes along for nothing.** This application builds no WTForms forms
    and would gain none; `CSRFProtect` is the only part of the package it wants.
 
 None of that is an argument that hand-rolled is better. It is an argument about
