@@ -5,8 +5,8 @@ rapidfuzz and a backend client, and it is only used by the function-vs-function
 comparison. See issue #88.
 """
 
-import struct
 import hashlib
+import struct
 
 from rapidfuzz.distance import Levenshtein
 from smda.intel.IntelInstructionEscaper import IntelInstructionEscaper

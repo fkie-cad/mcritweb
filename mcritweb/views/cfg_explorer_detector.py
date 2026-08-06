@@ -22,12 +22,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import re
 import json
-import networkx as nwx
+import re
 from collections import namedtuple
-from functools import reduce
 from copy import copy
+from functools import reduce
+
+import networkx as nwx
 
 
 def dominanators(graph, start):
@@ -75,7 +76,7 @@ def dominanators(graph, start):
 
 def load_dot_file(file_path):
     dot_content = ""
-    with open(file_path, "r") as fin:
+    with open(file_path) as fin:
         dot_content = fin.read()
     return dot_content
 
@@ -93,7 +94,6 @@ def parse_dot_to_graph(dot_content):
         r"^\s*(?P<node>[\w_][\w_\d]*)(:[\w]*)?\s*\[shape\=\w+(,comment=\".*\")?,label\=")
     graph = nwx.DiGraph()
     # For each file
-    nodes = set()
     for line in dot_content.split("\n"):
         if line:
             # Try and match node names - doesn't matter if they are added multiple times as long as they have the same identifier

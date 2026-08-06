@@ -4,13 +4,13 @@ Request-parameter parsing lives in params.py; the function-diff block comparison
 lives in functiondiff.py. See issue #88.
 """
 
+import functools
 import os
 import re
 import shutil
-import requests
-import functools
 
-from flask import current_app, redirect, url_for, flash, session, g
+import requests
+from flask import current_app, flash, g, redirect, session, url_for
 
 from mcritweb import db
 from mcritweb.db import ServerInfo, UserColumnSettings
@@ -56,7 +56,7 @@ def mcrit_server_required(view):
             if not probe():
                 flash('Connected to MCRIT server but could not authenticate - Did you configure a token in the server settings?', category='error')
                 return redirect(url_for('index'))
-        except:
+        except Exception:
             flash('No connection to the MCRIT server', category='error')
             return redirect(url_for('index'))
         return view(**kwargs)
@@ -68,7 +68,7 @@ def get_session_user_id():
         user_id = int(session['user_id'])
         if user_id > 0:
             return user_id
-    except:
+    except Exception:
         return None
 
 
@@ -128,7 +128,7 @@ def get_mcritweb_version_from_setup():
     project_root = str(os.path.abspath(os.sep.join([this_file_path, "..", "..", ".."])))
     setup_path = os.path.abspath(os.sep.join([project_root, "setup.py"]))
     mcritweb_version = None
-    with open(setup_path, "r") as fin:
+    with open(setup_path) as fin:
         for line in fin.readlines():
             line = line.strip()
             match = re.search("version=\"(?P<version_str>\d+\.\d+\.\d+)\",", line)

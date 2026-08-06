@@ -1,5 +1,7 @@
 from typing import Dict, Optional
+
 from flask import Request, url_for
+
 
 class CursorPagination:
     def __init__(self, request: Request, limit=10, query_param_prefix="", default_sort=None) -> None:

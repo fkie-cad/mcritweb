@@ -9,10 +9,9 @@ See issue #88.
 """
 
 from flask import current_app, g
-
 from mcrit.client.McritClient import McritClient
 
-from mcritweb.views.utility import get_server_url, get_server_token, get_username
+from mcritweb.views.utility import get_server_token, get_server_url, get_username
 
 
 def default_client_factory(username=None, **kwargs):

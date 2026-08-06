@@ -1,15 +1,12 @@
-import re
-import os
-from hashlib import sha256
 import json
 import re
-from flask import Blueprint, request, Response
+
+from flask import Blueprint, Response, request
 from smda.common.SmdaReport import SmdaReport
 
 from mcritweb.views.authentication import token_required
-from mcritweb.views.utility import mcrit_server_required, get_username
 from mcritweb.views.client import get_client
-
+from mcritweb.views.utility import get_username, mcrit_server_required
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -17,7 +14,7 @@ def nullable_int(x):
     try:
         casted = int(x)
         return casted
-    except:
+    except Exception:
         raise ValueError("Can't cast this to int")
 
 def stringified_bool(x):
@@ -70,7 +67,7 @@ def api_router(api_path):
             try:
                 forward_start = int(request.args.get("start", 0))
                 forward_limit = int(request.args.get("limit", 0))
-            except:
+            except Exception:
                 pass
             return handle_raw_response(client.getSamples(forward_start, forward_limit))
         elif request.method == 'POST':
@@ -102,7 +99,7 @@ def api_router(api_path):
             try:
                 forward_start = int(request.args.get("start", 0))
                 forward_limit = int(request.args.get("limit", 0))
-            except:
+            except Exception:
                 pass
             return handle_raw_response(client.getFunctions(forward_start, forward_limit))
         elif request.method == 'POST':
@@ -145,7 +142,7 @@ def api_router(api_path):
             forward_filter = request.args.get("filter", None)
             forward_state = request.args.get("state", None)
             forward_ascending = request.args.get("ascending", False, stringified_bool)
-        except:
+        except Exception:
             pass
         return handle_raw_response(
             client.getQueueData(

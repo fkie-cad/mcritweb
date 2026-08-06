@@ -1,27 +1,26 @@
-import os
-import sys
 import json
 import math
+import os
+import sys
 from collections import defaultdict
 
-from PIL import Image, ImageFont, ImageDraw
 from mcrit.storage.MatchingResult import MatchingResult
+from PIL import Image
 
 from mcritweb.views.client import get_client
-
 
 
 def load_cached_result(result_filepath):
     result_json = {}
     matching_result = None
-    with open(result_filepath, "r") as fin:
+    with open(result_filepath) as fin:
         result_json = json.load(fin)
     if result_json:
         matching_result = MatchingResult.fromDict(result_json)
     return matching_result
 
 
-class MatchReportRenderer(object):
+class MatchReportRenderer:
 
     frequency_color_map = {
         # white
@@ -250,7 +249,6 @@ class MatchReportRenderer(object):
         # TODO for some reason, we get match scores of 102 here? maybe related to how how match_is_pichash is used
         this_family_id = self.sample_info.family_id
         adjusted_score_by_sample_id = defaultdict(int)
-        library_bytes_per_sample = 0
         matchable_binweight = 0
         best_individual_match = defaultdict(int)
         best_match_function_id = defaultdict(int)
@@ -319,23 +317,17 @@ class MatchReportRenderer(object):
                     pixels[xpixel, ypixel] = color
 
     def drawFamilyLegend(self, image, x, y):
-        # TODO we can use this to draw boxes and scores
-        draw = ImageDraw.Draw(image) 
-        # specified font size
-        font = ImageFont.truetype(r'/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf', 20) 
-        text = 'LAUGHING IS THE \n BEST MEDICINE'
+        # TODO we can use this to draw boxes and scores, via ImageDraw.Draw(image).text(...)
         border_color_tuple = (0x22, 0x22, 0x22)
         pixels = image.load()
         self.drawBlock(pixels, x, y, 13, border_color_tuple)
         self.drawBlock(pixels, x + 1, y + 1, 11, self.frequency_color_map[0])
-        # draw.text((diagram_x + num_columns * (block_size + 1) + 10, 5), text, fill=border_color_tuple, font=font, align ="left") 
 
     def renderStackedDiagram(self, filtered_family_id=None, filtered_sample_id=None, filtered_function_id=None):
         background_color_tuple = (0xff, 0xff, 0xff)
         border_color_tuple = (0x22, 0x22, 0x22)
         # additional line where top X families or family clusters are highlighted in flavors of the same color?
         output_map = self._calculateOutputMap(filtered_family_id=filtered_family_id, filtered_sample_id=filtered_sample_id, filtered_function_id=filtered_function_id)
-        top_mapping = self._getTopClusterMapping(output_map)
         num_matchable = sum([1 for fid, item in output_map.items() if item["is_matchable"]])
         num_blocks = sum([item["num_instruction_blocks"] for fid, item in output_map.items() if item["is_matchable"]]) + num_matchable - 1
         # determine best fitting multiple of a selected number for stack size.
@@ -362,7 +354,6 @@ class MatchReportRenderer(object):
         block_index = 0
         function_index = 0
         for function_id, function_output in sorted(output_map.items()):
-            color = self.frequency_color_map[0]
             top_color_tuple = (255, 255, 255)
             # determine confidence color based on filter preferences
             bottom_color_tuple = self._mapConfidence(function_output["best_non_family_score"])
@@ -483,7 +474,6 @@ class MatchReportRenderer(object):
         """)
         print("Top Libraries:")
         print(self.getLibraryStats())
-        output_map = self._calculateOutputMap()
         self._getSampleMatchScores()
 
 

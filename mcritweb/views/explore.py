@@ -1,16 +1,16 @@
 import time
-from flask import Blueprint, render_template, request, redirect, url_for, flash
-from mcrit.storage.FamilyEntry import FamilyEntry
-from mcrit.storage.SampleEntry import SampleEntry
-from mcrit.storage.FunctionEntry import FunctionEntry
-from mcrit.queue.JobCollection import JobCollection
 
-from mcritweb.views.authentication import visitor_required, contributor_required
-from mcritweb.views.utility import mcrit_server_required, get_session_user_id, get_user_column_setup
-from mcritweb.views.client import get_client
-from mcritweb.views.cursor_pagination import CursorPagination
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+from mcrit.queue.JobCollection import JobCollection
+from mcrit.storage.FamilyEntry import FamilyEntry
+from mcrit.storage.FunctionEntry import FunctionEntry
+from mcrit.storage.SampleEntry import SampleEntry
 
 import mcritweb.views.cfg_explorer_detector as cfg_explorer_detector
+from mcritweb.views.authentication import contributor_required, visitor_required
+from mcritweb.views.client import get_client
+from mcritweb.views.cursor_pagination import CursorPagination
+from mcritweb.views.utility import get_user_column_setup, mcrit_server_required
 
 bp = Blueprint('explore', __name__, url_prefix='/explore')
 
@@ -31,7 +31,7 @@ def modifyFamily():
         client = get_client()
         family_id = request.form.get("family_id", None)
         if family_id is None: 
-            flash(f"No valid family_id received.", category="error")
+            flash("No valid family_id received.", category="error")
             return redirect(url_for('explore.families'))
         family_entry = None
         try:
@@ -39,8 +39,8 @@ def modifyFamily():
             family_entry = client.getFamily(family_id)
             if family_entry is None:
                 raise ValueError
-        except:
-            flash(f"No valid family_id received.", category="error")
+        except Exception:
+            flash("No valid family_id received.", category="error")
             return redirect(url_for('explore.families'))
         # check if we want ot keep samples
         is_family_keeping_samples = True if request.form.get("family_keeping_samples", None) is not None else False
@@ -48,7 +48,7 @@ def modifyFamily():
         # delete family
         if is_family_delete:
             job_id = client.deleteFamily(family_id, keep_samples=is_family_keeping_samples)
-            flash(f"Job to delete family was scheduled.", category="info")
+            flash("Job to delete family was scheduled.", category="info")
             return redirect(url_for('data.job_by_id', job_id=job_id, refresh=5))
         # check if sample_entry should be modified
         new_family_name = request.form.get("family_new_name", None)
@@ -60,7 +60,7 @@ def modifyFamily():
         if any([item is not None for item in [new_family_name, new_is_library]]):
             job_id = client.modifyFamily(family_id, family_name=new_family_name, is_library=new_is_library)
             time.sleep(0.3)
-        flash(f"Job to modify family was scheduled.", category="info")
+        flash("Job to modify family was scheduled.", category="info")
     return redirect(url_for('explore.families'))
 
 @bp.route('/families')
@@ -99,11 +99,11 @@ def modifySample():
         sample_id = request.form.get("sample_id", None)
         redirection_job_id = request.form.get("redirection_job_id", None)
         if redirection_job_id is not None and client.getJobData(redirection_job_id) is None: 
-            flash(f"Trying to redirect from invalid job_Id.", category="error")
+            flash("Trying to redirect from invalid job_Id.", category="error")
             return redirect(url_for('explore.samples'))
         sample_entry = None
         if sample_id is None: 
-            flash(f"No valid sample_id received.", category="error")
+            flash("No valid sample_id received.", category="error")
             return redirect(url_for('explore.samples'))
         sample_entry = None
         try:
@@ -111,14 +111,14 @@ def modifySample():
             sample_entry = client.getSampleById(sample_id)
             if sample_entry is None:
                 raise ValueError
-        except:
-            flash(f"No valid sample_id received.", category="error")
+        except Exception:
+            flash("No valid sample_id received.", category="error")
             return redirect(url_for('explore.samples'))
         is_sample_delete = True if request.form.get("sample_delete", None) is not None else False
         # delete sample
         if is_sample_delete:
             job_id = client.deleteSample(sample_id)
-            flash(f"Job to delete sample was scheduled.", category="info")
+            flash("Job to delete sample was scheduled.", category="info")
             return redirect(url_for('data.job_by_id', job_id=job_id, refresh=5))
         # check if sample_entry should be modified
         new_family_name = request.form.get("sample_family_name", None)
@@ -135,9 +135,9 @@ def modifySample():
             time.sleep(0.3)
         if redirection_job_id:
             time.sleep(1)
-            flash(f"Delayed redirect for 1 second to let requested sample modification propagate", category="info")
+            flash("Delayed redirect for 1 second to let requested sample modification propagate", category="info")
             return redirect(url_for('data.result', job_id=redirection_job_id))
-        flash(f"Job to modify sample was scheduled.", category="info")
+        flash("Job to modify sample was scheduled.", category="info")
     return redirect(url_for('explore.samples'))
 
 
@@ -146,7 +146,7 @@ def modifySample():
 @mcrit_server_required
 def samples():
     sample_id = request.args.get('sample_id')
-    if not sample_id is None:
+    if sample_id is not None:
         return redirect(url_for('explore.sample_by_id', sample_id=sample_id, p=request.args.get('p')))
 
     query = request.args.get('query', "")
@@ -176,7 +176,7 @@ def samples():
 @mcrit_server_required
 def functions():
     function_id = request.args.get('function_id')
-    if not function_id is None:
+    if function_id is not None:
         return redirect(url_for('explore.function_by_id', function_id=function_id, p=request.args.get('p')))
     query = request.args.get('query', "")
     client = get_client()

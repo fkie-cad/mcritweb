@@ -1,20 +1,17 @@
-import os 
-import re
-import uuid
+import functools
 import hashlib
-import functools 
+import os
+import re
+import sqlite3
+import uuid
 from datetime import datetime
 
-import sqlite3
-from flask import Blueprint, render_template, g, request, flash, redirect, url_for, session, abort, current_app
+from flask import Blueprint, abort, current_app, flash, g, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-
 from mcritweb import db
-from mcritweb.db import UserInfo, ServerInfo, UserFilters, UserColumnSettings
+from mcritweb.db import ServerInfo, UserColumnSettings, UserFilters, UserInfo
 from mcritweb.views.utility import get_session_user_id
-from mcritweb.views.params import parse_integer_query_param, parse_checkbox_query_param
-
 
 bp = Blueprint('authentication', __name__, url_prefix='/')
 

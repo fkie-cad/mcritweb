@@ -1,29 +1,35 @@
+import hashlib
 import os
 import re
-import datetime
-import hashlib
-import logging
 from datetime import datetime
-from mcrit.storage.MatchingResult import MatchingResult
-from mcrit.storage.MatchedFunctionEntry import MatchedFunctionEntry
+
+from flask import Blueprint, Response, current_app, flash, json, redirect, render_template, request, send_from_directory, session, url_for
+from mcrit.queue.LocalQueue import Job
 from mcrit.storage.FunctionEntry import FunctionEntry
+from mcrit.storage.MatchedFunctionEntry import MatchedFunctionEntry
+from mcrit.storage.MatchingResult import MatchingResult
 from mcrit.storage.SampleEntry import SampleEntry
 from mcrit.storage.UniqueBlocksResult import UniqueBlocksResult
-from mcrit.queue.LocalQueue import Job
 from smda.common.SmdaReport import SmdaReport
-from flask import current_app, Blueprint, render_template, request, redirect, url_for, Response, flash, session, send_from_directory, json
 
 from mcritweb.db import UserColumnSettings, UserFilters
 from mcritweb.views.analyze import query as analyze_query
-from mcritweb.views.utility import mcrit_server_required, get_session_user_id
+from mcritweb.views.authentication import contributor_required, visitor_required
 from mcritweb.views.client import get_client
-from mcritweb.views.params import parseBitnessFromFilename, parseBaseAddrFromFilename, parse_integer_query_param, parse_integer_list_query_param, parse_checkbox_query_param, parse_str_query_param
-from mcritweb.views.functiondiff import get_matches_node_colors
-from mcritweb.views.pagination import Pagination
 from mcritweb.views.cross_compare import get_sample_to_job_id, score_to_color
-from mcritweb.views.authentication import visitor_required, contributor_required
-from mcritweb.views.ScoreColorProvider import ScoreColorProvider
+from mcritweb.views.functiondiff import get_matches_node_colors
 from mcritweb.views.MatchReportRenderer import MatchReportRenderer
+from mcritweb.views.pagination import Pagination
+from mcritweb.views.params import (
+    parse_checkbox_query_param,
+    parse_integer_list_query_param,
+    parse_integer_query_param,
+    parse_str_query_param,
+    parseBaseAddrFromFilename,
+    parseBitnessFromFilename,
+)
+from mcritweb.views.ScoreColorProvider import ScoreColorProvider
+from mcritweb.views.utility import get_session_user_id, mcrit_server_required
 
 bp = Blueprint('data', __name__, url_prefix='/data')
 
@@ -36,7 +42,7 @@ def load_cached_result(app, job_id):
     cache_path = os.sep.join([app.instance_path, "cache", "results"])
     for filename in os.listdir(cache_path):
         if job_id in filename and filename.endswith("json"):
-            with open(cache_path + os.sep + filename, "r") as fin:
+            with open(cache_path + os.sep + filename) as fin:
                 matching_result = json.load(fin)
     return matching_result
 
@@ -209,7 +215,6 @@ def result(job_id):
         if result_json:
             cache_result(current_app, job_info, result_json)
     if result_json:
-        score_color_provider = ScoreColorProvider()
         # TODO validation - only parse to matching_result if this data type is appropriate 
         # re-format result report for visualization and choose respective template
         if job_info is None:
@@ -326,7 +331,6 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
     filtered_family_id = parse_integer_query_param(request, "famid")
     filtered_sample_id = parse_integer_query_param(request, "samid")
     filtered_function_id = parse_integer_query_param(request, "funid")
-    other_function_id = parse_integer_query_param(request, "ofunid")
     filter_action = parse_str_query_param(request, "filter_button_action")
     # generic filtering on family/sample results
     filter_direct_min_score = parse_integer_query_param(request, "filter_direct_min_score")
@@ -491,7 +495,7 @@ def result_matches_for_cross(job_info, result_json):
         if sample_entry:
             samples.append(sample_entry)
         else:
-            reason = f"MCRIT was not able to retrieve information for all samples specified in the original job task. This might be a result of having deleted samples from the database since it was processed. Please consider starting a new job."
+            reason = "MCRIT was not able to retrieve information for all samples specified in the original job task. This might be a result of having deleted samples from the database since it was processed. Please consider starting a new job."
             return render_template("result_corrupted.html", reason=reason, job_info=job_info)
     custom_order = request.args.get('custom','')
     samples_by_method = {}
@@ -511,7 +515,7 @@ def result_matches_for_cross(job_info, result_json):
                         ordered_samples.append(sample)
                         break
                 else:
-                    reason = f"MCRIT was not able to produce the chosen custom ordering, as some sample_ids are not part of the cross compare originally specified."
+                    reason = "MCRIT was not able to produce the chosen custom ordering, as some sample_ids are not part of the cross compare originally specified."
                     return render_template("result_corrupted.html", reason=reason, job_info=result_json)
         if ordered_samples != []:
             samples_by_method[method] = ordered_samples
@@ -633,11 +637,11 @@ def linkhunt_for_sample_or_query(job_info, matching_result: MatchingResult):
     function_entries = client.getFunctionsBySampleId(matching_result.reference_sample_entry.sample_id)
     # TODO: probably need to paginate them as well
     link_clusters = matching_result.clusterLinkHuntResult(function_entries, link_hunt_result)
-    link_clusters = sorted([l for l in link_clusters if len(l["links"]) > 1], key=lambda x: x["score"], reverse=True)
+    link_clusters = sorted([cluster for cluster in link_clusters if len(cluster["links"]) > 1], key=lambda x: x["score"], reverse=True)
 
     if filter_link_score:
-        link_clusters = [l for l in link_clusters if l["score"] > filter_link_score]
-        link_hunt_result = [l for l in link_hunt_result if l.matched_link_score > filter_link_score]
+        link_clusters = [cluster for cluster in link_clusters if cluster["score"] > filter_link_score]
+        link_hunt_result = [link for link in link_hunt_result if link.matched_link_score > filter_link_score]
 
     function_pagination = Pagination(request, len(link_hunt_result), limit=100, query_param="funp", limit_param="funl")
     return render_template("linkhunt.html", job_info=job_info, funp=function_pagination, matching_result=matching_result, lc=link_clusters, lhr=link_hunt_result, scp=score_color_provider)
@@ -744,7 +748,6 @@ def job_by_id(job_id):
     auto_forward = 0
     client = get_client()
     suppress_processing_message = False
-    FMT = '%Y-%m-%d-%H:%M:%S'
     try:
         auto_refresh = int(request.args.get("refresh"))
     except TypeError:
@@ -763,7 +766,7 @@ def job_by_id(job_id):
     if job_info is None:
         return render_template("job_invalid.html", job_id=job_id)
 
-    if job_info.finished_at != None:
+    if job_info.finished_at is not None:
         if auto_forward:
             if 'addBinarySample' in job_info.parameters:
                 suppress_processing_message = True

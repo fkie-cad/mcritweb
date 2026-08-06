@@ -1,7 +1,7 @@
-import os
 import datetime
+import os
 
-from flask import Flask, render_template, g, redirect, url_for, request
+from flask import Flask, redirect, render_template, request, url_for
 
 
 def create_app(test_config=None, instance_path=None):
@@ -10,13 +10,12 @@ def create_app(test_config=None, instance_path=None):
     # drag the entire application stack (mcrit, smda, numpy, PIL, networkx) into every
     # import - including a test that only wants a pure-python helper. See issue #88.
     from flask_dropzone import Dropzone
+    from mcrit.storage.SampleEntry import SampleEntry
 
     from . import db
-    from .views import explore, analyze, authentication, administration, data, api
-    from .views.utility import ensure_local_data_paths, get_mcritweb_version_from_setup
+    from .views import administration, analyze, api, authentication, data, explore
     from .views.client import get_client
-
-    from mcrit.storage.SampleEntry import SampleEntry
+    from .views.utility import ensure_local_data_paths, get_mcritweb_version_from_setup
 
     # create and configure the app
     # instance_path is overridable so tests get their own cache/temp/uploads tree
@@ -69,7 +68,7 @@ def create_app(test_config=None, instance_path=None):
     app.config['DROPZONE_REDIRECT_VIEW'] = 'data.import_complete'
     app.config['DROPZONE_ALLOWED_FILE_CUSTOM'] = True
     app.config['DROPZONE_ALLOWED_FILE_TYPE'] = ""
-    dropzone = Dropzone(app)
+    Dropzone(app)
 
     @app.template_filter('silent')
     def silent(input):

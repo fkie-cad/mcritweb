@@ -1,17 +1,15 @@
 import json
 import re
 
+from flask import Blueprint, current_app, flash, g, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
-from flask import current_app, Blueprint, render_template, g, request, flash, redirect, url_for, session
 
-
-from mcritweb.views.client import get_client
 from mcritweb import db
-from mcritweb.db import UserInfo, ServerInfo, UserFilters, UserColumnSettings
+from mcritweb.db import ServerInfo, UserColumnSettings, UserFilters, UserInfo
 from mcritweb.views.authentication import admin_required, login_required, multi_user
-from mcritweb.views.utility import get_server_url, get_mcritweb_version_from_setup, get_session_user_id
-from mcritweb.views.params import parse_integer_post_param, parse_checkbox_post_param
-
+from mcritweb.views.client import get_client
+from mcritweb.views.params import parse_checkbox_post_param, parse_integer_post_param
+from mcritweb.views.utility import get_mcritweb_version_from_setup, get_session_user_id
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -27,7 +25,7 @@ def change_username():
         user_id = int(session['user_id'])
         if user_id < 1:
             raise ValueError
-    except:
+    except Exception:
         return redirect(url_for('index'))
     new_username = request.form['username']
     password = request.form['inputPassword1']
@@ -62,7 +60,7 @@ def change_password():
         user_id = int(session['user_id'])
         if user_id < 1:
             raise ValueError
-    except:
+    except Exception:
         return redirect(url_for('index'))
     new_password = request.form['inputPassword3']
     old_password = request.form['inputPassword2']
@@ -153,9 +151,6 @@ def change_column_settings():
             flash(f'Error processing column settings {str(e)}.', category='error')
 
     # For GET request, redirect to the sortable config page
-    user_info = UserInfo.fromDb(user_id)
-    user_filters = UserFilters.fromDb(user_info.user_id)
-    user_column_settings = UserColumnSettings.fromDb(user_info.user_id)
     return redirect(url_for('authentication.settings'))
 
 @bp.route('/reset_column_settings', methods=('POST',))

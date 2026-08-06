@@ -9,7 +9,7 @@ import pytest
 from werkzeug.security import generate_password_hash
 
 from mcritweb import create_app
-from mcritweb.db import init_db, UserInfo, ServerInfo
+from mcritweb.db import ServerInfo, UserInfo, init_db
 
 
 class FakeMcritClient:

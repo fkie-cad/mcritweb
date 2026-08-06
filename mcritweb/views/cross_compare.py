@@ -1,5 +1,6 @@
 import json
 
+
 def get_sample_to_job_id(job_info):
     return json.loads(job_info.payload["params"])['0']
 

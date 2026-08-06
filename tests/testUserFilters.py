@@ -1,14 +1,13 @@
 #!/usr/bin/python
 
-import os
 import logging
+import os
 import tempfile
 import unittest
 
 from flask import Flask
 
 from mcritweb.db import UserFilters, init_db
-
 
 LOG = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(message)s")

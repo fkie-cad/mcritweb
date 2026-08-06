@@ -1,4 +1,4 @@
-class ScoreColorProvider(object):
+class ScoreColorProvider:
     
     frequency_color_map = {
         # white

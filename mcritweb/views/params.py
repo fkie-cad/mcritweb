@@ -5,8 +5,8 @@ smda, mcrit or the database layer. Nothing here touches Flask globals: each help
 takes the request object as an argument. See issue #88.
 """
 
-import re
 import logging
+import re
 
 
 def parse_band_range(request, from_form=False):
@@ -28,7 +28,7 @@ def parse_band_range(request, from_form=False):
             minhash_band_range = int(request.args.get('minhashBandRange', "2"))
         minhash_band_range = min(3, minhash_band_range)
         minhash_band_range = max(0, minhash_band_range)
-    except:
+    except Exception:
         minhash_band_range = 2
     minhash_band_range = arg_to_value[minhash_band_range]
     return minhash_band_range

@@ -1,15 +1,15 @@
-import os
-import uuid
-import hashlib
 import datetime
+import hashlib
+import os
+import sqlite3
+import uuid
 
 import click
-import sqlite3
 from flask import current_app, g
 from flask.cli import with_appcontext
 
 
-class UserInfo(object):
+class UserInfo:
 
     def __init__(self) -> None:
         self.user_id = None
@@ -79,7 +79,7 @@ def get_all_user_info():
     return all_user_infos
     
 
-class ServerInfo(object):
+class ServerInfo:
 
     def __init__(self) -> None:
         self.url = None
@@ -125,7 +125,7 @@ class ServerInfo(object):
         database.commit()
 
 
-class UserFilters(object):
+class UserFilters:
 
     def __init__(self) -> None:
         self.user_id = None
@@ -254,7 +254,7 @@ class UserFilters(object):
         database.commit()
 
 
-class UserColumnSettings(object):
+class UserColumnSettings:
 
     # Define the default column configuration template
     _default_settings = {
@@ -555,13 +555,13 @@ def migrate(app_context):
         # since version v0.11.0, users can have default filter, ensure table exists
         table_needs_creation = False
         try:
-            user_info = db.execute('SELECT * FROM user_filters').fetchone()
-        except:
+            db.execute('SELECT * FROM user_filters').fetchone()
+        except sqlite3.OperationalError:
             table_needs_creation = True
         if table_needs_creation:
             with app_context.open_resource('sql' + os.sep + 'create_table_user_filters.sql') as f:
                 db.executescript(f.read().decode('utf8'))
-            print(f"EXECUTED MIGRATION: CREATED TABLE USER_FILTERS")
+            print("EXECUTED MIGRATION: CREATED TABLE USER_FILTERS")
         # since version v0.12.0, users have an apitoken, ensure it exists (initializd)
         cursor = db.cursor()
         user_table_columns = list(map(lambda x: x[0], db.execute('SELECT * FROM user').description))
@@ -580,14 +580,14 @@ def migrate(app_context):
         if "server_token" not in server_table_columns:
             db.execute('ALTER TABLE server ADD server_token VARCHAR')
             db.execute("UPDATE server SET server_token = ?;", ("",))
-            print(f"EXECUTED MIGRATION: ADD SERVER_TOKEN TO TABLE SERVER")
+            print("EXECUTED MIGRATION: ADD SERVER_TOKEN TO TABLE SERVER")
         # since version v1.4.0, we have user_column_settings, ensure table exists
         try:
             db.execute('SELECT * FROM user_column_settings').fetchone()
         except sqlite3.OperationalError:
             with app_context.open_resource('sql' + os.sep + 'create_table_user_column_settings.sql') as f:
                 db.executescript(f.read().decode('utf8'))
-            print(f"EXECUTED MIGRATION: CREATED TABLE USER_COLUMN_SETTINGS")
+            print("EXECUTED MIGRATION: CREATED TABLE USER_COLUMN_SETTINGS")
 
         db.commit()
     finally:

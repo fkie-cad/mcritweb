@@ -1,17 +1,17 @@
-import re
-import os
 import hashlib
-from flask import Blueprint, g, render_template, request, redirect, session, url_for, current_app, json, flash
+import os
+import re
+
+from flask import Blueprint, current_app, flash, g, json, redirect, render_template, request, url_for
 from mcrit.storage.SampleEntry import SampleEntry
 from smda.common.SmdaReport import SmdaReport
 
-from mcritweb.views.authentication import visitor_required, contributor_required
-from mcritweb.views.utility import mcrit_server_required
+from mcritweb.views.authentication import visitor_required
 from mcritweb.views.client import get_client
-from mcritweb.views.params import parse_band_range
-from mcritweb.views.pagination import Pagination
 from mcritweb.views.cursor_pagination import CursorPagination
-from mcritweb.views.cross_compare import score_to_color
+from mcritweb.views.pagination import Pagination
+from mcritweb.views.params import parse_band_range
+from mcritweb.views.utility import mcrit_server_required
 
 bp = Blueprint('analyze', __name__, url_prefix='/analyze')
 
@@ -65,7 +65,6 @@ def cross_compare_from_hash_list():
     client = get_client()
 
     selected = ""
-    cached = request.args.get('cache','').strip(',')
     cached_list = []
     selected_list = []
     is_forcing_rematch = True if request.args.get('rematch', 'false').lower() == "true" else False
@@ -101,7 +100,6 @@ def cross_compare_from_hash_list():
 
 
         # fill up search part with all samples
-        samples = []
         pagination = CursorPagination(request, default_sort="sample_id")
         results = client.search_samples("", **pagination.getSearchParams(), limit=pagination.limit)
         pagination.read_cursor_from_result(results)
@@ -141,7 +139,6 @@ def cross_compare():
         if sample is None:
             invalid_ids.append(id)
     for invalid_id in invalid_ids:
-        forward = True
         selected_dict.pop(invalid_id)
         selected_list.remove(invalid_id)
         flash(f"Sample with Id {invalid_id} does not exist and was ignored", category="warning")
@@ -282,7 +279,8 @@ def query():
         form_options = request.form['options']
         is_dump_or_smda = form_options in ['dumped', 'smda']
         if is_dump_or_smda:
-            bitness = int(request.form['bitness'])
+            # the form also carries a bitness field, but McritClient has no parameter for it -
+            # the server derives bitness from the mapped binary itself
             base_address = int(request.form['base_addr'], 16)
 
         binary_content = f.read()

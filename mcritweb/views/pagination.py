@@ -1,8 +1,9 @@
 import math
+
 from flask import Request, url_for
 
 
-class Pagination(object):
+class Pagination:
 
     def __init__(self, request: Request, max_value: int, limit=50, query_param="p", limit_param="plimit") -> None:
         self.page = self._getPageFromQueryParam(request, query_param)

@@ -1,19 +1,16 @@
 #!/usr/bin/python
 
-import json
 import logging
- 
 import unittest
 
 from mcritweb.views.pagination import Pagination
-
 
 LOG = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(message)s")
 logging.disable(logging.CRITICAL)
 
 
-class MockRequest():
+class MockRequest:
 
     def __init__(self, params) -> None:
         self.args = params
