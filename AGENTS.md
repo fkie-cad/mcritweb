@@ -18,13 +18,15 @@ This repository owns **no analysis data of its own**. Families, samples, functio
     - `administration.py` (`/admin`) — user management, server settings, per-user filter/column settings, maintenance jobs.
     - `api.py` (`/api`) — token-authenticated **passthrough** to the MCRIT backend REST API.
     - `pagination.py` / `cursor_pagination.py` — the two pagination models (see "Key concepts").
-    - `utility.py` — client construction helpers, request-param parsers, CFG node coloring, path setup.
+    - `client.py` — `get_client()`, the single construction point for the backend client.
+    - `utility.py` — server URL/token lookup, `mcrit_server_required`, session user + username resolution, per-user column setup, path setup, version parsing.
+    - `params.py` — every `parse_*_query_param` / `parse_*_post_param` helper, plus filename-derived bitness and base address.
     - `MatchReportRenderer.py` — PIL-based rendering of the stacked match diagram PNGs.
     - `ScoreColorProvider.py`, `cross_compare.py`, `cfg_explorer_detector.py` — presentation helpers.
   - `templates/` — Jinja2 templates. `base.html` is the layout; `table/` holds reusable row/header macros; `js/` holds script partials.
   - `static/` — **vendored** front-end assets (Bootstrap 5.0.2, jQuery, jQuery-UI, DataTables, Dropzone, Font Awesome, SortableJS, `trace_CFG/` from CFGExplorer) plus project CSS/JS.
 - `instance/` — runtime state, **git-ignored**: `mcritweb.sqlite`, `cache/` (results + diagrams), `temp/` (uploads, reports). Optional `instance/config.py` overrides app config.
-- `tests/` — a single unittest module (see "Testing" — it is currently stale).
+- `tests/` — the offline suite (see "Testing"). `conftest.py` holds the app and backend fixtures, `routePolicy.py` the declared access policy, `fixtureData.py` + `fixtures/` the captured backend reports.
 - `docs/manual/` — the user manual (markdown + screenshots), for readers on GitHub.
 - `docs/agents/` — configuration read by the agent skills: issue tracker, triage labels, domain-doc layout.
 - `mcritweb/templates/help.html` — a **hand-maintained duplicate** of `docs/manual/README.md`, served at `/admin/help`, with the same screenshots copied to `static/images/help/`. Edit both or they drift.
@@ -57,11 +59,7 @@ Optional: set `PROFILER=True` in `instance/config.py` while `FLASK_DEBUG=1` to e
 ## Architecture primer
 
 - **App factory + blueprints.** `create_app()` builds the app, calls `db.init_app` and `db.migrate`, then registers the six blueprints. There is no ORM and no Flask extension for auth — everything is hand-rolled around `sqlite3` and `flask.session`.
-- **Every view builds its own client.** The recurring one-liner is:
-  ```python
-  client = McritClient(mcrit_server=get_server_url(), apitoken=get_server_token(), username=get_username())
-  ```
-  The username is forwarded so the backend can attribute jobs. Keep this pattern — do not cache a module-level client, since the server URL/token are read from the DB per request.
+- **One seam for the backend client.** Views call `get_client()` from `views/client.py`; never construct a `McritClient` directly. The no-argument case is cached on `g` for the request, so a page of views reads the server URL and token from SQLite once. Passing kwargs (the API passthrough needs `raw_responses=True` and its own header-derived username) always returns a fresh instance. Tests substitute a backend through the `MCRIT_CLIENT_FACTORY` config key, which is why the seam exists.
 - **Request → job → result.** Long-running operations (matching, cross-compare, unique blocks, submissions) return a `job_id`; views redirect to `data.job_by_id` with a `refresh=N` parameter, and the job page polls until the result is ready. Result rendering dispatches on the `job_info.parameters` prefix in `data.result()`.
 - **Result caching.** Fetched result JSON is written to `instance/cache/results/`, and match diagrams are rendered once to `instance/cache/diagrams/<job_id>[-famid_N|-samid_N|-funid_N].png`. Both are keyed by `job_id` and never invalidated — a changed renderer needs the cache cleared to be visible.
 - **Filtering happens client-of-backend side.** `MatchingResult.setFilterValues()` / `.applyFilterValues()` (from `mcrit`) are driven by query parameters, falling back to the user's stored `UserFilters` when no filter params are present.
@@ -83,7 +81,7 @@ Optional: set `PROFILER=True` in `instance/config.py` while `FLASK_DEBUG=1` to e
 - **Front-end:** no build step, no npm, no bundler. All libraries are vendored under `static/` and included via `url_for('static', ...)` in `base.html`. Do not add a CDN link (deployments are expected to work offline) and do not add a toolchain without being asked.
 - **Route naming:** blueprint + snake_case function; always build URLs with `url_for(...)`, never string concatenation.
 - **User feedback:** `flash(msg, category=...)` with categories `error` / `warning` / `success` / `info` — `base.html` maps these to Bootstrap alert classes.
-- **Request parsing:** use the `parse_*_query_param` / `parse_*_post_param` helpers in `utility.py` instead of ad-hoc `request.args.get` + `int()`.
+- **Request parsing:** use the `parse_*_query_param` / `parse_*_post_param` helpers in `params.py` instead of ad-hoc `request.args.get` + `int()`.
 - **Logging:** the codebase uses bare `print()` in several places. Prefer `current_app.logger` for anything new; don't mass-convert existing calls.
 - **License:** GPL-3.0-only.
 
