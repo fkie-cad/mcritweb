@@ -148,12 +148,12 @@ Jobs
 
   {% if active %}
 <p>
-  Showing jobs for category: {{active}} <a id="job_id_category_{{active}}" class="confirm-delete btn btn-outline-dark btn-sm" href="{{ url_for('data.delete_job_by_id', job_id='0') }}"  role="button" target="_self"><i class="fa-solid fa-trash"></i></a>
+  Showing jobs for category: {{active}} <button type="button" id="job_id_category_{{active}}" class="confirm-delete btn btn-outline-dark btn-sm"><i class="fa-solid fa-trash"></i></button>
 </p>
 {% endif %}
 {% if state %}
 <p>
-  Showing jobs for state: {{state}} <a id="job_id_state_{{state}}" class="confirm-delete btn btn-outline-dark btn-sm" href="{{ url_for('data.delete_job_by_id', job_id='0') }}"  role="button" target="_self"><i class="fa-solid fa-trash"></i></a>
+  Showing jobs for state: {{state}} <button type="button" id="job_id_state_{{state}}" class="confirm-delete btn btn-outline-dark btn-sm"><i class="fa-solid fa-trash"></i></button>
 </p>
 {% endif %}
 
@@ -198,8 +198,8 @@ Jobs
       job_id = job_id.replace("job_id_", "");
       var url = "{{url_for('data.delete_job_by_id', job_id='PLACEHOLDER')}}";
       url = url.replace("PLACEHOLDER", job_id);
-      // submit the form
-      window.open(url);
+      // POST it: deleting a job must not be reachable by GET (issue #84)
+      postTo(url);
       
       // hide modal
       $('#jobDeleteModal').modal('hide');

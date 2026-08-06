@@ -208,7 +208,7 @@
     {% endif %}
     <td align="right">
       {% if not job.started_at or job.finished_at %}
-      <a id="job_id_{{ job.job_id }}" class="confirm-delete btn btn-outline-dark btn-sm" href="{{ url_for('data.delete_job_by_id', job_id=job.job_id) }}"  role="button" target="_self"><i class="fa-solid fa-trash"></i></a>
+      <button type="button" id="job_id_{{ job.job_id }}" class="confirm-delete btn btn-outline-dark btn-sm"><i class="fa-solid fa-trash"></i></button>
       {% endif %}
       {% if job.finished_at %}
       <a class="btn btn-outline-dark btn-sm" href="{{ url_for('data.result', job_id=job.job_id) }}"  role="button" target="_self"><i class="fa-solid fa-square-poll-vertical"></i></a>

@@ -160,20 +160,20 @@ ROUTE_POLICY = {
     "data.export_view": (CONTRIBUTOR, READ_ONLY),
     "data.specific_export": (CONTRIBUTOR, READ_ONLY),
     "data.request_filename_info": (CONTRIBUTOR, READ_ONLY),   # classifies a posted filename
-    "data.delete_job_by_id": (CONTRIBUTOR, WRITES_ON_GET),    # deletes a job by GET
+    "data.delete_job_by_id": (CONTRIBUTOR, WRITES_ON_POST),
     "explore.modifyFamily": (CONTRIBUTOR, WRITES_ON_POST),
     "explore.modifySample": (CONTRIBUTOR, WRITES_ON_POST),
 
     # --- admin only --------------------------------------------------------------
     "admin.users": (ADMIN, READ_ONLY),
     "admin.server": (ADMIN, READ_ONLY),
-    "admin.delete_user": (ADMIN, WRITES_ON_GET),      # deletes a user by GET
-    "admin.change_user_role": (ADMIN, WRITES_ON_GET), # grants any role by GET
+    "admin.delete_user": (ADMIN, WRITES_ON_POST),
+    "admin.change_user_role": (ADMIN, WRITES_ON_POST),
     "admin.change_server": (ADMIN, WRITES_ON_POST),
     "admin.reset_server": (ADMIN, WRITES_ON_POST),
-    "admin.schedule_rebuild_index": (ADMIN, WRITES_ON_GET),
-    "admin.schedule_recalc_minhashes": (ADMIN, WRITES_ON_GET),
-    "admin.schedule_recalc_pichashes": (ADMIN, WRITES_ON_GET),
+    "admin.schedule_rebuild_index": (ADMIN, WRITES_ON_POST),
+    "admin.schedule_recalc_minhashes": (ADMIN, WRITES_ON_POST),
+    "admin.schedule_recalc_pichashes": (ADMIN, WRITES_ON_POST),
 
     # --- token authenticated -----------------------------------------------------
     # Dispatches an allowlist of ~18 path patterns to the backend. The gate is the

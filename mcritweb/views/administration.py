@@ -173,7 +173,7 @@ def get_users():
     return user_infos
 
 
-@bp.route('/change_user_role/<int:user_id>/<role>/<tab>')
+@bp.route('/change_user_role/<int:user_id>/<role>/<tab>', methods=('POST',))
 @admin_required
 def change_user_role(user_id, role, tab):
     # root user is always admin
@@ -186,16 +186,17 @@ def change_user_role(user_id, role, tab):
     return redirect(url_for('admin.users', tab=tab))
 
 
-@bp.route('/delete_user/<int:user_id>')
-@bp.route('/delete_user/<int:user_id>/<tab>')
+@bp.route('/delete_user/<int:user_id>', methods=('POST',))
+@bp.route('/delete_user/<int:user_id>/<tab>', methods=('POST',))
 @admin_required
 def delete_user(user_id, tab = None):
     # root user is not deletable
     if user_id == 1:
         return redirect(url_for('admin.users', tab=tab))
-    # others can be deleted
-    database = db.get_db() 
-    print(user_id)
+    # others can be deleted, along with everything keyed to them
+    database = db.get_db()
+    database.execute("DELETE FROM user_filters WHERE user_id = ?;", (user_id,))
+    database.execute("DELETE FROM user_column_settings WHERE user_id = ?;", (user_id,))
     database.execute("DELETE FROM user WHERE id = ?;", (user_id,))
     database.commit()
     return redirect(url_for('admin.users', tab=tab))
@@ -249,7 +250,7 @@ def reset_server():
     return redirect(url_for('index'))
 
 
-@bp.route('/schedule_rebuild_index' , methods=('GET', 'POST'))
+@bp.route('/schedule_rebuild_index' , methods=('POST',))
 @admin_required
 def schedule_rebuild_index():
     client = get_client()
@@ -258,7 +259,7 @@ def schedule_rebuild_index():
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
 
-@bp.route('/schedule_recalc_pichashes' , methods=('GET', 'POST'))
+@bp.route('/schedule_recalc_pichashes' , methods=('POST',))
 @admin_required
 def schedule_recalc_pichashes():
     client = get_client()
@@ -267,7 +268,7 @@ def schedule_recalc_pichashes():
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
 
-@bp.route('/schedule_recalc_minhashes' , methods=('GET', 'POST'))
+@bp.route('/schedule_recalc_minhashes' , methods=('POST',))
 @admin_required
 def schedule_recalc_minhashes():
     client = get_client()

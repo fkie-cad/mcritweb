@@ -789,7 +789,7 @@ def job_by_id(job_id):
     return render_template('job_overview.html', families=families_by_id, samples=samples_by_id, job_info=job_info, auto_refresh=auto_refresh, child_jobs=child_jobs)
 
 
-@bp.route('/jobs/<job_id>/delete')
+@bp.route('/jobs/<job_id>/delete', methods=('POST',))
 @contributor_required
 @mcrit_server_required
 def delete_job_by_id(job_id):
