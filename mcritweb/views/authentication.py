@@ -15,6 +15,13 @@ from mcritweb.views.utility import get_session_user_id
 
 bp = Blueprint('authentication', __name__, url_prefix='/')
 
+#: Every role this application recognises, weakest first - the ladder described in
+#: CONTEXT.md. The decorators below and `token_required` compare against these
+#: names, so a value outside the list fails every check: an account holding one can
+#: reach nothing and no page explains why. Anything writing `user.role` validates
+#: against this first. See issue #95.
+KNOWN_ROLES = ('pending', 'visitor', 'contributor', 'admin')
+
 
 @bp.before_app_request
 def set_is_first_user():

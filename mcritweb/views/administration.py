@@ -6,7 +6,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from mcritweb import db
 from mcritweb.db import ServerInfo, UserColumnSettings, UserFilters, UserInfo
-from mcritweb.views.authentication import admin_required, login_required, multi_user
+from mcritweb.views.authentication import KNOWN_ROLES, admin_required, login_required, multi_user
 from mcritweb.views.client import get_client
 from mcritweb.views.params import parse_checkbox_post_param, parse_integer_post_param
 from mcritweb.views.utility import get_mcritweb_version_from_setup, get_session_user_id
@@ -179,8 +179,17 @@ def change_user_role(user_id, role, tab):
     # root user is always admin
     if user_id == 1:
         return redirect(url_for('admin.users', tab=tab))
-    # others can be changed
+    # an unrecognised role is written straight into the column and then fails every
+    # decorator, leaving an account that can reach nothing for no visible reason
+    if role not in KNOWN_ROLES:
+        flash(f'"{role}" is not a role.', category='error')
+        return redirect(url_for('admin.users', tab=tab))
+    # others can be changed - but the account may have been deleted since this page
+    # was rendered, and fromDb answers None rather than raising. See issue #95.
     user_info = UserInfo.fromDb(user_id=user_id)
+    if user_info is None:
+        flash('That user no longer exists.', category='error')
+        return redirect(url_for('admin.users', tab=tab))
     user_info.role = role
     user_info.saveToDb()
     return redirect(url_for('admin.users', tab=tab))
