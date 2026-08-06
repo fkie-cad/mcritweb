@@ -134,12 +134,14 @@ ROUTE_POLICY = {
     "analyze.compare_submit_query": (VISITOR, READ_ONLY),
     "analyze.cross_compare": (VISITOR, READ_ONLY),
     "analyze.cross_compare_from_hash_list": (VISITOR, READ_ONLY),
-    # Job submission by GET. Not destructive, but each hit queues backend work.
+    # Job submission by GET, deliberately: the URL names a comparison, so it is worth
+    # bookmarking and sharing. Not destructive, and idempotent since issue #97 - the
+    # backend returns the existing job for identical parameters unless the caller asks
+    # for a recalculation, so a repeat, a prefetch or a double-click costs nothing.
     "analyze.compare_all": (VISITOR, WRITES_ON_GET),
     "analyze.compare_vs": (VISITOR, WRITES_ON_GET),
     "analyze.blocks_family": (VISITOR, WRITES_ON_GET),
     "analyze.blocks_sample": (VISITOR, WRITES_ON_GET),
-    # Also raises UnboundLocalError on `job_id` when no samples are given.
     "analyze.start_cross_compare": (VISITOR, WRITES_ON_GET),
     "analyze.query": (VISITOR, WRITES_ON_POST),
     "data.jobs": (VISITOR, READ_ONLY),

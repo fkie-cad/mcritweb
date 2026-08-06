@@ -10,7 +10,7 @@ from mcritweb.views.authentication import visitor_required
 from mcritweb.views.client import get_client
 from mcritweb.views.cursor_pagination import CursorPagination
 from mcritweb.views.pagination import Pagination
-from mcritweb.views.params import parse_band_range, parse_integer_list_query_param
+from mcritweb.views.params import parse_band_range, parse_checkbox_query_param, parse_integer_list_query_param
 from mcritweb.views.utility import mcrit_server_required
 
 bp = Blueprint('analyze', __name__, url_prefix='/analyze')
@@ -180,8 +180,11 @@ def cross_compare():
 @mcrit_server_required
 def start_cross_compare():
     client = get_client()
-    rematch = request.args.get('rematch', '')
-    only_selected = request.args.get('onlySelected', '')
+    # both used to be forwarded as the raw query string. "false" is truthy, so an
+    # unticked box both forced a recalculation and silently turned on group-only
+    # matching, which is a different comparison from the one the user asked for.
+    rematch = parse_checkbox_query_param(request, 'rematch')
+    only_selected = parse_checkbox_query_param(request, 'onlySelected')
     minhash_band_range = parse_band_range(request)
     # this route used to read `samples` by hand and only bind job_id inside the
     # "something was selected" branch, so a bare /analyze/start_cross_compare fell
@@ -254,7 +257,10 @@ def compare_versus():
 @mcrit_server_required
 def compare_all(sample_id_a):
     client = get_client()
-    rematch = request.args.get('rematch', False)
+    # the checkbox in compare.html submits rematch=true *or* rematch=false, and the
+    # raw string "false" is truthy - so an unticked box forced a recalculation and
+    # queued a fresh job on every visit. See issue #97.
+    rematch = parse_checkbox_query_param(request, 'rematch')
     minhash_band_range = parse_band_range(request)
     job_id = client.requestMatchesForSample(sample_id_a, force_recalculation=rematch, band_matches_required=minhash_band_range)
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
@@ -264,7 +270,7 @@ def compare_all(sample_id_a):
 @mcrit_server_required
 def compare_vs(sample_id_a, sample_id_b):
     client = get_client()
-    rematch = request.args.get('rematch', False)
+    rematch = parse_checkbox_query_param(request, 'rematch')
     minhash_band_range = parse_band_range(request)
     job_id = client.requestMatchesForSampleVs(sample_id_a, sample_id_b, force_recalculation=rematch, band_matches_required=minhash_band_range)
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
