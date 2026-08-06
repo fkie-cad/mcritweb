@@ -113,6 +113,20 @@ def recording_mcrit():
 
 
 @pytest.fixture
+def corpus_mcrit():
+    """A backend serving the captured reports in tests/fixtures/.
+
+    Override `fake_mcrit` with it to wire up the app:
+
+        @pytest.fixture
+        def fake_mcrit(corpus_mcrit):
+            return corpus_mcrit
+    """
+    from fixtureData import CorpusMcritClient
+    return CorpusMcritClient()
+
+
+@pytest.fixture
 def app(tmp_path, fake_mcrit):
     """A configured app on a throwaway database, wired to the fake backend."""
     instance_path = tmp_path / "instance"
