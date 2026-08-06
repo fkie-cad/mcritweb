@@ -66,13 +66,13 @@ Optional: set `PROFILER=True` in `instance/config.py` while `FLASK_DEBUG=1` to e
 
 ## Key concepts
 
-- **Roles** — `pending` → `visitor` → `contributor` → `admin`, enforced by decorators in `authentication.py`: `login_required`, `visitor_required`, `contributor_required`, `admin_required`, plus `token_required` (API) and `multi_user`. `mcrit_server_required` (in `utility.py`) checks backend reachability. Order matters only in that all of them run before the view; apply the **narrowest** role a route needs.
-- **Operation mode** — `single` or `multi` user, stored in the `server` table; `multi_user` blocks registration in single-user mode.
-- **API token** — every user gets one (`user.apitoken`); it authenticates requests to the `/api` passthrough. The **server token** (`server.server_token`) is separate and authenticates MCRITweb against the MCRIT backend.
+**The domain vocabulary lives in [`CONTEXT.md`](CONTEXT.md)** — Family, Sample, Function, Query, Job, MinHash, PicHash, Band, Library, the three tokens, roles and operation mode. Read it before naming anything. What follows is the mechanism behind those terms, not their definitions.
+
+- **Role enforcement** — decorators in `authentication.py`: `login_required`, `visitor_required`, `contributor_required`, `admin_required`, plus `token_required` (API) and `multi_user`. `mcrit_server_required` (in `utility.py`) checks backend reachability. Apply the **narrowest** role a route needs, and place the role decorator **before** `mcrit_server_required` so authorization is settled without a backend round-trip.
+- **Where the settings live** — operation mode, both server-side tokens and the backend URL are columns on the single-row `server` table; per-user tokens are `user.apitoken`. `multi_user` blocks registration in single-user mode.
 - **Two paginations** — `CursorPagination` (cursor-based, for backend `search_*` endpoints; supports prefixes so several tables can paginate on one page) and `Pagination` (offset-based, for slicing in-memory result lists). Use `CursorPagination` for anything backed by a backend search.
 - **User column settings** — `UserColumnSettings` lets each user pick and order the columns of seven tables. Positions are integers, `-1` meaning "not active".
-- **User filters** — `UserFilters` stores default result-filter preferences (score thresholds, library/PIC exclusion, uniqueness).
-- **Job / Family / Sample / Function** — the backend vocabulary; MCRITweb only renders these.
+- **User filters** — `UserFilters` stores the defaults; `MatchingResult.setFilterValues()` / `.applyFilterValues()` apply them.
 
 ## Code conventions
 
@@ -144,7 +144,7 @@ The five canonical labels, used as-is; `wontfix` already exists in the repo. See
 
 ### Domain docs
 
-Single-context — `CONTEXT.md` and `docs/adr/` at the repo root, both created lazily. See `docs/agents/domain.md`.
+Single-context — the glossary is [`CONTEXT.md`](CONTEXT.md), decisions are in [`docs/adr/`](docs/adr/). See `docs/agents/domain.md` for how the skills consume them.
 
 ## Related repositories (reference only)
 
