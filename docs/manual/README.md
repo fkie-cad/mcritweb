@@ -155,6 +155,41 @@ This allows you to upload a single sample, have it disassembled, and performed a
 ![An example for creating a query](images/query.png "An example for creating a query")
 
 
+#### Unique Blocks
+
+Unique Block Isolation generates a code-based YARA rule for a family or a chosen set of samples.
+It is essentially the approach of [YARA-Signator](https://github.com/fxb-cocacoding/yara-signator), applied to basic blocks instead of instruction n-grams: find the code that occurs inside the target set and in no other family, then build a rule from it.
+
+You start it from the cubes button on a family row or on a sample row, which queues the job immediately and takes you to its job page.
+
+The job works in two steps.
+First, elimination: MCRIT takes every basic block in the selected samples and discards any block that also occurs in a sample outside the selection.
+What survives occurs in the target set and nowhere else in your collection.
+Because that is a statement about your collection as it stood when the job ran, importing more samples later can make blocks that were unique no longer so, thus a rule is worth regenerating after the corpus grows.
+
+Second, selection.
+Not every unique block makes a good signature, so each surviving block is scored on two things: how many of the target samples contain it, which counts for most of the score, and how close it is to a useful signature length.
+Blocks of roughly seven to ten instructions score best; shorter ones are penalised, which is what keeps short and generic blocks out of the rule, and very long ones fall away, too.
+
+The result view has three tabs, with a summary of the job above them.
+
+![An example of a unique block isolation report](images/unique_blocks.png "An example of a unique block isolation report")
+
+**Statistics** summarises how many samples went in, how many unique blocks were found across all of them, whether a YARA rule could be built at all, and how many of the input samples that rule covers.
+A rule is a *complete cover* when every input sample contains at least one of the blocks the rule selected.
+The table below breaks the same numbers down per sample, which is where you see whether one outlier is dragging the cover down.
+
+**Unique Blocks** lists the surviving blocks themselves, each with its score, picblockhash, the number of input samples it appears in, its length in instructions, the function it came from, and its disassembly alongside the byte sequence a rule would use.
+Three filters narrow the list — a minimum score, and a minimum and maximum block length — which together are the lever for trading coverage against confidence.
+
+**YARA Rule** holds the generated rule, ready to copy.
+Blocks are chosen greedily from the scored candidates: MCRIT repeatedly takes the block covering the most samples not yet covered, until either every sample is covered or no remaining block adds anything.
+That keeps the rule as short as it can be while still reaching every sample.
+The rule is named `mcrit_` plus a short hash of the blocks it selected, so the same selection always produces the same rule name.
+Each string is the block's byte sequence with position-dependent operands wildcarded (i.e. the same normalisation PicHash uses) with the corresponding disassembly kept above it as a comment.
+The condition requires 7 of the strings to match by default, or fewer if the rule has fewer strings.
+
+
 #### Result View
 
 All matching jobs have a Result View that allows to inspect the matching results.
@@ -215,6 +250,35 @@ This also allows to select a match, for which a BinDiff-like function comparison
 ![An example for function CFG comparison](images/function_match_cfg.png "An example for function CFG comparison")
 
 Here, blue indicates PIC matches (solid blue is indexed, light blue ad-hoc matched), green indicates a full match, yellow orange a partial match and red diversion that was too strong to be matched.
+
+#### LinkHunt
+
+Every 1vsN result view has a *Go to linkhunt report* link, which asks a narrower question than the result view itself: not "what does this sample resemble", but "which of these matches suggest a relationship with another **family**".
+
+The signal LinkHunt looks for first is structural.
+It takes the interprocedural control flow graph of the matched sample and asks whether several functions that call or jump to one another all match the same other family.
+Several *connected* functions matching one family together is much harder to explain away than the same number of scattered matches, so where that happens the report highlights it as a **Link Cluster**.
+
+Clusters are listed with the score of the cluster as a whole, the strongest single match in it, the other family, how many functions the cluster spans, and how many of those matches are unique to that family.
+Matches shown in bold are the unique ones.
+This is the part of the report to read first.
+
+![An example of a linkhunt report](images/linkhunt.png "An example of a linkhunt report")
+
+Where no cluster stands out, fall back to **Individual Links** below, which ranks the function matches one by one.
+Three things drive that ranking:
+
+* **The match score** as produced by minhash, which carries the most weight of the three.
+* **The size of the function**, with larger functions preferred and the benefit levelling off around 300 bytes.
+* **Its position in the binary**, with functions towards the front preferred.
+
+That compound score is then divided by a penalty that grows with the number of *different* families the function matched, so code that turns up across many families is pushed down.
+The unpenalized family count sets how many families a function may match before that penalty starts.
+Matches flagged as library are dropped from the report entirely rather than merely demoted.
+
+The filters at the top let you tighten all of this.
+They start at minimum score 65, minimum score for library matches 80, minimum link score 30, minimum function size 50 bytes, and with your own family excluded and strongest-per-family on.
+*Clear* removes them all if you would rather start from everything and narrow by hand.
 
 ### Data
 
