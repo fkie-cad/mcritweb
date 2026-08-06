@@ -10,7 +10,7 @@ from mcritweb.views.authentication import visitor_required
 from mcritweb.views.client import get_client
 from mcritweb.views.cursor_pagination import CursorPagination
 from mcritweb.views.pagination import Pagination
-from mcritweb.views.params import parse_band_range
+from mcritweb.views.params import parse_band_range, parse_integer_list_query_param
 from mcritweb.views.utility import mcrit_server_required
 
 bp = Blueprint('analyze', __name__, url_prefix='/analyze')
@@ -180,13 +180,18 @@ def cross_compare():
 @mcrit_server_required
 def start_cross_compare():
     client = get_client()
-    selected = request.args.get('samples', '')
     rematch = request.args.get('rematch', '')
     only_selected = request.args.get('onlySelected', '')
     minhash_band_range = parse_band_range(request)
-    if selected != '':
-        selected_list = [int(x) for x in selected.split(',') if x != '']
-        job_id = client.requestMatchesCross(selected_list, force_recalculation=rematch, sample_group_only=only_selected, band_matches_required=minhash_band_range)
+    # this route used to read `samples` by hand and only bind job_id inside the
+    # "something was selected" branch, so a bare /analyze/start_cross_compare fell
+    # through to a redirect naming a variable that was never assigned. The helper
+    # also rejects a non-numeric list, which used to raise from int(). See #94.
+    selected_list = parse_integer_list_query_param(request, 'samples')
+    if not selected_list:
+        flash('Please select at least one sample to cross compare.', category='error')
+        return redirect(url_for('analyze.cross_compare'))
+    job_id = client.requestMatchesCross(selected_list, force_recalculation=rematch, sample_group_only=only_selected, band_matches_required=minhash_band_range)
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
 
