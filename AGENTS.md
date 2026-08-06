@@ -29,7 +29,7 @@ This repository owns **no analysis data of its own**. Families, samples, functio
 - `tests/` — the offline suite (see "Testing"). `conftest.py` holds the app and backend fixtures, `routePolicy.py` the declared access policy, `fixtureData.py` + `fixtures/` the captured backend reports.
 - `docs/manual/` — the user manual (markdown + screenshots), for readers on GitHub.
 - `docs/agents/` — configuration read by the agent skills: issue tracker, triage labels, domain-doc layout.
-- `mcritweb/templates/help.html` — a **hand-maintained duplicate** of `docs/manual/README.md`, served at `/admin/help`, with the same screenshots copied to `static/images/help/`. Edit both or they drift.
+- `mcritweb/templates/help.html` — a **hand-maintained duplicate** of `docs/manual/README.md`, served at `/help`, with the same screenshots copied to `static/images/help/`. Edit both or they drift.
 - `setup.py`, `requirements.txt`, `flask_env.sh`, `Makefile` — build/run config.
 
 ## Development setup
@@ -69,6 +69,12 @@ Optional: set `PROFILER=True` in `instance/config.py` while `FLASK_DEBUG=1` to e
 **The domain vocabulary lives in [`CONTEXT.md`](CONTEXT.md)** — Family, Sample, Function, Query, Job, MinHash, PicHash, Band, Library, the three tokens, roles and operation mode. Read it before naming anything. What follows is the mechanism behind those terms, not their definitions.
 
 - **Role enforcement** — decorators in `authentication.py`: `login_required`, `visitor_required`, `contributor_required`, `admin_required`, plus `token_required` (API) and `multi_user`. `mcrit_server_required` (in `utility.py`) checks backend reachability. Apply the **narrowest** role a route needs, and place the role decorator **before** `mcrit_server_required` so authorization is settled without a backend round-trip.
+- **`@bp.route` goes on top, always.** Decorators apply bottom-up, so `bp.route` runs first and registers whatever function is beneath it. An auth decorator written *above* `@bp.route` wraps a name Flask never sees and enforces nothing, while reading exactly like protection — it has happened twice in this codebase. `testRoutePolicy.py` fails on any new occurrence.
+  ```python
+  @bp.route('/settings')   # first line, outermost
+  @login_required          # everything that must run is below it
+  def settings():
+  ```
 - **Where the settings live** — operation mode, both server-side tokens and the backend URL are columns on the single-row `server` table; per-user tokens are `user.apitoken`. `multi_user` blocks registration in single-user mode.
 - **Two paginations** — `CursorPagination` (cursor-based, for backend `search_*` endpoints; supports prefixes so several tables can paginate on one page) and `Pagination` (offset-based, for slicing in-memory result lists). Use `CursorPagination` for anything backed by a backend search.
 - **User column settings** — `UserColumnSettings` lets each user pick and order the columns of seven tables. Positions are integers, `-1` meaning "not active".
@@ -88,11 +94,13 @@ Optional: set `PROFILER=True` in `instance/config.py` while `FLASK_DEBUG=1` to e
 ## Web-specific guardrails
 
 - **Autoescaping is your safety net — `|safe` disables it.** Existing uses (`node_colors|safe`, `params_list|safe`, `selected_ids|safe`) inject server-side JSON into `<script>` blocks. For any *new* value crossing into JavaScript, use `{{ value|tojson }}`, which escapes correctly for a script context. Never pass user- or backend-supplied strings through `|safe`.
-- **There is no CSRF protection.** No `flask-wtf`, no CSRF tokens. State-changing routes are plain `POST` forms (`modifySample`, `modifyFamily`, `change_user_role`, `delete_user`, `change_server`, …). Be aware of this when adding destructive endpoints, and keep them `POST`-only rather than making them reachable by `GET`. Note that a few existing delete/role routes are `GET` — do not copy that pattern for new ones.
+- **There is no CSRF protection.** No `flask-wtf`, no CSRF tokens, nothing in any template (issue #83). A forged `POST` still works, so `POST`-only is a floor and not a defence.
+- **A route that writes must be `POST`-only** — `methods=('POST',)`, not a `request.method` check inside a route that also accepts `GET`. A `GET` that writes can be fired by anything that makes a browser fetch a URL: an `<img>` tag, a link scanner, a prefetch. `tests/routePolicy.py` records which routes write and `testRoutePolicy.py` detects a `GET` that writes without saying so. The five `analyze` job submitters are the deliberate exception — navigational URLs that queue a job, tracked in issue #97; do not copy them.
+- **Actions are not links.** For a control that triggers a write, use `<button data-post="{{ url_for(...) }}">` — `static/post_action.js` turns the click into a `POST`. An `<a href>` to a writing route is a bug even if JavaScript intercepts it, because middle-click and prefetch do not run the handler.
 - **`SECRET_KEY` defaults to `'dev'`** and is only overridden if the operator ships an `instance/config.py`. Session cookies are signed with it. Do not add features that store anything sensitive in the session on top of this default.
 - **Never log or render secrets:** user API tokens, the server token, password hashes. `ServerInfo.__str__` contains tokens — do not `print` or flash it.
 - **Uploads** land in `instance/temp/uploads/` named by SHA-256. The `visitor` role is capped at 1 MiB per query upload (`analyze.query`); keep that check in place when touching the upload paths.
-- **The `/api` blueprint is a passthrough, not an API of its own.** When the backend `McritClient` gains a method, extend the router in `api.py` by adding a regex branch — keep paths and parameter names aligned with the backend's REST API rather than inventing new ones.
+- **The `/api` blueprint is a passthrough, not an API of its own.** When the backend `McritClient` gains a method, extend the router in `api.py` by adding a regex branch — keep paths and parameter names aligned with the backend's REST API rather than inventing new ones. A token carries its owner's role (`g.api_user`), so a branch that writes must also be listed in `CONTRIBUTOR_ONLY` in that module; otherwise the API becomes the cheap way around a role check in the UI.
 - **Validate IDs before use.** Route converters use `<int(signed=True):...>` where negative IDs are meaningful (query samples have negative `sample_id`). Check `client.isSampleId` / `isFamilyId` / `isFunctionId` before acting on user-supplied IDs.
 
 ## Database changes
@@ -112,7 +120,9 @@ Adding a **table column setting** additionally means updating `UserColumnSetting
 
 Three backends are available to tests, all offline. `fake_mcrit` is strict — an unknown method raises `NotImplementedError` naming itself, so gaps surface as actionable failures. `recording_mcrit` never raises, for asking "did this request write anything". `corpus_mcrit` serves real captured reports from `tests/fixtures/` and is what makes result pages renderable; see the README there.
 
-**Adding a route means adding a row to `tests/routePolicy.py`** — who may call it, and whether it writes. `testRoutePolicy.py` fails on any endpoint in the url_map without one. That table is the record of the current access policy; change a value only together with the code, so it keeps describing reality.
+**Adding a route means adding a row to `tests/routePolicy.py`** — who may call it, and whether it writes. `testRoutePolicy.py` fails on any endpoint in the url_map without one. That table is the record of the current access policy; change a value only together with the code, so it keeps describing reality. Two sets in it, `IN_VIEW_GUARD` and `KNOWN_INERT_DECORATORS`, are ratchets: both are empty today, and both may only shrink. An entry appearing in either is a regression, not a note.
+
+`tests/fixtures/` holds captured backend reports; `tests/fixtures/regenerate.py` rebuilds them against any instance that has one finished job of each type, so they are not tied to one machine. Two trims in it are load-bearing rather than cosmetic — read its module docstring before changing them.
 
 Coverage is thin and nothing exercises a real backend, so for anything touching views or templates still **verify by exercising the app**: `flask run` against a reachable MCRIT backend and walk the affected pages. When changing shared template macros (`table/*.html`), check every page that imports them — a macro is typically used by 3–5 templates. Results are cached under `instance/cache/` and never invalidated, so clear it when validating result rendering.
 

@@ -206,7 +206,6 @@ def delete_user(user_id, tab = None):
 @admin_required
 def server():
     server_info = ServerInfo.fromDb()
-    print(server_info)
     operation_mode_str = "Multi-User" if server_info.operation_mode == "multi" else "Single-User"
     running_server_version = get_mcritweb_version_from_setup()
     client = get_client()
