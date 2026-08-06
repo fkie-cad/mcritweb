@@ -16,6 +16,7 @@ is a message rather than a silently empty page.
 
 import json
 import pathlib
+import re
 
 from mcrit.queue.LocalQueue import Job
 from mcrit.storage.FamilyEntry import FamilyEntry
@@ -42,6 +43,93 @@ def load(name):
 def job_id_of(report):
     """The job id a report fixture was captured under."""
     return load(f"{report}.job")["_id"]["$oid"]
+
+
+# --- the search/cursor protocol ------------------------------------------------
+#
+# Modelled on its observable contract, not its encoding. mcrit's cursor is a
+# serialised sort key (`MinimalSearchCursor`), and reproducing that here would copy
+# an implementation no test cares about. What the views do depend on is the shape
+# around it, and that is what these reproduce:
+#
+#   {"search_results": {id: entry_dict}, "cursor": {"forward": str|None,
+#    "backward": str|None}, "id_match": dict|None[, "sha_match": dict|None]}
+#
+#   * `forward` is set only while results remain after this page
+#   * `backward` is set only once the caller has left the first page
+#   * handing a token back yields the adjacent page
+#   * `search_results` values are **dicts**, as they arrive off the wire - the
+#     views call `SampleEntry.fromDict` on them, and a fake handing back entry
+#     objects would let code that forgot to pass here
+#
+# Matching is a case-insensitive substring test over the fields a person would
+# search by. mcrit's own parser handles `field:value` expressions and ranges; a
+# test that needs those needs the real backend, not this.
+
+#: Opaque to the caller, which is the whole point - the views must not read it.
+CURSOR_PREFIX = "fixture-cursor:"
+
+FAMILY_FIELDS = ("family_name",)
+SAMPLE_FIELDS = ("filename", "family", "sha256", "version", "component")
+FUNCTION_FIELDS = ("function_name",)
+
+
+def _encode_cursor(index, is_forward):
+    return f"{CURSOR_PREFIX}{'f' if is_forward else 'b'}:{index}"
+
+
+def _decode_cursor(cursor):
+    if not isinstance(cursor, str) or not cursor.startswith(CURSOR_PREFIX):
+        return None
+    direction, _, index = cursor[len(CURSOR_PREFIX):].partition(":")
+    return direction, int(index)
+
+
+def _text_of(entry, fields):
+    return " ".join(str(getattr(entry, field, "") or "") for field in fields)
+
+
+def _sort_key(entry, sort_by, default_sort):
+    """Fall back to the default field, as mcrit does for an unknown sort_by."""
+    value = getattr(entry, sort_by, None) if sort_by else None
+    if value is None:
+        value = getattr(entry, default_sort)
+    # ids and names both occur, and mixing them in one comparison is a TypeError
+    return (isinstance(value, str), str(value) if isinstance(value, str) else value)
+
+
+def _id_match(entries, search_term):
+    """mcrit answers the entry directly when the term is one of its ids."""
+    try:
+        term = int(search_term, 16) if search_term.startswith("0x") else int(search_term)
+    except (AttributeError, ValueError):
+        return None
+    if term > 0xFFFFFFFF:
+        return None
+    entry = entries.get(term)
+    return entry.toDict() if entry else None
+
+
+def _page(entries, search_term, fields, default_sort, sort_by, is_ascending, cursor, limit):
+    """One page of a search, plus the cursors either side of it."""
+    needle = (search_term or "").lower()
+    matched = [entry for entry in entries.values() if needle in _text_of(entry, fields).lower()]
+    matched.sort(key=lambda entry: _sort_key(entry, sort_by, default_sort), reverse=not is_ascending)
+
+    start = 0
+    decoded = _decode_cursor(cursor)
+    if decoded is not None:
+        direction, index = decoded
+        start = index if direction == "f" else max(0, index - limit)
+    page = matched[start:start + limit]
+
+    return {
+        "search_results": {getattr(entry, default_sort): entry.toDict() for entry in page},
+        "cursor": {
+            "forward": _encode_cursor(start + limit, True) if start + limit < len(matched) else None,
+            "backward": _encode_cursor(start, False) if start > 0 else None,
+        },
+    }
 
 
 class CorpusMcritClient:
@@ -153,25 +241,28 @@ class CorpusMcritClient:
         return load("queue_statistics")
 
     # --- search ------------------------------------------------------------------
-    # The cursor protocol is not modelled: these return the empty shape so pages that
-    # merely embed a search box render. A test that asserts on search results needs a
-    # real implementation here first.
 
-    @staticmethod
-    def _empty_search():
-        return {"search_results": {}, "cursor": {"forward": None, "backward": None}, "id_match": None, "sha_match": None}
+    def search_families(self, search_term="", cursor=None, is_ascending=True, sort_by=None, limit=100, *args, **kwargs):
+        self._record("search_families", search_term, cursor=cursor, is_ascending=is_ascending, sort_by=sort_by, limit=limit)
+        result = _page(self._families, search_term, FAMILY_FIELDS, "family_id", sort_by, is_ascending, cursor, limit)
+        result["id_match"] = _id_match(self._families, search_term)
+        return result
 
-    def search_samples(self, *args, **kwargs):
-        self._record("search_samples", *args, **kwargs)
-        return self._empty_search()
+    def search_samples(self, search_term="", cursor=None, is_ascending=True, sort_by=None, limit=100, *args, **kwargs):
+        self._record("search_samples", search_term, cursor=cursor, is_ascending=is_ascending, sort_by=sort_by, limit=limit)
+        result = _page(self._samples, search_term, SAMPLE_FIELDS, "sample_id", sort_by, is_ascending, cursor, limit)
+        result["id_match"] = _id_match(self._samples, search_term)
+        result["sha_match"] = None
+        if re.match(r"^[a-fA-F0-9]{64}$", search_term or ""):
+            match = self.getSampleBySha256(search_term)
+            result["sha_match"] = match.toDict() if match else None
+        return result
 
-    def search_families(self, *args, **kwargs):
-        self._record("search_families", *args, **kwargs)
-        return self._empty_search()
-
-    def search_functions(self, *args, **kwargs):
-        self._record("search_functions", *args, **kwargs)
-        return self._empty_search()
+    def search_functions(self, search_term="", cursor=None, is_ascending=True, sort_by=None, limit=100, *args, **kwargs):
+        self._record("search_functions", search_term, cursor=cursor, is_ascending=is_ascending, sort_by=sort_by, limit=limit)
+        result = _page(self._functions, search_term, FUNCTION_FIELDS, "function_id", sort_by, is_ascending, cursor, limit)
+        result["id_match"] = _id_match(self._functions, search_term)
+        return result
 
     def __getattr__(self, name):
         def _unimplemented(*args, **kwargs):

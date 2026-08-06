@@ -390,9 +390,13 @@ def search():
                 samples[sample_entry.sample_id] = sample_entry
             id_match = results['id_match']
             if id_match is not None:
-                samples[id_match.sample_id] = SampleEntry.fromDict(id_match)
+                # both of these arrive as dicts off the wire, like sha_match above -
+                # which is the one branch here that deserialises before reading a field
+                sample_entry = SampleEntry.fromDict(id_match)
+                samples[sample_entry.sample_id] = sample_entry
             for sample_dict in results['search_results'].values():
-                samples[sample_dict.sample_id] = SampleEntry.fromDict(sample_dict)
+                sample_entry = SampleEntry.fromDict(sample_dict)
+                samples[sample_entry.sample_id] = sample_entry
     # deduplicate in case we have cases such as filename == sha256
     samples = list(samples.values())
 
