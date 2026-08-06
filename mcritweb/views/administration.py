@@ -215,7 +215,6 @@ def delete_user(user_id, tab = None):
     return redirect(url_for('admin.users', tab=tab))
 
 
-@login_required
 @bp.route('/server')
 @admin_required
 def server():

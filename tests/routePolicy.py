@@ -84,19 +84,12 @@ MUTATING_CLIENT_CALLS = {
 # Routes whose rejection is performed inside the view instead of by a decorator, so
 # an unauthorized caller is redirected to the index rather than to /login. Both
 # ratchets below only ever shrink: an entry that is no longer needed is a cleanup,
-# a new entry is a regression.
-IN_VIEW_GUARD = {
-    "authentication.settings",
-}
+# a new entry is a regression. Both are empty - keep them that way.
+IN_VIEW_GUARD = set()
 
 # `@<role>_required` written above `@bp.route` never runs, because bp.route is
-# applied first and registers the undecorated function. Both of these are currently
-# harmless - settings has an equivalent in-view check, admin.server has a live
-# admin_required below the route - but both read as protection they do not provide.
-KNOWN_INERT_DECORATORS = {
-    "authentication.settings",
-    "administration.server",
-}
+# applied first and registers the undecorated function.
+KNOWN_INERT_DECORATORS = set()
 
 ROUTE_POLICY = {
     # --- public surface ----------------------------------------------------------
@@ -123,9 +116,6 @@ ROUTE_POLICY = {
 
     # --- authenticated, any role including 'pending' -----------------------------
     "authentication.logout": (LOGGED_IN, WRITES_ON_GET),   # session teardown, by design
-    # No live decorator: `@login_required` sits above `@bp.route` and never runs.
-    # The in-view `get_session_user_id()` check is what protects it, which is why an
-    # anonymous request lands on / instead of /login.
     "authentication.settings": (LOGGED_IN, READ_ONLY),
     "admin.change_username": (LOGGED_IN, WRITES_ON_POST),   # GET raises 400 on request.form
     "admin.change_password": (LOGGED_IN, WRITES_ON_POST),   # GET raises 400 on request.form
@@ -180,8 +170,6 @@ ROUTE_POLICY = {
 
     # --- admin only --------------------------------------------------------------
     "admin.users": (ADMIN, READ_ONLY),
-    # Carries a second, inert `@login_required` above `@bp.route`; the live
-    # `@admin_required` below it is what enforces the policy.
     "admin.server": (ADMIN, READ_ONLY),
     "admin.delete_user": (ADMIN, WRITES_ON_GET),      # deletes a user by GET
     "admin.change_user_role": (ADMIN, WRITES_ON_GET), # grants any role by GET

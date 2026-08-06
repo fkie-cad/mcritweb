@@ -158,8 +158,8 @@ def login_required(view):
     return wrapped_view
 
 
-@login_required
 @bp.route('/settings')
+@login_required
 def settings():
     user_id = get_session_user_id()
     if user_id is None:
