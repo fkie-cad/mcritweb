@@ -3,6 +3,8 @@
 <!doctype html>
 <head>
   <title>{% block title %}{% endblock %} - MCRIT Web</title>
+  {# how scripts reach the CSRF token - forms carry it as a hidden input instead #}
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <link href="{{ url_for('static', filename='bootstrap-5.0.2-dist/css/bootstrap.css') }}" rel="stylesheet">
   <link href="{{ url_for('static', filename='css/all.css') }}" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">

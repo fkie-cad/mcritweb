@@ -67,6 +67,7 @@ Settings
 {% if g.user.role == 'admin' or g.user.role == 'contributor' %}
   <div class="tab-pane fade" id="pills-username" role="tabpanel" aria-labelledby="pills-username-tab">
       <form action = "{{ url_for('admin.change_username') }}" method='post'>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="form-group">
             <input name='username' class="form-control" id="username" aria-describedby="usernameHelp" placeholder="Enter new username" autofocus required >
           </div>
@@ -78,6 +79,7 @@ Settings
   </div>
   <div class="tab-pane fade" id="pills-password" role="tabpanel" aria-labelledby="pills-password-tab">
       <form action = "{{ url_for('admin.change_password') }}" method='post'>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="form-group">
             <input type="password" name='inputPassword2' class="form-control" id="inputPassword2" placeholder="Enter old password" required>
           </div>
@@ -93,6 +95,7 @@ Settings
   {% endif %}
   <div class="tab-pane fade" id="pills-default-filter" role="tabpanel" aria-labelledby="pills-default-filter-tab">
     <form class="form-inline" action = "{{ url_for('admin.change_default_filter') }}" method='post'>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group row text-start">
           <h3>Family / Sample result filter</h3> 
           <label class="col-8">Filter results to (nonlib) direct score</label>

@@ -5,6 +5,7 @@ Register
 {% block content %}
 <center>
   <form method='post'>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <h3>Define User Details:</h3>
     <div class="form-group">
       <input name='username' class="form-control" id="username" aria-describedby="usernameHelp" placeholder="Enter username" title="Allowed: ^(?=[a-zA-Z0-9._]{3,20}$)(?!.*[_.]{2})[^_.].*[^_.]$ -- i.e. 3-20 chars, alphanumeric with single dots and underscores in the middle" pattern="^(?=[a-zA-Z0-9._]{3,20}$)(?!.*[_.]{2})[^_.].*[^_.]$", required autofocus>

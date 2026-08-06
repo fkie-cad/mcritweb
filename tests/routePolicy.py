@@ -18,10 +18,10 @@ Two facts per route:
 
 `writes`  whether the view changes state - the local SQLite database or the MCRIT
           backend - and, crucially, whether a plain GET is enough to do it. See
-          issue #84. There is no CSRF protection anywhere in this application
-          (flask-wtf is not a dependency and no template emits a token), so every
-          WRITES_ON_GET row is reachable from any page a logged-in user visits,
-          e.g. through an <img> tag.
+          issue #84. CSRF tokens now cover every unsafe method (issue #83), but a
+          token cannot cover a route that writes on GET: a browser sends no token
+          on a plain navigation, so every WRITES_ON_GET row is still reachable
+          from any page a logged-in user visits, e.g. through an <img> tag.
 
 Adding a route means adding a row here; `testRoutePolicy.py` fails on any endpoint
 in the url_map that is missing, and on any row naming an endpoint that no longer

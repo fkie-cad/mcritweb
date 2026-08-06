@@ -97,6 +97,8 @@
 
       xhr.setRequestHeader("Accept", "application/json");
       xhr.setRequestHeader("Content-Type", "application/json");
+      // a JSON body carries no form field, so the token travels as a header
+      xhr.setRequestHeader("X-CSRFToken", csrfToken());
 
       xhr.onload = () => fill_form(xhr.responseText);
 

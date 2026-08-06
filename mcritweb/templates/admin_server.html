@@ -42,18 +42,22 @@ Server settings
 <p>Schedule jobs for various Maintenance functionality. Note that depending on your database size, some of these operations may take some time.</p>
 
 <form action = "{{ url_for('admin.schedule_recalc_pichashes') }}" method='post'>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn btn-primary">Recalculate PicHashes</button>
 </form>
 <form action = "{{ url_for('admin.schedule_recalc_minhashes') }}" method='post'>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn btn-primary">Recalculate MinHashes</button>
 </form>
 <form action = "{{ url_for('admin.schedule_rebuild_index') }}" method='post'>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn btn-primary">Rebuild MinHash Index</button>
 </form>
 
 <h3>Change Backend Server:</h3>
 
 <form action = "{{ url_for('admin.change_server') }}" method='post'>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-group">
         <label for="server">mcrit-server</label>
         <input type="url" name='mcrit_server_url' class="form-control" id="mcrit_server_url" aria-describedby="Enter a URL for a MCRIT server" value={{ server_info.url }} required>
@@ -66,6 +70,7 @@ Server settings
 <p>Warning: This will fully reset the backend including its database as well as cached data in the frontend.</p>
 
 <form action = "{{ url_for('admin.reset_server') }}" method='post'>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-group">
         <label for="server">Type "RESET" to confirm the action.</label>
         <input type="text" name='reset_server' class="form-control" id="reset_server" aria-describedby="Enter confirmation string" value="" placeholder="RESET" pattern="^RESET$" required>

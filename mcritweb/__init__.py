@@ -13,6 +13,7 @@ def create_app(test_config=None, instance_path=None):
     from mcrit.storage.SampleEntry import SampleEntry
 
     from . import db
+    from .csrf import CsrfProtect
     from .secret_key import INSECURE_DEFAULT, load_or_create_secret_key
     from .views import administration, analyze, api, authentication, data, explore
     from .views.client import get_client
@@ -25,6 +26,11 @@ def create_app(test_config=None, instance_path=None):
     app.config.from_mapping(
         SECRET_KEY=INSECURE_DEFAULT,
         DATABASE=os.path.join(app.instance_path, 'mcritweb.sqlite'),
+        # the session cookie is not needed by any script we ship, and a cross-site
+        # navigation has no business carrying it. Defence in depth behind the CSRF
+        # token, not a replacement for it - "Lax" still permits top-level GET.
+        SESSION_COOKIE_SAMESITE='Lax',
+        SESSION_COOKIE_HTTPONLY=True,
     )
 
     if test_config is None:
@@ -61,6 +67,11 @@ def create_app(test_config=None, instance_path=None):
     if app.config['SECRET_KEY'] == INSECURE_DEFAULT:
         app.config['SECRET_KEY'] = load_or_create_secret_key(app.instance_path)
 
+    csrf = CsrfProtect(app)
+    # authenticates by `apitoken` header, never by the session cookie, so a
+    # cross-site request has nothing to ride on. See mcritweb/csrf.py.
+    csrf.exempt(api.bp)
+
     db.init_app(app)
     db.migrate(app)
     app.register_blueprint(explore.bp)
@@ -74,6 +85,9 @@ def create_app(test_config=None, instance_path=None):
     app.config['DROPZONE_REDIRECT_VIEW'] = 'data.import_complete'
     app.config['DROPZONE_ALLOWED_FILE_CUSTOM'] = True
     app.config['DROPZONE_ALLOWED_FILE_TYPE'] = ""
+    # sends the token as an X-CSRF-Token header on every upload; it reads the token
+    # through app.extensions["csrf"], which CsrfProtect registered above
+    app.config['DROPZONE_ENABLE_CSRF'] = True
     Dropzone(app)
 
     @app.template_filter('silent')

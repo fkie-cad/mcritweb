@@ -10,9 +10,10 @@ The maintenance jobs are here for the same reason. They were already POST forms 
 admin_server.html, but the routes accepted GET as well, so the form was a convention
 rather than a constraint.
 
-This closes the vector where an attacker picks the request. It does not close CSRF:
-a forged POST still works, because nothing in this application emits a token yet.
-See issue #83.
+This closes the vector where an attacker picks the request. CSRF - a forged POST
+carrying the victim's cookie - is closed separately by the token in mcritweb/csrf.py
+(issue #83), and is covered by testCsrf.py. These tests run with that check off, so
+that a missing token can never be what makes them pass.
 """
 
 import logging

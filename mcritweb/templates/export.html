@@ -5,6 +5,7 @@ Export
 {% block content %}
 <center>
     <form action = "{{ url_for('data.export_view') }}" method='post'>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
             <label for="samples">Enter comma seperated sample_ids to export or export all samples</label>
             <input type="text" name='samples' class="form-control" id="samples" aria-describedby="export" placeholder="Export all samples">

@@ -4,7 +4,8 @@
 Each of these routes used to accept GET and act on it. `admin.change_server` blanked
 the backend URL and both tokens; `admin.change_default_filter` reset every stored
 filter to its default. Neither needed a single form field, and with no CSRF token
-anywhere in the application, any page an admin visited could fire them.
+anywhere in the application at the time, any page an admin visited could fire them.
+Both defences are in place now; the token itself is covered by testCsrf.py.
 
 They also rendered `settings.html` without the context that template needs, so the
 page 500'd immediately after the write went through. They redirect to the settings

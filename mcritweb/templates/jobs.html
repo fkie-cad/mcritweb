@@ -141,6 +141,7 @@ Jobs
   <p>Results for "{{ query }}"</p>
   {% endif %}
   <form style="width:100%" method="POST" required>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="text" class="form-control shadow-none" name="Search"id="Search" placeholder="Search" autofocus autocomplete="on">
     <input type='submit' hidden>
   </form>

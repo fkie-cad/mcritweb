@@ -1255,6 +1255,7 @@ function highlightUERs(UERtype){
         g = graphlibDot.parse(dotFile);
         // Send request for loop information; load when ready
         d3.xhr("../findLoops/")
+          .header("X-CSRFToken", csrfToken())  // mcritweb: issue #83
           .header("Content-Type", "text/plain")
           .post(dotFile,
             function(err, result){
@@ -1303,6 +1304,7 @@ function highlightUERs(UERtype){
           
           // Send request for loop information; load when ready
           d3.xhr("../findLoops/")
+            .header("X-CSRFToken", csrfToken())  // mcritweb: issue #83
             .header("Content-Type", "text/plain")
             .post(dotFile,
               function(err, result){
@@ -1343,6 +1345,7 @@ function highlightUERs(UERtype){
             
             // Send request for loop information; load when ready
             d3.xhr("../findLoops/")
+            .header("X-CSRFToken", csrfToken())  // mcritweb: issue #83
             .header("Content-Type", "text/plain")
             .post(dotFile,
               function(err, result){
