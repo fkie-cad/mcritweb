@@ -176,11 +176,10 @@ ROUTE_POLICY = {
     "admin.schedule_recalc_pichashes": (ADMIN, WRITES_ON_GET),
 
     # --- token authenticated -----------------------------------------------------
-    # Dispatches an allowlist of ~18 path patterns to the backend, including its
-    # write endpoints, gated only by a valid `apitoken` header. The token's owner is
-    # looked up but their role is never consulted, so a 'pending' user's token
-    # carries the same authority as an admin's.
-    # Decided: gate per pattern, mirroring the web policy - reads and query/* at
-    # visitor, the addReport POST at contributor, 'pending' refused outright.
+    # Dispatches an allowlist of ~18 path patterns to the backend. The gate is the
+    # `apitoken` header, and the token's role is applied on top of it: 'pending' is
+    # refused outright, POST /samples (addReport) needs contributor as data.submit
+    # does, everything else is a read or a job submission at visitor level. See
+    # tests/testApiTokens.py.
     "api.api_router": (APITOKEN, WRITES_ON_POST),
 }

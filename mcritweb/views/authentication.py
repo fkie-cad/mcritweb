@@ -210,13 +210,23 @@ def visitor_required(view):
 
 
 def token_required(view):
+    """Authenticate an API caller by its `apitoken` header, and apply its role.
+
+    The API is a passthrough to the backend, so a token has to carry the same
+    authority the web UI grants the same person - otherwise the quickest way past a
+    role check is to stop using the browser. The token's owner lands on `g.api_user`
+    for the router to narrow further; `pending` gets nothing, as in the web UI.
+    """
     @functools.wraps(view)
     def wrapped_view(**kwargs):
         # requests -> {'apitoken': '{}'.format(apitoken)})
         provided_token = request.headers.get("apitoken", "")
         # check for valid token via DB
-        valid_token = db.get_user_by_apitoken(provided_token) is not None
-        if not valid_token:
+        user_id = db.get_user_by_apitoken(provided_token)
+        if user_id is None:
+            abort(403)
+        g.api_user = UserInfo.fromDb(user_id=user_id)
+        if g.api_user is None or g.api_user.role not in ('visitor', 'contributor', 'admin'):
             abort(403)
         return view(**kwargs)
     return wrapped_view

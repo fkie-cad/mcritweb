@@ -1,7 +1,7 @@
 import json
 import re
 
-from flask import Blueprint, Response, request
+from flask import Blueprint, Response, abort, g, request
 from smda.common.SmdaReport import SmdaReport
 
 from mcritweb.views.authentication import token_required
@@ -9,6 +9,18 @@ from mcritweb.views.client import get_client
 from mcritweb.views.utility import get_username, mcrit_server_required
 
 bp = Blueprint('api', __name__, url_prefix='/api')
+
+# Paths that add to the corpus rather than read from it or queue a job against it.
+# The web UI puts the same operation behind contributor_required (data.submit), and
+# a token must not be the cheaper way in. Everything else the router dispatches is a
+# read or a job submission, which the UI grants to visitors.
+CONTRIBUTOR_ONLY = [
+    (re.compile("samples$"), "POST"),   # addReport
+]
+
+
+def requires_contributor(api_path, method):
+    return any(pattern.match(api_path) and method == verb for pattern, verb in CONTRIBUTOR_ONLY)
 
 def nullable_int(x):
     try:
@@ -37,6 +49,8 @@ def handle_raw_response(response):
 @mcrit_server_required
 def api_router(api_path):
     api_path = api_path.rstrip("/")
+    if requires_contributor(api_path, request.method) and g.api_user.role not in ('contributor', 'admin'):
+        abort(403)
     username = get_username(request)
     client = get_client(username=username, raw_responses=True)
     print(f"api_router - {api_path} - {username}")
