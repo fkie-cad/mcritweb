@@ -46,6 +46,8 @@ A running MCRIT backend (server + worker + MongoDB) is required for essentially 
 source ./flask_env.sh     # sets FLASK_APP=mcritweb, FLASK_DEBUG=1
 flask init-db             # once, before first use — creates instance/mcritweb.sqlite
 flask run                 # http://127.0.0.1:5000/
+python -m pytest          # the offline suite, no backend needed
+ruff check .              # config in ruff.toml; CI runs exactly this
 ```
 
 The first browser visit redirects to `/register`; the first registered user automatically becomes `admin` and configures the backend URL/token in the same form.
@@ -108,12 +110,11 @@ Adding a **table column setting** additionally means updating `UserColumnSetting
 
 ## Testing
 
-There is **no CI, no test runner config, and no working test suite** in this repository. Be explicit about this rather than assuming coverage exists:
+`python -m pytest` runs 18 tests with **no backend and no network** — pagination, user filters, and the app-factory fixtures in `tests/conftest.py`. `pytest.ini` maps the existing `test*.py` naming; keep it rather than renaming to `test_foo.py`. The `Makefile` targets reference `nose` (dead on modern Python) and a `.pylintrc` that does not exist — treat the `Makefile` as stale.
 
-- `tests/testPagination.py` imports `mcritweb.pagination`, but the module lives at `mcritweb.views.pagination` — the test does not currently run.
-- The `Makefile` targets reference `nose` (dead on modern Python) and a `.pylintrc` that does not exist. Treat the `Makefile` as stale.
+Coverage is thin and nothing exercises a real backend, so for anything touching views or templates still **verify by exercising the app**: `flask run` against a reachable MCRIT backend and walk the affected pages. When changing shared template macros (`table/*.html`), check every page that imports them — a macro is typically used by 3–5 templates. Results are cached under `instance/cache/` and never invalidated, so clear it when validating result rendering.
 
-Consequently, **verify changes by exercising the app**: `flask run` against a reachable MCRIT backend and walk the affected pages. When changing shared template macros (`table/*.html`), check every page that imports them — a macro is typically used by 3–5 templates. If you add tests, use `pytest` and fix the import path in the existing module rather than leaving two conventions.
+CI (`.github/workflows/test.yml`) runs `ruff check .` plus the suite on Python 3.11 and 3.12. There is deliberately **no `ruff format` check** — this codebase has never been formatted and reflowing it would bury the history of every file. Keep `ruff check .` clean; the rule set in `ruff.toml` mirrors mcrit's.
 
 ## Versioning & releases
 
