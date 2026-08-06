@@ -112,6 +112,8 @@ Adding a **table column setting** additionally means updating `UserColumnSetting
 
 `python -m pytest` runs the suite with **no backend and no network** — pagination, user filters, the app-factory fixtures in `tests/conftest.py`, and `testMigrations.py`, which upgrades databases built in historical schemas (transcribed from release tags, not read from git — a CI checkout has no tags). `pytest.ini` maps the existing `test*.py` naming; keep it rather than renaming to `test_foo.py`. The `Makefile` targets reference `nose` (dead on modern Python) and a `.pylintrc` that does not exist — treat the `Makefile` as stale.
 
+**Adding a route means adding a row to `tests/routePolicy.py`** — who may call it, and whether it writes. `testRoutePolicy.py` fails on any endpoint in the url_map without one. That table is the record of the current access policy; change a value only together with the code, so it keeps describing reality.
+
 Coverage is thin and nothing exercises a real backend, so for anything touching views or templates still **verify by exercising the app**: `flask run` against a reachable MCRIT backend and walk the affected pages. When changing shared template macros (`table/*.html`), check every page that imports them — a macro is typically used by 3–5 templates. Results are cached under `instance/cache/` and never invalidated, so clear it when validating result rendering.
 
 CI (`.github/workflows/test.yml`) runs `ruff check .` plus the suite on Python 3.11 and 3.12. There is deliberately **no `ruff format` check** — this codebase has never been formatted and reflowing it would bury the history of every file. Keep `ruff check .` clean; the rule set in `ruff.toml` mirrors mcrit's.

@@ -83,10 +83,33 @@ class FakeMcritClient:
         return _unimplemented
 
 
+class RecordingMcritClient(FakeMcritClient):
+    """A fake that never raises: unknown methods record the call and return None.
+
+    The strict fake above is the right default, because a raised NotImplementedError
+    names the gap. It is the wrong tool for asking "did this request write anything",
+    since a view that would have written can abort on the raise before it gets there
+    and then look innocent. This variant lets the view run on and records what it
+    reached for, at the cost of telling you nothing about response shapes.
+    """
+
+    def __getattr__(self, name):
+        def _permissive(*args, **kwargs):
+            self._record(name, *args, **kwargs)
+            return None
+        return _permissive
+
+
 @pytest.fixture
 def fake_mcrit():
     """The fake backend instance the app under test will hand to its views."""
     return FakeMcritClient()
+
+
+@pytest.fixture
+def recording_mcrit():
+    """The permissive fake. Override `fake_mcrit` with it to wire up the app."""
+    return RecordingMcritClient()
 
 
 @pytest.fixture
