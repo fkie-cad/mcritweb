@@ -49,6 +49,26 @@ def test_index_queries_the_backend(client, as_role, fake_mcrit):
     assert "search_samples" in called
 
 
+@pytest.mark.parametrize("role", ["anonymous", "pending"])
+def test_index_spares_the_backend_for_callers_it_shows_nothing(client, as_role, fake_mcrit, role):
+    """index.html renders nothing for these two, so the queries behind it are waste.
+
+    It is one getQueueData plus a getSampleById and a getFamily per job, on every
+    anonymous hit - a crawler alone can keep the backend busy.
+    """
+    user_id = as_role("admin" if role == "anonymous" else role, username=f"idx{role}")
+    with client.session_transaction() as test_session:
+        test_session.clear()
+        if role != "anonymous":
+            test_session["user_id"] = user_id
+    fake_mcrit.calls.clear()
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert fake_mcrit.calls == [], f"index queried the backend for {role}"
+
+
 def test_anonymous_access_is_redirected_to_login(client, as_role):
     # a user has to exist, otherwise every route redirects to registration instead
     as_role("admin", username="someadmin")

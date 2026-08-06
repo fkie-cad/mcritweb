@@ -104,10 +104,6 @@ ROUTE_POLICY = {
     # /admin/help carries no decorator despite the prefix; it is the user manual.
     # Decided: move it out of the admin blueprint to its own top-level route.
     "admin.help": (PUBLIC, READ_ONLY),
-    # send_from_directory over instance/cache/diagrams with no decorator: any cached
-    # match diagram is downloadable without a session by anyone who knows a job_id.
-    # Decided: gate it, at least visitor_required.
-    "data.diagram_file": (PUBLIC, READ_ONLY),
     "authentication.login": (PUBLIC, WRITES_ON_POST),
     # multi_user only blocks registration in single-user mode, it is not an auth gate
     "authentication.register": (PUBLIC, WRITES_ON_POST),
@@ -153,6 +149,10 @@ ROUTE_POLICY = {
     "data.result": (VISITOR, READ_ONLY),
     "data.linkhunt": (VISITOR, READ_ONLY),
     "data.match_functions": (VISITOR, READ_ONLY),
+    # serves instance/cache/diagrams; the <img> tags on the result pages carry the
+    # session cookie, so gating it costs nothing and stops a cached diagram being
+    # fetchable by anyone who knows a job_id
+    "data.diagram_file": (VISITOR, READ_ONLY),
 
     # --- contributor and above ---------------------------------------------------
     "data.submit": (CONTRIBUTOR, WRITES_ON_POST),

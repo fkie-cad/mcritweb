@@ -77,6 +77,7 @@ def create_match_diagram(app, job_id, matching_result, filtered_family_id=None, 
 # https://stackoverflow.com/a/26972238
 # https://flask.palletsprojects.com/en/1.0.x/api/#flask.send_from_directory
 @bp.route('/diagrams/<path:filename>')
+@visitor_required
 def diagram_file(filename):
     cache_path = os.sep.join([current_app.instance_path, "cache", "diagrams"])
     return send_from_directory(cache_path, filename)

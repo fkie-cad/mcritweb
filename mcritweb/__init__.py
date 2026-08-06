@@ -1,7 +1,7 @@
 import datetime
 import os
 
-from flask import Flask, redirect, render_template, request, url_for
+from flask import Flask, g, redirect, render_template, request, url_for
 
 
 def create_app(test_config=None, instance_path=None):
@@ -108,6 +108,11 @@ def create_app(test_config=None, instance_path=None):
             return redirect(url_for("authentication.register"))
         if request.method == 'POST':
             return redirect(url_for("explore.search", query=request.form["Search"]))
+        elif g.user is None or g.user.role == 'pending':
+            # index.html shows these callers nothing, so querying the backend for
+            # them only spends its time. A role decorator cannot do this job: index
+            # is also the first-user entry point and has to reach the redirect above.
+            return render_template("index.html", samples={}, families={}, latest_samples=[], jobs=[])
         else:
             client = get_client()
             jobs = client.getQueueData(0, 5, method="getMatchesForSample", state="finished", ascending=False)
