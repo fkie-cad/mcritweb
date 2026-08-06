@@ -182,3 +182,42 @@ html {
   .pointer {
     cursor: pointer;
   }
+  /* The user manual, rendered from docs/manual/README.md by mcritweb/manual.py.
+     Markdown output carries no Bootstrap classes, so the few elements it produces
+     that need them are styled here rather than by post-processing the HTML. */
+  .manual img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1rem auto;
+    border: 1px solid rgb(222, 226, 230);
+    border-radius: 4px;
+  }
+
+  .manual table {
+    width: 100%;
+    margin-bottom: 1rem;
+    border-collapse: collapse;
+  }
+
+  .manual th, .manual td {
+    padding: 0.5rem;
+    border: 1px solid rgb(222, 226, 230);
+  }
+
+  .manual pre {
+    padding: 0.75rem;
+    background-color: rgb(248, 249, 250);
+    border-radius: 4px;
+    overflow-x: auto;
+  }
+
+  .manual h1, .manual h2 {
+    margin-top: 1.5rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid rgb(222, 226, 230);
+  }
+
+  .manual h3, .manual h4, .manual h5 {
+    margin-top: 1.25rem;
+  }

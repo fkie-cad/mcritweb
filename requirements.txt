@@ -10,3 +10,4 @@ fastcluster
 networkx
 mcrit>=1.5.3
 levenshtein
+markdown

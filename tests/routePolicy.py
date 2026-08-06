@@ -102,6 +102,10 @@ ROUTE_POLICY = {
     # which a gate in front of it would turn into a redirect to /login.
     "index": (PUBLIC, READ_ONLY),
     "help": (PUBLIC, READ_ONLY),   # the user manual, linked from the navbar
+    # the manual's screenshots. Public because the page they illustrate is, and
+    # served from docs/manual/images/ rather than static/ so that the markdown's
+    # relative links keep working for readers on GitHub. See issue #91.
+    "help_image": (PUBLIC, READ_ONLY),
     "authentication.login": (PUBLIC, WRITES_ON_POST),
     # multi_user only blocks registration in single-user mode, it is not an auth gate
     "authentication.register": (PUBLIC, WRITES_ON_POST),

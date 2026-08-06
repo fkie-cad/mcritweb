@@ -15,6 +15,7 @@ setup(
         "fastcluster",
         "networkx",
         "mcrit>=1.5.3",
-        "levenshtein"
+        "levenshtein",
+        "markdown"
     ],
 )

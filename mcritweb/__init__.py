@@ -1,7 +1,7 @@
 import datetime
 import os
 
-from flask import Flask, g, redirect, render_template, request, url_for
+from flask import Flask, g, redirect, render_template, request, send_from_directory, url_for
 
 
 def create_app(test_config=None, instance_path=None):
@@ -12,7 +12,7 @@ def create_app(test_config=None, instance_path=None):
     from flask_dropzone import Dropzone
     from mcrit.storage.SampleEntry import SampleEntry
 
-    from . import db
+    from . import db, manual
     from .csrf import CsrfProtect
     from .secret_key import INSECURE_DEFAULT, load_or_create_secret_key
     from .views import administration, analyze, api, authentication, data, explore
@@ -124,9 +124,16 @@ def create_app(test_config=None, instance_path=None):
 
     # the user manual. Public, and deliberately not under /admin: it was the only
     # route in that blueprint without an admin gate, which made the prefix a lie.
+    # Rendered from docs/manual/README.md, which is the only copy - see issue #91.
     @app.route('/help')
     def help():
-        return render_template('help.html')
+        return render_template('help.html', manual=manual.render(url_for('help_image', filename='')))
+
+    # the manual's screenshots stay next to the markdown so its relative links work
+    # for readers on GitHub, which is that copy's whole purpose
+    @app.route('/help/images/<path:filename>')
+    def help_image(filename):
+        return send_from_directory(manual.IMAGE_DIRECTORY, filename)
 
     @app.route('/', methods=('GET', 'POST'))
     def index():

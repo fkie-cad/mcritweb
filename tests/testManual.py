@@ -1,0 +1,131 @@
+#!/usr/bin/python
+"""The user manual is served from its markdown source, and only from there - #91.
+
+It used to exist twice: `docs/manual/README.md` for readers on GitHub, and a
+hand-written Jinja duplicate for `/help` in the running app, with nothing keeping
+them in agreement. The screenshots were stored twice for the same reason. An edit
+to either copy silently diverged from the other, and the in-app copy is the one
+users actually see.
+
+Most of what is worth asserting here is that the second copy has not come back, so
+several of these tests read the repository rather than a response.
+"""
+
+import logging
+import pathlib
+import re
+import unittest
+
+import pytest
+
+from mcritweb.manual import MANUAL_PATH, MISSING_MANUAL, render
+
+LOG = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(message)s")
+logging.disable(logging.CRITICAL)
+
+REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
+TEMPLATE = REPOSITORY / "mcritweb" / "templates" / "help.html"
+
+#: Four templates link to `url_for('help') + '#search'`. The anchor only exists
+#: because the renderer runs markdown's `toc` extension.
+LINKED_ANCHORS = ("search",)
+
+
+# --- the page ---------------------------------------------------------------------
+
+def test_the_manual_is_public(client):
+    """No login: it is linked from the navbar and explains how to register."""
+    assert client.get("/help").status_code == 200
+
+
+def test_the_page_carries_the_manual_text(client):
+    page = client.get("/help").get_data(as_text=True)
+    source = MANUAL_PATH.read_text(encoding="utf-8")
+
+    first_sentence = source.split("\n\n")[1].strip()
+    assert first_sentence in page, "the rendered page does not contain the markdown's opening line"
+
+
+@pytest.mark.parametrize("anchor", LINKED_ANCHORS)
+def test_the_anchors_other_templates_link_to_exist(client, anchor):
+    """Losing markdown's `toc` extension would break these silently - the link
+    still resolves, it just lands at the top of the page."""
+    page = client.get("/help").get_data(as_text=True)
+    assert f'id="{anchor}"' in page
+
+
+def test_the_screenshots_are_served_and_reachable(client):
+    """The markdown says `images/x.png`, relative to itself, which is what makes it
+    render on GitHub. In the app that has to be rewritten to a real URL."""
+    page = client.get("/help").get_data(as_text=True)
+    sources = re.findall(r'<img[^>]*src="([^"]+)"', page)
+
+    assert sources, "the manual rendered without any screenshots"
+    assert not any(source.startswith("images/") for source in sources), "a relative link was left unrewritten"
+    for source in sorted(set(sources)):
+        assert client.get(source).status_code == 200, f"{source} is linked but not served"
+
+
+def test_an_unknown_screenshot_is_a_404_not_a_500(client):
+    assert client.get("/help/images/nothing.png").status_code == 404
+
+
+def test_the_image_route_does_not_serve_files_outside_the_manual(client):
+    """send_from_directory refuses traversal; this pins that it stays that way."""
+    assert client.get("/help/images/../../setup.py").status_code in (301, 308, 400, 404)
+
+
+# --- the duplicate stays gone -----------------------------------------------------
+
+def test_the_template_holds_no_documentation():
+    """It is the frame around the rendered markdown. Prose reappearing in it is the
+    duplication of #91 coming back, one paragraph at a time."""
+    template = TEMPLATE.read_text(encoding="utf-8")
+
+    assert "{{ manual }}" in template, "the template no longer renders the markdown"
+    assert template.count("<p>") == 0, "prose has been written into the template again"
+    assert len(template.splitlines()) < 30, "the template has grown a second copy of the manual"
+
+
+def test_the_screenshots_are_stored_once():
+    duplicate = REPOSITORY / "mcritweb" / "static" / "images" / "help"
+    assert not duplicate.exists(), f"{duplicate} is a second copy of docs/manual/images/"
+
+
+def test_every_screenshot_the_manual_references_exists():
+    """A missing file renders as a broken image on GitHub and a 404 in the app."""
+    source = MANUAL_PATH.read_text(encoding="utf-8")
+    referenced = set(re.findall(r"!\[[^\]]*\]\(images/([^)\s]+)", source))
+
+    assert referenced, "the manual references no screenshots at all"
+    for filename in sorted(referenced):
+        assert (MANUAL_PATH.parent / "images" / filename).is_file(), f"{filename} is referenced but missing"
+
+
+def test_no_screenshot_is_unreferenced():
+    """The other direction, so deleting a section does not leave its image behind."""
+    source = MANUAL_PATH.read_text(encoding="utf-8")
+    referenced = set(re.findall(r"!\[[^\]]*\]\(images/([^)\s]+)", source))
+    stored = {path.name for path in (MANUAL_PATH.parent / "images").iterdir() if path.is_file()}
+
+    assert not stored - referenced, f"screenshots no section uses: {sorted(stored - referenced)}"
+
+
+# --- the renderer -----------------------------------------------------------------
+
+def test_the_render_is_cached_per_prefix():
+    """Same input, same object - the parse should happen once per edit, not once
+    per request."""
+    assert render("/help/images/") is render("/help/images/")
+
+
+def test_a_missing_manual_explains_itself_instead_of_raising(monkeypatch):
+    """/help is public and linked from the navbar, so an incomplete checkout should
+    not answer it with a server error."""
+    monkeypatch.setattr("mcritweb.manual.MANUAL_PATH", pathlib.Path("/nonexistent/README.md"))
+    assert render("/help/images/") is MISSING_MANUAL
+
+
+if __name__ == "__main__":
+    unittest.main()

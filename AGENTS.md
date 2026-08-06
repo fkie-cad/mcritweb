@@ -29,7 +29,7 @@ This repository owns **no analysis data of its own**. Families, samples, functio
 - `tests/` — the offline suite (see "Testing"). `conftest.py` holds the app and backend fixtures, `routePolicy.py` the declared access policy, `fixtureData.py` + `fixtures/` the captured backend reports.
 - `docs/manual/` — the user manual (markdown + screenshots), for readers on GitHub.
 - `docs/agents/` — configuration read by the agent skills: issue tracker, triage labels, domain-doc layout.
-- `mcritweb/templates/help.html` — a **hand-maintained duplicate** of `docs/manual/README.md`, served at `/help`, with the same screenshots copied to `static/images/help/`. Edit both or they drift.
+- **The user manual has one copy: `docs/manual/README.md`.** `mcritweb/manual.py` renders it at request time for `/help`; `templates/help.html` is only the frame around the result, and prose written into it is the duplication of #91 coming back. Screenshots live beside the markdown in `docs/manual/images/` — the markdown's relative links are what make it render on GitHub — and are served by the `help_image` route, with the prefix substituted at render time. Markdown's `toc` extension supplies the heading ids that four templates link to (`url_for('help') + '#search'`), so it is load-bearing rather than decorative.
 - `setup.py`, `requirements.txt`, `flask_env.sh`, `Makefile` — build/run config.
 
 ## Development setup
