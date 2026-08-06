@@ -13,6 +13,7 @@ def create_app(test_config=None, instance_path=None):
     from mcrit.storage.SampleEntry import SampleEntry
 
     from . import db
+    from .secret_key import INSECURE_DEFAULT, load_or_create_secret_key
     from .views import administration, analyze, api, authentication, data, explore
     from .views.client import get_client
     from .views.utility import ensure_local_data_paths, get_mcritweb_version_from_setup
@@ -22,7 +23,7 @@ def create_app(test_config=None, instance_path=None):
     # instead of writing into the deployment's instance folder
     app = Flask(__name__, instance_relative_config=True, instance_path=instance_path)
     app.config.from_mapping(
-        SECRET_KEY='dev',
+        SECRET_KEY=INSECURE_DEFAULT,
         DATABASE=os.path.join(app.instance_path, 'mcritweb.sqlite'),
     )
 
@@ -55,6 +56,11 @@ def create_app(test_config=None, instance_path=None):
 
     # ensure the instance and cache folders exists
     ensure_local_data_paths(app)
+
+    # after the config has loaded, so an explicit key in instance/config.py wins
+    if app.config['SECRET_KEY'] == INSECURE_DEFAULT:
+        app.config['SECRET_KEY'] = load_or_create_secret_key(app.instance_path)
+
     db.init_app(app)
     db.migrate(app)
     app.register_blueprint(explore.bp)
