@@ -25,7 +25,9 @@ This repository owns **no analysis data of its own**. Families, samples, functio
   - `static/` — **vendored** front-end assets (Bootstrap 5.0.2, jQuery, jQuery-UI, DataTables, Dropzone, Font Awesome, SortableJS, `trace_CFG/` from CFGExplorer) plus project CSS/JS.
 - `instance/` — runtime state, **git-ignored**: `mcritweb.sqlite`, `cache/` (results + diagrams), `temp/` (uploads, reports). Optional `instance/config.py` overrides app config.
 - `tests/` — a single unittest module (see "Testing" — it is currently stale).
-- `documentation/` — the user manual, also served in-app at `/admin/help`.
+- `docs/manual/` — the user manual (markdown + screenshots), for readers on GitHub.
+- `docs/agents/` — configuration read by the agent skills: issue tracker, triage labels, domain-doc layout.
+- `mcritweb/templates/help.html` — a **hand-maintained duplicate** of `docs/manual/README.md`, served at `/admin/help`, with the same screenshots copied to `static/images/help/`. Edit both or they drift.
 - `setup.py`, `requirements.txt`, `flask_env.sh`, `Makefile` — build/run config.
 
 ## Development setup
@@ -129,6 +131,20 @@ Consequently, **verify changes by exercising the app**: `flask run` against a re
 - **Do not** change matching or scoring semantics here — MCRITweb only presents what the backend computes. Score→color mappings (`ScoreColorProvider`, `cross_compare.score_to_color`) are presentation and may change; scores themselves may not.
 - When work depends on backend behavior, read `../mcrit` rather than guessing at `McritClient`'s surface.
 - Clear `instance/cache/` when validating changes to result rendering or diagram generation — otherwise you will be looking at stale output.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on `fkie-cad/mcritweb`, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical labels, used as-is; `wontfix` already exists in the repo. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context — `CONTEXT.md` and `docs/adr/` at the repo root, both created lazily. See `docs/agents/domain.md`.
 
 ## Related repositories (reference only)
 
