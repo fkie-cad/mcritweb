@@ -59,7 +59,7 @@ def register():
         error = None
         if not username:
             error = 'Username is required.'
-        elif re.match("^(?=[a-zA-Z0-9._]{3,20}$)(?!.*[_.]{2})[^_.].*[^_.]$", username) is None:
+        elif re.match(r"^(?=[a-zA-Z0-9._]{3,20}$)(?!.*[_.]{2})[^_.].*[^_.]$", username) is None:
             error = "Username has wrong format. Must be 3-20 characters, alphanumeric with dots and underscores allowed, but cannot start or end with dots/underscores, nor contain two of them in a row."
         elif username.lower() in ["guest", "mcritweb", "mcrit", "admin", "root", "system", "test", "demo"]:
             error = "Username is reserved."
@@ -106,7 +106,7 @@ def register():
     if g.first_user:
         proposed_registration_token = str(uuid.uuid4())
     query_token = request.args.get('token')
-    if query_token is None or not re.match("^[a-zA-Z0-9._\-]{3,36}$", query_token):
+    if query_token is None or not re.match(r"^[a-zA-Z0-9._\-]{3,36}$", query_token):
         query_token = ""
     default_server = os.environ.get('MCRIT_DEFAULT_SERVER', "http://127.0.0.1:8000")
     return render_template("register.html", default_mcrit_server=default_server, is_registration_token_required=is_registration_token_required, proposed_registration_token=proposed_registration_token, query_token=query_token)

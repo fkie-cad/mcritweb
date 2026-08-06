@@ -54,26 +54,26 @@ def api_router(api_path):
     username = get_username(request)
     client = get_client(username=username, raw_responses=True)
     print(f"api_router - {api_path} - {username}")
-    if re.match("status", api_path):
+    if re.match(r"status", api_path):
         print("status")
         return handle_raw_response(client.getStatus())
     # getFunctionsBySampleId
-    elif re_match := re.match("samples/(?P<sample_id>\d+)/functions$", api_path):
+    elif re_match := re.match(r"samples/(?P<sample_id>\d+)/functions$", api_path):
         print("getFunctionsBySampleId")
         sample_id = int(re_match.group("sample_id"))
         return handle_raw_response(client.getFunctionsBySampleId(sample_id))
     # getSampleById, isSampleId
-    elif re_match := re.match("samples/(?P<sample_id>\d+)$", api_path):
+    elif re_match := re.match(r"samples/(?P<sample_id>\d+)$", api_path):
         print("getSampleById, isSampleId")
         sample_id = int(re_match.group("sample_id"))
         return handle_raw_response(client.getSampleById(sample_id))
     # getSampleBySha256
-    elif re_match := re.match("samples/sha256/(?P<sample_sha256>[0-9a-fA-F]{64})$", api_path):
+    elif re_match := re.match(r"samples/sha256/(?P<sample_sha256>[0-9a-fA-F]{64})$", api_path):
         print("getSampleBySha256")
         sample_sha256 = re_match.group("sample_sha256")
         return handle_raw_response(client.getSampleBySha256(sample_sha256))
     # getSamples
-    elif re_match := re.match("samples$", api_path):
+    elif re_match := re.match(r"samples$", api_path):
         if request.method == "GET":
             print("getSamples")
             forward_start = 0
@@ -90,23 +90,23 @@ def api_router(api_path):
             smda_report = SmdaReport.fromDict(smda_report_body)
             return handle_raw_response(client.addReport(smda_report))
     # getFamily, isFamilyId
-    elif re_match := re.match("families/(?P<family_id>\d+)$", api_path):
+    elif re_match := re.match(r"families/(?P<family_id>\d+)$", api_path):
         print("getFamily, isFamilyId")
         family_id = int(re_match.group("family_id"))
         forward_with_samples = request.args.get("with_samples", "").lower() in ["1", "true"]
         return handle_raw_response(client.getFamily(family_id, with_samples=forward_with_samples))
     # getFamilies
-    elif re_match := re.match("families$", api_path):
+    elif re_match := re.match(r"families$", api_path):
         print("getFamilies")
         return handle_raw_response(client.getFamilies())
     # getFunctionById, isFunctionId
-    elif re_match := re.match("functions/(?P<function_id>\d+)$", api_path):
+    elif re_match := re.match(r"functions/(?P<function_id>\d+)$", api_path):
         print("getFunctionById, isFunctionId")
         function_id = int(re_match.group("function_id"))
         forward_with_xcfg = request.args.get("with_xcfg", "").lower() in ["1", "true"]
         return handle_raw_response(client.getFunctionById(function_id, with_xcfg=forward_with_xcfg))
     # getFunctions
-    elif re_match := re.match("functions$", api_path):
+    elif re_match := re.match(r"functions$", api_path):
         if request.method == "GET":
             forward_start = 0
             forward_limit = 0
@@ -117,31 +117,31 @@ def api_router(api_path):
                 pass
             return handle_raw_response(client.getFunctions(forward_start, forward_limit))
         elif request.method == 'POST':
-            if re.match(b"^\d+(?:[\s]*,[\s]*\d+)*$", request.data):
+            if re.match(rb"^\d+(?:[\s]*,[\s]*\d+)*$", request.data):
                 forward_with_label_only = request.args.get("with_label_only", "").lower() in ["1", "true"]
                 target_function_ids = [int(function_id) for function_id in request.data.split(b",")]
                 return handle_raw_response(client.getFunctionsByIds(target_function_ids, with_label_only=forward_with_label_only))
             return handle_raw_response(client.getFunctionsByIds([], with_label_only=forward_with_label_only))
     # getMatchesForSmdaFunction
-    elif re_match := re.match("query/function$", api_path):
+    elif re_match := re.match(r"query/function$", api_path):
         print("getMatchesForSmdaFunction")
         smda_report_body = request.get_json(force=True)
         smda_report = SmdaReport.fromDict(smda_report_body)
         return handle_raw_response(client.getMatchesForSmdaFunction(smda_report))
     # getMatchesForPicHash
-    elif re_match := re.match("query/pichash/(?P<pichash>[0-9a-fA-F]{16})(?P<as_summary>/summary)?$", api_path):
+    elif re_match := re.match(r"query/pichash/(?P<pichash>[0-9a-fA-F]{16})(?P<as_summary>/summary)?$", api_path):
         print("getMatchesForPicHash")
         pichash = int(re_match.group("pichash"), 16)
         forward_as_summary = True if re_match.group("as_summary") is not None else False
         return handle_raw_response(client.getMatchesForPicHash(pichash, summary=forward_as_summary))
     # getMatchesForPicBlockHash
-    elif re_match := re.match("query/picblockhash/(?P<picblockhash>[0-9a-fA-F]{16})(?P<as_summary>/summary)?$", api_path):
+    elif re_match := re.match(r"query/picblockhash/(?P<picblockhash>[0-9a-fA-F]{16})(?P<as_summary>/summary)?$", api_path):
         print("getMatchesForPicBlockHash")
         picblockhash = int(re_match.group("picblockhash"), 16)
         forward_as_summary = True if re_match.group("as_summary") is not None else False
         return handle_raw_response(client.getMatchesForPicBlockHash(picblockhash, summary=forward_as_summary))
     # getQueueData
-    elif re_match := re.match("jobs$", api_path):
+    elif re_match := re.match(r"jobs$", api_path):
         print("getQueueData")
         forward_start = 0
         forward_limit = 0
@@ -169,7 +169,7 @@ def api_router(api_path):
             )
         )
     # getJobData, getResultForJob
-    elif re_match := re.match("jobs/(?P<job_id>[0-9a-fA-F]+)(?P<result_for_job>/result)?$", api_path):
+    elif re_match := re.match(r"jobs/(?P<job_id>[0-9a-fA-F]+)(?P<result_for_job>/result)?$", api_path):
         print("getJobData, getResultForJob")
         job_id = re_match.group("job_id")
         forward_result = True if re_match.group("result_for_job") is not None else False
@@ -179,7 +179,7 @@ def api_router(api_path):
         else:
             return handle_raw_response(client.getJobData(job_id))
     # getResult, getJobForResult
-    elif re_match := re.match("results/(?P<result_id>[0-9a-fA-F]+)(?P<job_for_result>/job)?$", api_path):
+    elif re_match := re.match(r"results/(?P<result_id>[0-9a-fA-F]+)(?P<job_for_result>/job)?$", api_path):
         print("getResult, getJobForResult")
         result_id = re_match.group("result_id")
         forward_job = True if re_match.group("job_for_result") is not None else False
@@ -188,7 +188,7 @@ def api_router(api_path):
         else:
             return handle_raw_response(client.getResult(result_id))
     # requestMatchesForSample, requestMatchesForSampleVs
-    elif re_match := re.match("matches/sample/(?P<sample_id>\d+)(/(?P<other_sample_id>\d+))?", api_path):
+    elif re_match := re.match(r"matches/sample/(?P<sample_id>\d+)(/(?P<other_sample_id>\d+))?", api_path):
         print("requestMatchesForSample, requestMatchesForSampleVs")
         sample_id = re_match.group("sample_id")
         other_sample_id = re_match.group("other_sample_id")
@@ -197,17 +197,17 @@ def api_router(api_path):
         else:
             return handle_raw_response(client.requestMatchesForSample(sample_id))
     # getMatchFunctionVs
-    elif re_match := re.match("matches/function/(?P<function_id>\d+)(/(?P<other_function_id>\d+))?", api_path):
+    elif re_match := re.match(r"matches/function/(?P<function_id>\d+)(/(?P<other_function_id>\d+))?", api_path):
         print("getMatchFunctionVs")
         function_id = re_match.group("function_id")
         other_function_id = re_match.group("other_function_id")
         return handle_raw_response(client.getMatchFunctionVs(function_id, other_function_id))
     # getVersion
-    elif re_match := re.match("version$", api_path):
+    elif re_match := re.match(r"version$", api_path):
         print("getVersion")
         return handle_raw_response(client.getVersion())
     # requestMatchesForMappedBinary, requestMatchesForUnmappedBinary
-    elif re_match := re.match("query/binary", api_path):
+    elif re_match := re.match(r"query/binary", api_path):
         binary = request.get_data()
         request_args = request.args
         minhash_threshold = request_args.get("minhash_threshold", default=None, type=nullable_int)
@@ -216,7 +216,7 @@ def api_router(api_path):
         force_recalculation = request_args.get("force_recalculation", default=False, type=stringified_bool)
         # never disassembly in the server for this as we otherwise can't distinguish the type of matching server-side
         disassemble_locally = False
-        if re_match := re.match("query/binary/mapped/(?P<base_addr>\d+)", api_path):
+        if re_match := re.match(r"query/binary/mapped/(?P<base_addr>\d+)", api_path):
             base_address = re_match.group("base_addr")
             return handle_raw_response(
                 client.requestMatchesForMappedBinary(

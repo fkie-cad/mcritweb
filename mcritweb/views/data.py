@@ -124,7 +124,7 @@ def export_view():
                         "attachment; filename=export_all_samples.json"})
         # NOTE it might be nice to allow [<number>, <number>-<number>, ...] to enable 
         # spans of consecutive sample_ids
-        elif re.match("^\d+(?:[\s]*,[\s]*\d+)*$", requested_samples):
+        elif re.match(r"^\d+(?:[\s]*,[\s]*\d+)*$", requested_samples):
             sample_ids = [int(sample_id.strip()) for sample_id in requested_samples.split(',')]
             export_file = json.dumps(client.getExportData(sample_ids))
             return Response(
@@ -317,7 +317,7 @@ def result_unique_blocks(job_info, blocks_result: dict):
                 for ins in result["instructions"]:
                     yarafied += f" * {ins[1]:{maxlen_ins}} | {ins[2]} {ins[3]}\n"
                 yarafied += " */\n"
-                yarafied += "{ " + re.sub("(.{80})", "\\1\n", result["escaped_sequence"], 0, re.DOTALL) + " }"
+                yarafied += "{ " + re.sub(r"(.{80})", "\\1\n", result["escaped_sequence"], 0, re.DOTALL) + " }"
                 unique_blocks[pichash]["yarafied"] = yarafied
                 paginated_block = result
                 paginated_block["key"] = pichash
@@ -840,16 +840,16 @@ def request_filename_info():
             "base_addr": None,
         }
         # parse from smda report
-        match_family = re.search('"family": "(?P<family>[^\"^<^>]+)"', file_header)
+        match_family = re.search(r'"family": "(?P<family>[^"^<^>]+)"', file_header)
         if match_family:
             result['family'] = match_family.group('family')
-        match_version = re.search('"version": "(?P<version>[^\"^<^>]+)"', file_header)
+        match_version = re.search(r'"version": "(?P<version>[^"^<^>]+)"', file_header)
         if match_version:
             result['version'] = match_version.group('version')
         match_bitness = re.search('"bitness": (?P<bitness>(16|32|64))', file_header)
         if match_bitness:
             result['bitness'] = int(match_bitness.group('bitness'))
-        match_baseaddr = re.search('"base_addr": (?P<base_addr>\d+)', file_header)
+        match_baseaddr = re.search(r'"base_addr": (?P<base_addr>\d+)', file_header)
         if match_baseaddr:
             result['base_addr'] = hex(int(match_baseaddr.group('base_addr')))
     elif 'dump' in filename:
