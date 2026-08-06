@@ -35,7 +35,9 @@ def test_result_page_renders(client, as_role, report):
     as_role("visitor")
     response = client.get(f"/data/result/{job_id_of(report)}")
     assert response.status_code == 200, f"{report} did not render"
-    assert b"result_corrupted" not in response.data
+    # the h1 of result_corrupted.html - the template's *name* appears nowhere in the
+    # rendered page, so asserting on that passed whatever the page actually said
+    assert b"are corrupted" not in response.data
 
 
 @pytest.mark.parametrize("report", ["matches_for_sample", "matches_for_sample_vs", "matches_for_query"])

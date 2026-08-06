@@ -327,6 +327,36 @@ def result_unique_blocks(job_info, blocks_result: dict):
     # TODO pass the new result objects as single arguments and then render them in page tabs on the template
     return render_template("result_unique_blocks.html", job_info=job_info, family_entry=family_entry, sample_id=sample_id, yara_rule=yara_rule, statistics=blocks_statistics, results=paginated_blocks, blkp=block_pagination, active_tab=active_tab)
 
+#: Shown when a stored result names something the backend can no longer resolve. The
+#: cross-compare path has said this about samples for a long time; issue #96 is the
+#: same situation one level down, where the missing thing is a function.
+MISSING_ENTRIES_REASON = "MCRIT was not able to retrieve information for all functions referenced by this result. This might be a result of having deleted samples from the database since it was processed. Please consider starting a new job."
+
+
+def assign_matched_offsets(client, function_matches):
+    """Attach the offset of each matched function, in place.
+
+    Returns False when the backend no longer has every function the result names.
+    `getFunctionsByIds` answers only the entries that still exist, and a stored
+    result refers to functions by id, so deleting a sample after a job finished
+    leaves ids behind that resolve to nothing. Indexing the lookup directly made
+    that a KeyError and a 500 on a report that is otherwise still readable - see
+    issue #96. The caller decides what to do about it; all three call sites in this
+    module render `result_corrupted.html`, which is what the cross-compare path
+    already does for a missing sample.
+    """
+    matched_function_ids = list({match.matched_function_id for match in function_matches})
+    matched_function_entries_by_id = client.getFunctionsByIds(matched_function_ids) or {}
+    is_complete = True
+    for function_match in function_matches:
+        function_entry = matched_function_entries_by_id.get(function_match.matched_function_id)
+        if function_entry is None:
+            is_complete = False
+            continue
+        function_match.matched_offset = function_entry.offset
+    return is_complete
+
+
 def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult):
     score_color_provider = ScoreColorProvider()
     filtered_family_id = parse_integer_query_param(request, "famid")
@@ -446,10 +476,8 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         filtered_sample_entry = client.getSampleById(filtered_sample_id)
         matching_result.other_sample_entry = filtered_sample_entry
         # get offsets for matched functions
-        matched_function_ids = list(set([f.matched_function_id for f in matching_result.filtered_function_matches]))
-        matched_function_entries_by_id = client.getFunctionsByIds(matched_function_ids)
-        for function_match in matching_result.filtered_function_matches:
-            function_match.matched_offset = matched_function_entries_by_id[function_match.matched_function_id].offset
+        if not assign_matched_offsets(client, matching_result.filtered_function_matches):
+            return render_template("result_corrupted.html", reason=MISSING_ENTRIES_REASON, job_info=job_info)
         sample_pagination = Pagination(request, 1, limit=10, query_param="samp", limit_param="sampl")
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), limit=100, query_param="funp", limit_param="funl")
         return render_template("result_compare_sample.html", samid=filtered_sample_id, job_info=job_info, samp=sample_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider, ucs_famlib=user_column_setup_family_library, ucs_functions=user_column_setup_function_sample) 
@@ -460,10 +488,8 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         matching_result.filterToFunctionId(filtered_function_id)
         matching_result.filtered_function_matches = sorted(matching_result.filtered_function_matches, key=lambda x: (x.matched_score, x.match_is_pichash, x.matched_family_id, x.matched_sample_id, x.matched_function_id), reverse=True)
         # pull all function_entries, as we want to have their offsets
-        matched_function_ids = list(set([f.matched_function_id for f in matching_result.filtered_function_matches]))
-        matched_function_entries_by_id = client.getFunctionsByIds(matched_function_ids)
-        for function_match in matching_result.filtered_function_matches:
-            function_match.matched_offset = matched_function_entries_by_id[function_match.matched_function_id].offset
+        if not assign_matched_offsets(client, matching_result.filtered_function_matches):
+            return render_template("result_corrupted.html", reason=MISSING_ENTRIES_REASON, job_info=job_info)
         # set up pagination
         family_pagination = Pagination(request, matching_result.num_family_matches, limit=10, query_param="famp", limit_param="fampl")
         function_pagination = Pagination(request, matching_result.num_function_matches, limit=100, query_param="funp", limit_param="funl")
@@ -471,10 +497,8 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
     # 1 vs 1 result
     elif job_info.parameters.startswith("getMatchesForSampleVs("):
         # get offsets for matched functions
-        matched_function_ids = list(set([f.matched_function_id for f in matching_result.filtered_function_matches]))
-        matched_function_entries_by_id = client.getFunctionsByIds(matched_function_ids)
-        for function_match in matching_result.filtered_function_matches:
-            function_match.matched_offset = matched_function_entries_by_id[function_match.matched_function_id].offset
+        if not assign_matched_offsets(client, matching_result.filtered_function_matches):
+            return render_template("result_corrupted.html", reason=MISSING_ENTRIES_REASON, job_info=job_info)
         # we need to slice function matches ourselves based on pagination
         function_pagination = Pagination(request, matching_result.num_function_matches, limit=100, query_param="funp", limit_param="funl")
         return render_template("result_compare_vs.html", job_info=job_info, matching_result=matching_result, funp=function_pagination, scp=score_color_provider, ucs_famlib=user_column_setup_family_library, ucs_functions=user_column_setup_function_sample)

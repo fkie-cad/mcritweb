@@ -8,6 +8,6 @@ Results for Job: {{ job_info.job_id }} - corrupted!
 
 <p>{{reason}}</p>
 <p>back to <a href="{{ url_for('data.jobs') }}">Jobs and Results</a></p>
-<p><a href="{{"/data/jobs/" + job_info.job_id + "/delete"}}">Delete job data</a> and return back to Jobs and Results</p>
+<p><button type="button" class="btn btn-link p-0 align-baseline" data-post="{{ url_for('data.delete_job_by_id', job_id=job_info.job_id) }}">Delete job data</button> and return back to Jobs and Results</p>
 
 {% endblock %}
