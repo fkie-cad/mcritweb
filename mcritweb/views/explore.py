@@ -27,7 +27,10 @@ def modifyFamily():
         data = request.data
         data = data.decode("utf-8")
         if not request.form.to_dict(flat=False):
-            return None
+            # returning None from a view is a TypeError inside Flask, so an empty
+            # form submission answered with a 500 rather than saying what was wrong
+            flash("Nothing to change - the form arrived empty.", category="error")
+            return redirect(url_for('explore.families'))
         client = get_client()
         family_id = request.form.get("family_id", None)
         if family_id is None: 
@@ -94,7 +97,8 @@ def modifySample():
         data = request.data
         data = data.decode("utf-8")
         if not request.form.to_dict(flat=False):
-            return None
+            flash("Nothing to change - the form arrived empty.", category="error")
+            return redirect(url_for('explore.samples'))
         client = get_client()
         sample_id = request.form.get("sample_id", None)
         redirection_job_id = request.form.get("redirection_job_id", None)

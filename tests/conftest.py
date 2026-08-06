@@ -74,6 +74,16 @@ class FakeMcritClient:
         self._record("getStatus", *args, **kwargs)
         return {}
 
+    def getQueueStatistics(self, *args, **kwargs):
+        """Category -> {state: count}. data.jobs sums over it, so None is not a
+        shape it can survive - it iterates the result without checking."""
+        self._record("getQueueStatistics", *args, **kwargs)
+        return {}
+
+    def getMatchesForPicBlockHash(self, *args, **kwargs):
+        self._record("getMatchesForPicBlockHash", *args, **kwargs)
+        return {}
+
     def getVersion(self, *args, **kwargs):
         self._record("getVersion", *args, **kwargs)
         return "0.0.0-fake"
@@ -87,6 +97,15 @@ class FakeMcritClient:
         return _unimplemented
 
 
+#: A job id shaped like the backend's, for fakes that have to answer one.
+FAKE_JOB_ID = "0123456789abcdef01234567"
+
+#: Client methods that queue backend work and answer a job id. A view that gets None
+#: from one of these dies in url_for building the redirect to the job page, which
+#: reads as a broken route rather than as the gap in the fake that it is.
+QUEUEING_METHODS = ("request", "delete", "schedule", "update", "rebuild", "recalculate")
+
+
 class RecordingMcritClient(FakeMcritClient):
     """A fake that never raises: unknown methods record the call and return None.
 
@@ -95,11 +114,16 @@ class RecordingMcritClient(FakeMcritClient):
     since a view that would have written can abort on the raise before it gets there
     and then look innocent. This variant lets the view run on and records what it
     reached for, at the cost of telling you nothing about response shapes.
+
+    The one shape it does commit to is the job id, because "returns None" is not a
+    thing the real client ever does for a queueing call.
     """
 
     def __getattr__(self, name):
         def _permissive(*args, **kwargs):
             self._record(name, *args, **kwargs)
+            if name.startswith(QUEUEING_METHODS):
+                return FAKE_JOB_ID
             return None
         return _permissive
 

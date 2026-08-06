@@ -1,17 +1,24 @@
 #!/usr/bin/python
 """Asserts the whole route surface against the policy declared in routePolicy.py.
 
-Four tests, all offline:
+Six tests, all offline:
 
 1. every caller below a route's declared role is rejected
+1b. the caller *at* that role is admitted - the other half of the same boundary
+1c. no route answers a caller it is supposed to serve with a 5xx or an exception
 2. the policy table and `app.url_map` describe the same set of routes
 3. no `@<role>_required` is written above its `@bp.route`, where it never runs
 4. no GET writes anything unless the table says so
 
-The first three need no backend at all, because authorization is settled before the
-view body runs. The fourth swaps in the permissive fake from conftest: with the
-strict one, a view that would have written can abort on a raised
-NotImplementedError first and then look innocent.
+Tests 1, 2 and 3 need no backend at all, because authorization is settled before the
+view body runs. The rest swap in the permissive fake from conftest: with the strict
+one, a view that would have written can abort on a raised NotImplementedError first
+and then look innocent, and 1c would be asserting that the fake is complete rather
+than that the route works.
+
+1 and 1b together pin the boundary from both sides. Either alone is satisfied by a
+route that is simply broken - one because a broken route rejects everyone, the other
+because it would admit everyone if the decorator were missing.
 """
 
 import ast
@@ -187,6 +194,80 @@ def test_routes_reject_callers_below_their_policy(app, client, as_role, caller):
     assert not admitted, (
         f"{len(admitted)} route(s) admitted a caller below their declared policy "
         f"({caller or 'anonymous'}):\n  " + "\n  ".join(admitted)
+    )
+
+
+# --- 1b. the caller at a route's declared role is admitted ------------------------
+
+def test_routes_admit_a_caller_at_their_declared_role(app, client, as_role):
+    """The other half of the boundary.
+
+    Test 1 proves nobody below the line gets in. On its own that is satisfied by a
+    route that rejects everyone - including by being broken. This proves the line is
+    where the table says it is, by showing the weakest sufficient caller gets past.
+
+    `token_required` routes are excluded: no session role satisfies a header gate,
+    and testApiTokens.py covers them.
+    """
+    user_ids = {role: as_role(role, username=f"admit{role}") for role in ("pending", "visitor", "contributor", "admin")}
+
+    refused = []
+    for endpoint, (min_role, _writes) in sorted(ROUTE_POLICY.items()):
+        if min_role == APITOKEN:
+            continue
+        path, method, _methods = _target(app, endpoint)
+        _use_session(client, user_ids.get(CALLER_FOR[min_role]))
+        try:
+            response = client.open(path, method=method)
+        except Exception:
+            # an exception means the view body ran, so the gate admitted the caller;
+            # whether the body then worked is the next test's business
+            continue
+        if _is_rejection(endpoint, response):
+            location = response.headers.get("Location", "")
+            refused.append(f"{endpoint} ({method} {path}) refused {min_role} with {response.status_code} {location}".strip())
+
+    assert not refused, (
+        f"{len(refused)} route(s) refused the role routePolicy.py says may call them:\n  " +
+        "\n  ".join(refused)
+    )
+
+
+# --- 1c. no route answers a legitimate caller with a server error -----------------
+
+def test_no_route_answers_its_own_role_with_a_server_error(app, client, as_role):
+    """Every route, called the way the table says it may be, produces a response.
+
+    This is a smoke test, not a functional one: the fake backend answers empty
+    shapes, so a 200 here says the view and its template survived that data, not
+    that either is correct. What it does catch is the recurring failure in this
+    project's history - a page that raises instead of rendering. It found four when
+    it was written: two views returning None on an empty form, one falling off the
+    end for an unknown export type, and one iterating a backend answer it had not
+    checked.
+
+    404 and 400 are fine; the ids in FILLERS are deliberately absent, and several
+    routes want a form body this test does not send.
+    """
+    user_ids = {role: as_role(role, username=f"smoke{role}") for role in ("pending", "visitor", "contributor", "admin")}
+
+    broken = []
+    for endpoint, (min_role, _writes) in sorted(ROUTE_POLICY.items()):
+        if min_role == APITOKEN:
+            continue
+        path, method, _methods = _target(app, endpoint)
+        _use_session(client, user_ids.get(CALLER_FOR[min_role]))
+        try:
+            response = client.open(path, method=method)
+        except Exception as exc:
+            broken.append(f"{endpoint} ({method} {path}) raised {type(exc).__name__}: {exc}")
+            continue
+        if response.status_code >= 500:
+            broken.append(f"{endpoint} ({method} {path}) answered {response.status_code}")
+
+    assert not broken, (
+        f"{len(broken)} route(s) failed for a caller they are supposed to serve:\n  " +
+        "\n  ".join(broken)
     )
 
 

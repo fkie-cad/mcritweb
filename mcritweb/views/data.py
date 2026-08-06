@@ -162,6 +162,10 @@ def specific_export(type, item_id):
             mimetype='application/json',
             headers={"Content-disposition":
                     "attachment; filename=export_samples.json"})
+    # <type> is unconstrained, so anything but the two known values used to fall off
+    # the end of this function and return None, which Flask answers with a 500
+    flash(f'"{type}" cannot be exported - use "family" or "samples".', category='error')
+    return redirect(url_for('data.export_view'))
 
 ################################################################
 # Direct Function Matching
