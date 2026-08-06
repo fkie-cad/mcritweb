@@ -110,7 +110,7 @@ Adding a **table column setting** additionally means updating `UserColumnSetting
 
 ## Testing
 
-`python -m pytest` runs 18 tests with **no backend and no network** — pagination, user filters, and the app-factory fixtures in `tests/conftest.py`. `pytest.ini` maps the existing `test*.py` naming; keep it rather than renaming to `test_foo.py`. The `Makefile` targets reference `nose` (dead on modern Python) and a `.pylintrc` that does not exist — treat the `Makefile` as stale.
+`python -m pytest` runs the suite with **no backend and no network** — pagination, user filters, the app-factory fixtures in `tests/conftest.py`, and `testMigrations.py`, which upgrades databases built in historical schemas (transcribed from release tags, not read from git — a CI checkout has no tags). `pytest.ini` maps the existing `test*.py` naming; keep it rather than renaming to `test_foo.py`. The `Makefile` targets reference `nose` (dead on modern Python) and a `.pylintrc` that does not exist — treat the `Makefile` as stale.
 
 Coverage is thin and nothing exercises a real backend, so for anything touching views or templates still **verify by exercising the app**: `flask run` against a reachable MCRIT backend and walk the affected pages. When changing shared template macros (`table/*.html`), check every page that imports them — a macro is typically used by 3–5 templates. Results are cached under `instance/cache/` and never invalidated, so clear it when validating result rendering.
 
@@ -121,6 +121,7 @@ CI (`.github/workflows/test.yml`) runs `ruff check .` plus the suite on Python 3
 - The version lives in `setup.py` and is **parsed at runtime** by `get_mcritweb_version_from_setup()` (regex on `version="X.Y.Z",`) — keep that literal format intact.
 - A release adds a dated entry at the top of the README "Version History" (` * YYYY-MM-DD vX.Y.Z: <summary>`) and bumps `setup.py`. Historic commit message for this: `bump X.Y.Z`.
 - **Do not bump the version unless explicitly asked.**
+- MCRITweb is **deployed from a checkout** — a container image or a local clone — and no wheel or sdist is ever built or published. `setup.py` exists for the runtime version string and for `pip install -e .`; its `packages` list is not a distribution concern.
 - `mcrit>=1.5.3` is pinned in both `setup.py` and `requirements.txt` — the two must stay in sync. MCRITweb consumes backend data classes (`MatchingResult`, `SampleEntry`, `FunctionEntry`, `UniqueBlocksResult`, …) directly, so a backend release can break rendering; when a fix depends on new backend behavior, raise the floor in both files and say so in the changelog entry.
 - `flask==2.2.5` and `werkzeug==2.3.3` are **hard-pinned**. Do not upgrade them opportunistically — the codebase uses APIs that later versions changed.
 
