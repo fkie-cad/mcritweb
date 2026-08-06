@@ -102,6 +102,12 @@ def create_app(test_config=None, instance_path=None):
     def join_hint_strings(list_of_strings):
         return "\n".join(sorted(list_of_strings))
 
+    # the user manual. Public, and deliberately not under /admin: it was the only
+    # route in that blueprint without an admin gate, which made the prefix a lie.
+    @app.route('/help')
+    def help():
+        return render_template('help.html')
+
     @app.route('/', methods=('GET', 'POST'))
     def index():
         if db.is_first_user():

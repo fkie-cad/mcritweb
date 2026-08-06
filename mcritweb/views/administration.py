@@ -13,10 +13,6 @@ from mcritweb.views.utility import get_mcritweb_version_from_setup, get_session_
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
 
-@bp.route('/help' , methods=('GET', 'POST'))
-def help():
-    return render_template('help.html')
-
 @bp.route('/change_username' , methods=('GET', 'POST'))
 @login_required
 def change_username():

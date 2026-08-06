@@ -101,9 +101,7 @@ ROUTE_POLICY = {
     # fix that on its own: index also performs the first-user redirect to /register,
     # which a gate in front of it would turn into a redirect to /login.
     "index": (PUBLIC, READ_ONLY),
-    # /admin/help carries no decorator despite the prefix; it is the user manual.
-    # Decided: move it out of the admin blueprint to its own top-level route.
-    "admin.help": (PUBLIC, READ_ONLY),
+    "help": (PUBLIC, READ_ONLY),   # the user manual, linked from the navbar
     "authentication.login": (PUBLIC, WRITES_ON_POST),
     # multi_user only blocks registration in single-user mode, it is not an auth gate
     "authentication.register": (PUBLIC, WRITES_ON_POST),

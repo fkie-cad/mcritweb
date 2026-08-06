@@ -49,6 +49,17 @@ def test_index_queries_the_backend(client, as_role, fake_mcrit):
     assert "search_samples" in called
 
 
+def test_the_manual_is_reachable_without_a_session(client, as_role):
+    """/help is public by design - it is what a new user reads before registering."""
+    as_role("admin", username="seedhelp")
+    with client.session_transaction() as test_session:
+        test_session.clear()
+
+    response = client.get("/help")
+
+    assert response.status_code == 200
+
+
 @pytest.mark.parametrize("role", ["anonymous", "pending"])
 def test_index_spares_the_backend_for_callers_it_shows_nothing(client, as_role, fake_mcrit, role):
     """index.html renders nothing for these two, so the queries behind it are waste.
