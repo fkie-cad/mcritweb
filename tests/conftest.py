@@ -74,6 +74,10 @@ class FakeMcritClient:
         self._record("getStatus", *args, **kwargs)
         return {}
 
+    def getVersion(self, *args, **kwargs):
+        self._record("getVersion", *args, **kwargs)
+        return "0.0.0-fake"
+
     def __getattr__(self, name):
         def _unimplemented(*args, **kwargs):
             raise NotImplementedError(

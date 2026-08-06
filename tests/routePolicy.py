@@ -119,9 +119,7 @@ ROUTE_POLICY = {
     "authentication.settings": (LOGGED_IN, READ_ONLY),
     "admin.change_username": (LOGGED_IN, WRITES_ON_POST),   # GET raises 400 on request.form
     "admin.change_password": (LOGGED_IN, WRITES_ON_POST),   # GET raises 400 on request.form
-    # No method guard and no required form field: GET resets every filter to its
-    # default, silently discarding whatever the user had stored.
-    "admin.change_default_filter": (LOGGED_IN, WRITES_ON_GET),
+    "admin.change_default_filter": (LOGGED_IN, WRITES_ON_POST),
     "admin.change_column_settings": (LOGGED_IN, WRITES_ON_POST),
     "admin.reset_column_settings": (LOGGED_IN, WRITES_ON_POST),
 
@@ -173,11 +171,8 @@ ROUTE_POLICY = {
     "admin.server": (ADMIN, READ_ONLY),
     "admin.delete_user": (ADMIN, WRITES_ON_GET),      # deletes a user by GET
     "admin.change_user_role": (ADMIN, WRITES_ON_GET), # grants any role by GET
-    # No method guard: a bare GET overwrites the backend URL and both tokens with
-    # empty strings, which takes the whole instance offline.
-    "admin.change_server": (ADMIN, WRITES_ON_GET),
-    # Also returns None on GET, so Flask raises TypeError instead of a response.
-    "admin.reset_server": (ADMIN, WRITES_ON_GET),
+    "admin.change_server": (ADMIN, WRITES_ON_POST),
+    "admin.reset_server": (ADMIN, WRITES_ON_POST),
     "admin.schedule_rebuild_index": (ADMIN, WRITES_ON_GET),
     "admin.schedule_recalc_minhashes": (ADMIN, WRITES_ON_GET),
     "admin.schedule_recalc_pichashes": (ADMIN, WRITES_ON_GET),

@@ -44,12 +44,9 @@ def change_username():
         flash('Username successfully changed', category='success')
         return redirect(url_for('index'))
     flash(error_msg, category='error')
-    user_filters = UserFilters.fromDb(user_info.user_id)
-    # if we don't have them yet, create them
-    if user_filters is None:
-        user_filters = UserFilters.fromDict(user_info.user_id, {})
-        user_filters.saveToDb()
-    return render_template('settings.html', user_info=user_info, user_filters=user_filters)
+    # settings.html needs a context this view does not assemble - let the settings
+    # view build it, so the flash is the only thing this one has to carry over
+    return redirect(url_for('authentication.settings'))
 
 
 @bp.route('/change_password' , methods=('GET', 'POST'))
@@ -73,18 +70,13 @@ def change_password():
     if error_msg is None:
         user_info.password = generate_password_hash(new_password)
         user_info.saveToDb(withPassword=True)
-        flash('Password successfully changed', category='success') 
+        flash('Password successfully changed', category='success')
         return redirect(url_for('index'))
     flash(error_msg, category='error')
-    user_filters = UserFilters.fromDb(user_info.user_id)
-    # if we don't have them yet, create them
-    if user_filters is None:
-        user_filters = UserFilters.fromDict(user_info.user_id, {})
-        user_filters.saveToDb()
-    return render_template('settings.html', user_info=user_info, user_filters=user_filters)
+    return redirect(url_for('authentication.settings'))
 
 
-@bp.route('/change_default_filter' , methods=('GET', 'POST'))
+@bp.route('/change_default_filter' , methods=('POST',))
 @login_required
 def change_default_filter():
     user_id = get_session_user_id()
@@ -119,10 +111,8 @@ def change_default_filter():
     }
     user_filters = UserFilters.fromDict(user_id, filter_values)
     user_filters.saveToDb()
-    flash('Default filters successfully changed', category='success') 
-    user_info = UserInfo.fromDb(user_id)
-    user_filters = UserFilters.fromDb(user_info.user_id)
-    return render_template('settings.html', user_info=user_info, user_filters=user_filters)
+    flash('Default filters successfully changed', category='success')
+    return redirect(url_for('authentication.settings'))
 
 @bp.route('/change_column_settings' , methods=('GET', 'POST'))
 @login_required
@@ -227,7 +217,7 @@ def server():
     return render_template('admin_server.html', operation_mode=operation_mode_str, server_info=server_info, running_version=running_server_version, mcrit_version=mcrit_version)
 
 
-@bp.route('/change_server' , methods=('GET', 'POST'))
+@bp.route('/change_server' , methods=('POST',))
 @admin_required
 def change_server():
     server_info = ServerInfo.fromDb()
@@ -247,18 +237,20 @@ def change_server():
     return render_template('admin_server.html', operation_mode=operation_mode_str, server_info=server_info, running_version=running_server_version, mcrit_version=mcrit_version)
 
 
-@bp.route('/reset_server' , methods=('GET', 'POST'))
+@bp.route('/reset_server' , methods=('POST',))
 @admin_required
 def reset_server():
     reset_confirmation = request.form.get('reset_server', '')
-    if reset_confirmation and reset_confirmation == "RESET":
-        client = get_client()
-        client.respawn()
-        from mcritweb.views.utility import ensure_local_data_paths
-        ensure_local_data_paths(current_app, clear_data=True)
-        # TODO also clean all locally cached data.
-        flash('A reset of MCRIT was successfully performed.', category='success')
-        return redirect(url_for('index'))
+    if reset_confirmation != "RESET":
+        flash('The reset was not confirmed, so nothing was changed.', category='error')
+        return redirect(url_for('admin.server'))
+    client = get_client()
+    client.respawn()
+    from mcritweb.views.utility import ensure_local_data_paths
+    ensure_local_data_paths(current_app, clear_data=True)
+    # TODO also clean all locally cached data.
+    flash('A reset of MCRIT was successfully performed.', category='success')
+    return redirect(url_for('index'))
 
 
 @bp.route('/schedule_rebuild_index' , methods=('GET', 'POST'))
