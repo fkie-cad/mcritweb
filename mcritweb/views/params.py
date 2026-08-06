@@ -53,7 +53,7 @@ def parse_integer_list_query_param(request, query_param:str):
     param = None
     try:
         value = request.args.get(query_param)
-        if value is not None and re.match("^\d+(?:[\s]*,[\s]*\d+)*$", value):
+        if value is not None and re.match(r"^\d+(?:[\s]*,[\s]*\d+)*$", value):
             param = [int(element.strip()) for element in value.split(',')]
     except Exception:
         pass
