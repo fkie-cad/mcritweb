@@ -84,6 +84,19 @@ class FakeMcritClient:
         self._record("getMatchesForPicBlockHash", *args, **kwargs)
         return {}
 
+    def getSampleBySha256(self, *args, **kwargs):
+        """Nothing is in the corpus by default. That is the branch that lets an upload
+        carry on to the backend, rather than short-circuiting as a known sample."""
+        self._record("getSampleBySha256", *args, **kwargs)
+        return None
+
+    def addBinarySample(self, binary, **kwargs):
+        """What a dropzone submit ends at. The real client's type hint claims
+        Tuple[SampleEntry, str], but it returns handle_response() straight through and
+        `data.submit` uses the result as a scalar job id - so this returns one."""
+        self._record("addBinarySample", binary, **kwargs)
+        return FAKE_JOB_ID
+
     def addImportData(self, import_data):
         """The dropzone upload path: `data.import_view` parses the uploaded file and
         hands the parsed object straight here.
