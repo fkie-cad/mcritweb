@@ -90,6 +90,22 @@ or was JSON but not an object, took the page down. Unrelated to the upgrade, fix
 alongside it — it now flashes the same message `import_complete` already used for
 this case.
 
+### Verified in a full instance, not only in the suite
+
+Run in docker-mcrit dev mode against a live mcrit-server and MongoDB, on **Python
+3.12.3** — a second interpreter, since the offline run above was 3.14.4. Both dropzones
+were exercised by hand: a plain binary, a `_0x…`-named dump, a 23 MB sample, an `.smda`
+report, a real export through `/data/import`, and a junk file through the same route.
+All behaved.
+
+One trap is worth repeating, because it makes a live test worthless without announcing
+itself. docker-mcrit's dev compose bind-mounts the source over `/opt/mcritweb`, but
+site-packages comes from the **image**, built from `MCRITWEB_BRANCH`. Mounting this
+branch onto an image built at v1.4.6 runs the new code against Flask 2.2.5, and on
+Python 3.12 that combination boots perfectly and looks like a pass. Check
+`importlib.metadata.version("flask")` inside the container before believing a live
+result. (`werkzeug.__version__` is not a way to check — Werkzeug 3 removed it.)
+
 ### Still true, and still where to look hardest
 
 No test exercises a real backend, and the route matrix is a smoke test — it proves a
