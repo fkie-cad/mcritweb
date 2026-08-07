@@ -84,6 +84,27 @@ class FakeMcritClient:
         self._record("getMatchesForPicBlockHash", *args, **kwargs)
         return {}
 
+    def addImportData(self, import_data):
+        """The dropzone upload path: `data.import_view` parses the uploaded file and
+        hands the parsed object straight here.
+
+        The real client raises on anything that is not a dict before it reaches the
+        wire, so this one does too - otherwise a view that uploads the wrong shape
+        would look like it worked. The return value is the import report the server
+        builds (MinHashIndex.addImportData), which `import_complete.html` renders as
+        a table of counters."""
+        self._record("addImportData", import_data)
+        if not isinstance(import_data, dict):
+            raise ValueError("Can only forward dictionaries with export data.")
+        return {
+            "num_samples_imported": len(import_data.get("samples", {})),
+            "num_samples_skipped": 0,
+            "num_functions_imported": len(import_data.get("functions", {})),
+            "num_functions_skipped": 0,
+            "num_families_imported": len(import_data.get("families", {})),
+            "num_families_skipped": 0,
+        }
+
     def getVersion(self, *args, **kwargs):
         self._record("getVersion", *args, **kwargs)
         return "0.0.0-fake"

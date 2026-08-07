@@ -92,9 +92,18 @@ def diagram_file(filename):
 @mcrit_server_required
 def import_view():
     if request.method == 'POST':
-        f = request.files.get('file', '')
-        client = get_client()
-        session["last_import"] = client.addImportData(json.load(f))
+        # dropping the wrong file into a dropzone is ordinary user input, not an
+        # exceptional condition - report it the way import_complete already does
+        # instead of letting json.load or the client's own type check raise a 500
+        try:
+            import_data = json.load(request.files['file'])
+        except (KeyError, ValueError):
+            import_data = None
+        if isinstance(import_data, dict):
+            client = get_client()
+            session["last_import"] = client.addImportData(import_data)
+        else:
+            flash("This doesn't seem to be valid MCRIT data in JSON format", category='error')
     return render_template("import.html")
 
 @bp.route('/import_complete')
