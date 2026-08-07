@@ -9,10 +9,10 @@ token minted per session, echoed by every form, and required on every unsafe met
 
 The public surface deliberately matches the part of `flask-wtf`'s `CSRFProtect` this
 application would use - the `csrf_token()` template global, the `csrf_token` form
-field, the `X-CSRFToken` header, and `exempt()`. Flask is hard-pinned at 2.2.5
-(ADR-0001) and the plan is to adopt the real extension while lifting that pin in
-issue #27; keeping the names identical makes that swap an import change instead of a
-sweep through every template again.
+field, the `X-CSRFToken` header, and `exempt()`. The Flask pin that made adopting the
+extension awkward was lifted in issue #27, so that swap is now unblocked (ADR-0002);
+keeping the names identical makes it an import change instead of a sweep through
+every template again.
 
 What the real extension adds, and this does not: signed and time-limited tokens, a
 referrer check on HTTPS, and per-response token variation. None of them are the
