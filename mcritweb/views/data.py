@@ -863,8 +863,11 @@ def request_filename_info():
     try:
         data_as_dict = json.loads(request.data)
         filename = data_as_dict["filename"]
-        file_header = data_as_dict["file_header"]
-    except Exception:   
+        # the prefix carries base_addr and bitness; family and version only ever turn up
+        # in the second window the client cuts around "metadata" (see dropzone.js).
+        # .get so a client that predates that field still behaves exactly as before
+        file_header = data_as_dict["file_header"] + data_as_dict.get("file_metadata", "")
+    except Exception:
         filename = ""
         file_header = ""
     result = {}

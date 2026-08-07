@@ -109,6 +109,9 @@
         "filename": filename,
         // "file": file,
         "file_header": file.upload.header,
+        // the window cut around "metadata", which a fixed prefix never reaches in an
+        // .smda report - empty for anything else
+        "file_metadata": file.upload.header_metadata,
         "form": form_data
       };
 

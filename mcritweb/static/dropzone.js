@@ -8681,14 +8681,40 @@ var Dropzone = /*#__PURE__*/function (_Emitter) {
       const bufferToText = (buffer, maxlen) => {
         const bufferByteLength = Math.min(buffer.byteLength, maxlen);
         const bufferUint8Array = new Uint8Array(buffer, 0, bufferByteLength);
-  
+
         return new TextDecoder().decode(bufferUint8Array);
       };
-      
+
+      // A fixed prefix is not enough for an .smda report. smda writes those with
+      // json.dump(..., indent=1, sort_keys=True), so "metadata" - and with it family
+      // and version - sits well past any prefix we would care to send, while base_addr
+      // and bitness sort near the front and land inside it. Measured on a deliberately
+      // small report: base_addr at byte 46, family at 1246. So cut a second window from
+      // wherever "metadata" actually is. Uint8Array.indexOf does the scanning natively,
+      // which keeps this cheap even on a large report.
+      const sliceAroundKey = (buffer, key, maxlen) => {
+        const bytes = new Uint8Array(buffer);
+        const needle = new TextEncoder().encode(key);
+
+        for (let i = bytes.indexOf(needle[0]); i !== -1; i = bytes.indexOf(needle[0], i + 1)) {
+          let matched = true;
+          for (let j = 1; j < needle.length; j++) {
+            if (bytes[i + j] !== needle[j]) { matched = false; break; }
+          }
+          if (matched) {
+            return new TextDecoder().decode(bytes.subarray(i, Math.min(i + maxlen, bytes.length)));
+          }
+        }
+        return "";
+      };
+
       (async () => {
         const buffer = await file.arrayBuffer();
         var file_header = bufferToText(buffer, 1024);
-      
+        // gated on the extension so dropping a large binary still costs one prefix
+        // decode and no scan at all
+        var file_metadata = file.name.endsWith(".smda") ? sliceAroundKey(buffer, '"metadata"', 1024) : "";
+
       file.upload = {
         uuid: Dropzone.uuidv4(),
         progress: 0,
@@ -8696,6 +8722,7 @@ var Dropzone = /*#__PURE__*/function (_Emitter) {
         // It's actual different than the size to be transmitted.
         total: file.size,
         header: file_header,
+        header_metadata: file_metadata,
         bytesSent: 0,
         filename: this._renameFile(file) // Not setting chunking information here, because the acutal data — and
         // thus the chunks — might change if `options.transformFile` is set

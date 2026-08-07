@@ -162,15 +162,48 @@ def test_a_dump_carries_its_bitness_and_base_address(client, as_role, fake_mcrit
 
 # --- the filename probe the dropzone fires on drop ---------------------------------
 
-def filename_info(client, filename, file_header=""):
+def filename_info(client, filename, file_header="", file_metadata=None):
     """The XHR `addedfile` sends: a JSON body, so a header-borne CSRF token and no
-    form field at all."""
+    form field at all. `file_metadata` is omitted entirely when None, which is what a
+    client older than that field looks like."""
+    body = {"filename": filename, "file_header": file_header, "form": []}
+    if file_metadata is not None:
+        body["file_metadata"] = file_metadata
     response = client.post(
-        "/data/request_filename_info",
-        data=json.dumps({"filename": filename, "file_header": file_header, "form": []}),
-        content_type="application/json",
+        "/data/request_filename_info", data=json.dumps(body), content_type="application/json"
     )
     return json.loads(response.get_data(as_text=True))
+
+
+def smda_report_text(family="test.family", version="1.0"):
+    """A report serialised the way the smda CLI writes one: `BatchProcessor.py:70` does
+    `json.dump(..., indent=1, sort_keys=True)`. That sorting is the whole problem -
+    base_addr and bitness sort to the front, while metadata lands after code_areas,
+    code_sections and disassembly_errors."""
+    report = {
+        "architecture": "intel", "abi": "cdecl", "base_addr": 4194304,
+        "binary_size": 2371584, "bitness": 64,
+        "code_areas": [[4198400, 4300000], [4300000, 4400000], [4400000, 4500000]],
+        "code_sections": [["", 4198400, 4300000], ["", 4300000, 4400000]],
+        "confidence_threshold": 0.5,
+        "disassembly_errors": {str(a): "decode" for a in range(4198400, 4198430)},
+        "execution_time": 12.34, "identified_alignment": 16,
+        "metadata": {
+            "binweight": 1234, "component": "", "family": family, "filename": "sample.exe",
+            "is_library": False, "is_buffer": False, "language": "C", "version": version,
+        },
+        "message": "", "oep": 4198400, "sha256": "ab" * 32, "smda_version": "4.4.4",
+        "statistics": {}, "status": "ok", "timestamp": "2026-08-07T12-00-00", "xcfg": {},
+    }
+    return json.dumps(report, indent=1, sort_keys=True)
+
+
+def browser_windows(text):
+    """The two slices the patched `dropzone.js` cuts and sends: the first 1024 bytes,
+    and 1024 bytes from wherever `"metadata"` actually begins."""
+    data = text.encode()
+    at = data.find(b'"metadata"')
+    return data[:1024].decode(), ("" if at < 0 else data[at:at + 1024].decode())
 
 
 def test_a_dump_filename_yields_bitness_and_base_address(client, as_role):
@@ -203,3 +236,31 @@ def test_an_ordinary_filename_claims_nothing(client, as_role):
     """No pattern matched must mean "not a dump", not a half-filled form."""
     as_role("contributor")
     assert filename_info(client, "sample.exe") == {"dump": False}
+
+
+def test_a_realistically_serialised_smda_report_fills_every_field(client, as_role):
+    """The one that was broken in the live instance: base address filled, family and
+    version stayed empty, because a 1024-byte prefix never reaches metadata."""
+    as_role("contributor")
+    header, metadata = browser_windows(smda_report_text())
+    assert '"family"' not in header, "fixture no longer reproduces the bug it exists for"
+
+    assert filename_info(client, "report.smda", header, metadata) == {
+        "smda": True,
+        "family": "test.family",
+        "version": "1.0",
+        "bitness": 64,
+        "base_addr": "0x400000",
+    }
+
+
+def test_a_client_that_sends_no_metadata_window_still_works(client, as_role):
+    """A cached older dropzone.js omits the field entirely. It must degrade to what it
+    could always do - base address and bitness - not fail the request."""
+    as_role("contributor")
+    header, _ = browser_windows(smda_report_text())
+    result = filename_info(client, "report.smda", header)
+
+    assert result["bitness"] == 64
+    assert result["base_addr"] == "0x400000"
+    assert result["family"] is None
