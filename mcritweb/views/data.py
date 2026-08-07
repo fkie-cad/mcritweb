@@ -330,7 +330,7 @@ def result_unique_blocks(job_info, blocks_result: dict):
                 for ins in result["instructions"]:
                     yarafied += f" * {ins[1]:{maxlen_ins}} | {ins[2]} {ins[3]}\n"
                 yarafied += " */\n"
-                yarafied += "{ " + re.sub(r"(.{80})", "\\1\n", result["escaped_sequence"], 0, re.DOTALL) + " }"
+                yarafied += "{ " + re.sub(r"(.{80})", "\\1\n", result["escaped_sequence"], flags=re.DOTALL) + " }"
                 unique_blocks[pichash]["yarafied"] = yarafied
                 paginated_block = result
                 paginated_block["key"] = pichash
