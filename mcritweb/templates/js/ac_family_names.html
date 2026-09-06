@@ -8,20 +8,24 @@
     for (let i in families) {
         families_ac.push({label:families[i], value:families[i]})
     }
-    const sample_field = document.getElementById('sample_family_name');
-    if(sample_field) {
-        const ac_sample = new Autocomplete(sample_field, {
-            data: families_ac,
-            maximumItems: 5,
-            threshold: 1,
-        });
-    }
-    const family_field = document.getElementById('family_new_name');
-    if(family_field) {
-        const ac_family = new Autocomplete(family_field, {
-            data: families_ac,
-            maximumItems: 5,
-            threshold: 1,
-        });
-    }
+    // Autocomplete builds a Bootstrap dropdown, and Bootstrap is deferred (issue #63):
+    // construct them once the deferred scripts have run, not while the page parses
+    document.addEventListener("DOMContentLoaded", function () {
+        const sample_field = document.getElementById('sample_family_name');
+        if(sample_field) {
+            const ac_sample = new Autocomplete(sample_field, {
+                data: families_ac,
+                maximumItems: 5,
+                threshold: 1,
+            });
+        }
+        const family_field = document.getElementById('family_new_name');
+        if(family_field) {
+            const ac_family = new Autocomplete(family_field, {
+                data: families_ac,
+                maximumItems: 5,
+                threshold: 1,
+            });
+        }
+    });
 </script>
