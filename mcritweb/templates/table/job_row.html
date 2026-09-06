@@ -175,6 +175,9 @@
 
 
 {% macro job_header(families_by_id, samples_by_id) %}
+  {# accept but discard additional kwargs - see _table_base in table.html, which
+     forwards the caller's kwargs to the header as well as to the row macro #}
+  {% if False %}{{ kwargs }}{% endif %}
   <tr>
     <th scope="col">#</th>
     <th scope="col">Type</th>
@@ -219,6 +222,9 @@
 
 
 {% macro minijob_header(families_by_id, samples_by_id) %}
+  {# accept but discard additional kwargs - see _table_base in table.html, which
+     forwards the caller's kwargs to the header as well as to the row macro #}
+  {% if False %}{{ kwargs }}{% endif %}
   <tr>
     <th style="min-width: 150px; text-align: right;" scope="col">Finished</th>
     <th style="width: 99%" scope="col">Type</th>

@@ -62,6 +62,14 @@ Additionally, you can also use operands to further limit the term:
 Furthermore, search terms can be combined using the `AND` and `OR` directives, e.g. like so:
 * `family_id:1 AND offset:<=0x2399fff AND offset:>=0x2398fff`
 
+A term that is exactly a family, sample or function id - or a sample's `sha256` - also
+matches that record directly, on top of every record whose text contains the term.
+Those exact hits are flagged with an `ID match` or `SHA256 match` badge at the start of
+their row, so they can be told apart from an incidental substring hit. This works the same way
+on the search page and on the family, sample and function listings. An exact hit is
+listed once, at the top of the first page of results; paging onwards shows the text hits
+alone.
+
 #### Families
 
 By default, there will be always a family with `family_id=0`, which is reserved for all samples that have not been assigned to another family with a `family_name`.

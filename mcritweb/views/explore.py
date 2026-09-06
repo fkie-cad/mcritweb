@@ -15,6 +15,71 @@ from mcritweb.views.utility import get_user_column_setup, mcrit_server_required
 bp = Blueprint('explore', __name__, url_prefix='/explore')
 
 
+# Row decorations for the two exact hits mcrit reports alongside a search (#53, #56). See
+# templates/table/row_decoration.html for the shape; the variant names a Bootstrap
+# badge colour, which is why it is a name and not a class.
+ID_MATCH_DECORATION = {"badges": [{"text": "ID match", "variant": "success"}]}
+SHA_MATCH_DECORATION = {"badges": [{"text": "SHA256 match", "variant": "success"}]}
+
+
+def exact_match_decorations(results, id_field):
+    """The row decorations for the records the backend answered as an exact hit on an
+    identifier, keyed by the id the table macro renders.
+
+    `id_match` and `sha_match` arrive beside `search_results`, and once they are folded
+    into the same table a row that is there because the query *was* its id reads as an
+    ordinary text hit. The row macros badge the ones named here, through the row
+    decoration convention of issue #53. See issue #56.
+    """
+    decorations = {}
+    if not results:
+        return decorations
+    # sha first, so the id wins if one record somehow came back as both - which is also
+    # the order the samples view folds them in
+    for key, decoration in (("sha_match", SHA_MATCH_DECORATION), ("id_match", ID_MATCH_DECORATION)):
+        match = results.get(key)
+        if match is not None:
+            decorations[match[id_field]] = decoration
+    return decorations
+
+
+def exact_matches_to_prepend(results, pagination):
+    """The exact identifier hits that belong at the top of *this* page: the first
+    page's, and none at all on any page after it.
+
+    mcrit derives `id_match` (and `sha_match`) from the search term alone, before the
+    cursor is applied, and attaches them to every page it answers - in
+    `MinHashIndex.getFamilySearchResults` and its two siblings the lookup runs at the
+    top of the method and the assignment happens after `_getSearchResultTemplate` has
+    already windowed the text hits, so the value is cursor-independent. Prepending it
+    unconditionally therefore repeated one row, exact-match badge and all, on page 2,
+    3, 4 ... of a listing.
+
+    First page only, rather than de-duplicating: a view renders a single page and has
+    no memory of the ones before it, so there is nothing here to de-duplicate against
+    - the check would have to live in the browser or in a session. And the placement
+    only means anything on the first page anyway: "the record you named, at the top"
+    is a statement about the top of the listing, not about the top of whichever page
+    the reader happened to walk to.
+
+    The prepended row is over and above `limit`, so a first page can carry limit+1
+    rows. Dropping a text hit to make room would hide that hit for good: mcrit builds
+    the forward cursor from the last entry it returned (`_getSearchResultTemplate`),
+    so the next page resumes *after* the row we dropped rather than at it. Issue #56
+    is about a listing hiding a record that exists; trading one hidden record for
+    another would be no fix. The exact hit is an answer to the query rather than a
+    member of the paged result set, so it sits outside the page budget.
+
+    All four places that list search results use this: the three listings and the
+    three tables of /explore/search.
+    """
+    if results is None or not pagination.is_first_page:
+        return []
+    # sha first, so the id wins if one record came back as both - the order the
+    # samples view has always folded them in, and the order exact_match_marks uses
+    return [match for match in (results.get("sha_match"), results.get("id_match")) if match is not None]
+
+
 ##############################################################
 ### Unfiltered Collections: Families, Samples, Function
 ##############################################################
@@ -76,18 +141,32 @@ def families():
     query = request.args.get('query', "")
     client = get_client()
     families = []
+    row_decorations = {}
     pagination = CursorPagination(request, default_sort="family_id", limit=25)
     results = client.search_families(query, **pagination.getSearchParams(), limit=pagination.limit)
     pagination.read_cursor_from_result(results)
     if results is None:
         flash(f"Ups, search for {query} in MCRIT's families failed!", category="error")
     else:
+        # the exact-id hit arrives beside the text results, not among them, and this
+        # page used to read only the latter - so searching a family page for an id
+        # rendered "No families available" for a family that exists, while the search
+        # page found it. It is answered with every page, so it is prepended to the
+        # first one only - see exact_matches_to_prepend. Issue #56.
+        by_id = {}
+        for exact in exact_matches_to_prepend(results, pagination):
+            entry = FamilyEntry.fromDict(exact)
+            by_id[entry.family_id] = entry
         for family_dict in results['search_results'].values():
-            families.append(FamilyEntry.fromDict(family_dict))
+            entry = FamilyEntry.fromDict(family_dict)
+            # the id match can also come back as a text hit; keep its position, not a copy
+            by_id.setdefault(entry.family_id, entry)
+        families = list(by_id.values())
+        row_decorations = exact_match_decorations(results, 'family_id')
     all_families = client.getFamilies()
     family_names = [family_entry.family_name for family_entry in all_families.values()]
     user_column_setup = get_user_column_setup("family_table")
-    return render_template("families.html", families=families, family_names=family_names, pagination=pagination, query=query, user_column_setup=user_column_setup)
+    return render_template("families.html", families=families, family_names=family_names, pagination=pagination, query=query, user_column_setup=user_column_setup, row_decorations=row_decorations)
 
 @bp.route('/modifySample', methods=['POST'])
 @contributor_required
@@ -156,14 +235,25 @@ def samples():
     query = request.args.get('query', "")
     client = get_client()
     samples = []
+    row_decorations = {}
     pagination = CursorPagination(request, default_sort="sample_id", limit=25)
     results = client.search_samples(query, **pagination.getSearchParams(), limit=pagination.limit)
     pagination.read_cursor_from_result(results)
     if results is None:
         flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
     else:
+        # as in families above: the exact id, and for samples the exact sha256, arrive
+        # beside the text results rather than among them, and belong to the first page
+        # only. See issue #56.
+        by_id = {}
+        for exact in exact_matches_to_prepend(results, pagination):
+            entry = SampleEntry.fromDict(exact)
+            by_id[entry.sample_id] = entry
         for sample_dict in results['search_results'].values():
-            samples.append(SampleEntry.fromDict(sample_dict))
+            entry = SampleEntry.fromDict(sample_dict)
+            by_id.setdefault(entry.sample_id, entry)
+        samples = list(by_id.values())
+        row_decorations = exact_match_decorations(results, 'sample_id')
 
     jobs = client.getQueueData()
     job_collection = JobCollection(jobs)
@@ -172,7 +262,7 @@ def samples():
     all_families = client.getFamilies()
     family_names = [family_entry.family_name for family_entry in all_families.values()]
     user_column_setup = get_user_column_setup("samples_table")
-    return render_template("samples.html", samples=samples, family_names=family_names, job_collection=job_collection, pagination=pagination, query=query, user_column_setup=user_column_setup)
+    return render_template("samples.html", samples=samples, family_names=family_names, job_collection=job_collection, pagination=pagination, query=query, user_column_setup=user_column_setup, row_decorations=row_decorations)
 
 
 @bp.route('/functions')
@@ -185,17 +275,26 @@ def functions():
     query = request.args.get('query', "")
     client = get_client()
     functions = []
+    row_decorations = {}
     pagination = CursorPagination(request, default_sort="function_id", limit=25)
     results = client.search_functions(query, **pagination.getSearchParams(), limit=pagination.limit)
     pagination.read_cursor_from_result(results)
     if results is None:
         flash(f"Ups, search for {query} in MCRIT's functions failed!", category="error")
     else:
+        # as in families and samples above. Kept as raw dicts, which is this page's
+        # existing convention - function_row.html reads them by name either way, and
+        # switching the whole page to FunctionEntry is a separate change. See issue #56.
+        by_id = {}
+        for exact in exact_matches_to_prepend(results, pagination):
+            by_id[exact['function_id']] = exact
         for function_dict in results['search_results'].values():
             #functions.append(FunctionEntry.fromDict(function_dict))
-            functions.append(function_dict)
+            by_id.setdefault(function_dict['function_id'], function_dict)
+        functions = list(by_id.values())
+        row_decorations = exact_match_decorations(results, 'function_id')
     user_column_setup = get_user_column_setup("functions_table")
-    return render_template("functions.html", functions=functions, pagination=pagination, query=query, user_column_setup=user_column_setup)
+    return render_template("functions.html", functions=functions, pagination=pagination, query=query, user_column_setup=user_column_setup, row_decorations=row_decorations)
 
 ##############################################################
 ### Single Entries: Families, Samples, Function
@@ -359,6 +458,7 @@ def search():
 
     #TODO: show id/sha matches in extra place
     families = []
+    family_decorations = {}
     family_pagination = None
     if 'family' in types:
         family_pagination = CursorPagination(request, query_param_prefix="family", default_sort="family_id", limit=25)
@@ -367,15 +467,22 @@ def search():
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's families failed!", category="error")
         else:
-            id_match = results['id_match']
-            if id_match is not None:
-                family = FamilyEntry.fromDict(id_match)
-                families.append(family)
+            # the exact hit belongs to the first page and is folded in by id, as on
+            # the listings - see exact_matches_to_prepend. Keying by id is what stops
+            # a record that is both the exact hit and a text hit rendering twice in
+            # the same table, which this branch used to do. Issue #56.
+            by_id = {}
+            for exact in exact_matches_to_prepend(results, family_pagination):
+                family = FamilyEntry.fromDict(exact)
+                by_id[family.family_id] = family
             for family_entry in results['search_results'].values():
                 family = FamilyEntry.fromDict(family_entry)
-                families.append(family) 
+                by_id.setdefault(family.family_id, family)
+            families = list(by_id.values())
+            family_decorations = exact_match_decorations(results, 'family_id')
 
     samples = {}
+    sample_decorations = {}
     sample_pagination = None
     if 'sample' in types:
         sample_pagination = CursorPagination(request, query_param_prefix="sample", default_sort="sample_id", limit=25)
@@ -384,23 +491,21 @@ def search():
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
         else:
-            sha_match = results['sha_match']
-            if sha_match is not None:
-                sample_entry = SampleEntry.fromDict(sha_match)
-                samples[sample_entry.sample_id] = sample_entry
-            id_match = results['id_match']
-            if id_match is not None:
-                # both of these arrive as dicts off the wire, like sha_match above -
-                # which is the one branch here that deserialises before reading a field
-                sample_entry = SampleEntry.fromDict(id_match)
+            # sha256 first, then id, and only on the first page - see
+            # exact_matches_to_prepend. Both arrive as dicts off the wire, like the
+            # text hits below. Issue #56.
+            for exact in exact_matches_to_prepend(results, sample_pagination):
+                sample_entry = SampleEntry.fromDict(exact)
                 samples[sample_entry.sample_id] = sample_entry
             for sample_dict in results['search_results'].values():
                 sample_entry = SampleEntry.fromDict(sample_dict)
                 samples[sample_entry.sample_id] = sample_entry
+            sample_decorations = exact_match_decorations(results, 'sample_id')
     # deduplicate in case we have cases such as filename == sha256
     samples = list(samples.values())
 
     functions = []
+    function_decorations = {}
     function_pagination = None
     if 'function' in types:
         function_pagination = CursorPagination(request, query_param_prefix="function", default_sort="function_id", limit=25)
@@ -409,11 +514,17 @@ def search():
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's functions failed!", category="error")
         else:
-            id_match = results['id_match']
-            if id_match is not None:
-                functions.append(FunctionEntry.fromDict(id_match))
+            # as in the families branch above: first page only, and keyed by id so
+            # an exact hit that is also a text hit is one row. Issue #56.
+            by_id = {}
+            for exact in exact_matches_to_prepend(results, function_pagination):
+                function_entry = FunctionEntry.fromDict(exact)
+                by_id[function_entry.function_id] = function_entry
             for function_dict in results['search_results'].values():
-                functions.append(FunctionEntry.fromDict(function_dict))
+                function_entry = FunctionEntry.fromDict(function_dict)
+                by_id.setdefault(function_entry.function_id, function_entry)
+            functions = list(by_id.values())
+            function_decorations = exact_match_decorations(results, 'function_id')
 
     family_column_setup = get_user_column_setup("family_table")
     sample_column_setup = get_user_column_setup("samples_table")
@@ -430,5 +541,8 @@ def search():
         search_types=types,
         family_column_setup=family_column_setup,
         sample_column_setup=sample_column_setup,
-        function_column_setup=function_column_setup
+        function_column_setup=function_column_setup,
+        family_decorations=family_decorations,
+        sample_decorations=sample_decorations,
+        function_decorations=function_decorations
     )

@@ -161,6 +161,12 @@ def cross_compare():
     else:
         samples = get_unique_samples_from_search_result(results)
 
+    # #53: the tint the search table used to hand-roll as two inline style attributes.
+    # A sample already in the selection wins over one merely clicked on this page,
+    # which is the order those two attributes were written in.
+    row_decorations = {sample_id: {"tint": "pending"} for sample_id in cached_list}
+    row_decorations.update({sample_id: {"tint": "selected"} for sample_id in selected_list})
+
     return render_template(
         "cross_compare.html",
         samples=samples,       # all / searched samples
@@ -172,6 +178,7 @@ def cross_compare():
         rematch=is_forcing_rematch,
         only_selected=is_only_selected,
         query=query,
+        row_decorations=row_decorations,
     )
 
 
