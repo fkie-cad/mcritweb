@@ -8,19 +8,40 @@ takes the request object as an argument. See issue #88.
 import logging
 import re
 
+#: The positions of the "Minhash Matching" slider on the analyze pages, and the
+#: `band_matches_required` each one asks the backend for. Read in both directions:
+#: the analyze routes turn a position into a value, and a link back to one of those
+#: pages has to turn a value the job recorded into the position that shows it - so
+#: the two mappings are this one table rather than two that can drift apart (#55).
+BAND_RANGE_BY_SLIDER_POSITION = {
+    # deactivate minhash bands
+    0: 0,
+    # 1: "Fast"
+    1: 4,
+    # 1: "Standard"
+    2: 2,
+    # 1: "Complete"
+    3: 1
+}
+
+
+def slider_position_for_band_range(band_matches_required):
+    """The slider position that asks for this `band_matches_required`, or None.
+
+    None means the slider cannot express the value, so a page preselected with it
+    would show a different comparison than the one it was reached from.
+    """
+    if isinstance(band_matches_required, bool) or not isinstance(band_matches_required, int):
+        return None
+    for position, value in BAND_RANGE_BY_SLIDER_POSITION.items():
+        if value == band_matches_required:
+            return position
+    return None
+
 
 def parse_band_range(request, from_form=False):
     minhash_band_range= 2
-    arg_to_value = {
-        # deactivate minhash bands
-        0: 0,
-        # 1: "Fast"
-        1: 4,
-        # 1: "Standard"
-        2: 2,
-        # 1: "Complete"
-        3: 1
-    }
+    arg_to_value = BAND_RANGE_BY_SLIDER_POSITION
     try:
         if from_form:
             minhash_band_range = int(request.form['minhashBandRange'])
