@@ -132,6 +132,21 @@ def _page(entries, search_term, fields, default_sort, sort_by, is_ascending, cur
     }
 
 
+def _job_state(document):
+    """mongoqueue._identifyJobState, transcribed - `state=` is filtered on it."""
+    if document["started_at"] and document["locked_by"] and not (document["finished_at"] or document["terminated"]):
+        return "in_progress"
+    if document["attempts_left"] == 0 and not document["finished_at"] and not document["terminated"]:
+        return "failed"
+    if not document["finished_at"] and not document["locked_by"] and not document["terminated"]:
+        return "queued"
+    if document["finished_at"] and not document["terminated"]:
+        return "finished"
+    if document["terminated"]:
+        return "terminated"
+    return "unknown"
+
+
 class CorpusMcritClient:
     """Serves the captured corpus in the types the real client returns."""
 
@@ -232,9 +247,30 @@ class CorpusMcritClient:
         entry = self._jobs.get(job_id)
         return entry[1] if entry else None
 
-    def getQueueData(self, *args, **kwargs):
-        self._record("getQueueData", *args, **kwargs)
-        return [Job(entry, None) for entry in self._queue]
+    def getQueueData(self, start=0, limit=0, method=None, filter=None, state=None, ascending=False):
+        """The queue, narrowed the way mcrit narrows it - including where it does so
+        badly, because callers have to cope with that.
+
+        `queue.json` is captured newest-first, which is what `ascending=False` means.
+        `method` is a mongo query on `payload.method` and so applies *before* start and
+        limit; `state` is filtered in python over the whole collection and then sliced,
+        which is only a performance difference. `filter` is the odd one out: mcrit
+        applies it as a substring test over `Job.parameters` *after* start and limit
+        (`QueueRemoteCalls.getQueueData`), so it drops non-matches out of an already
+        paged slice rather than paging the matches. Reproduced deliberately - a caller
+        that combines `filter` with `limit` must not look correct here."""
+        self._record("getQueueData", start, limit, method=method, filter=filter, state=state, ascending=ascending)
+        documents = self._queue if not ascending else list(reversed(self._queue))
+        if method is not None:
+            documents = [entry for entry in documents if entry["payload"]["method"] == method]
+        if state is not None:
+            documents = [entry for entry in documents if _job_state(entry) == state]
+        start = start if isinstance(start, int) and start > 0 else 0
+        documents = documents[start:start + limit] if isinstance(limit, int) and limit > 0 else documents[start:]
+        jobs = [Job(entry, None) for entry in documents]
+        if isinstance(filter, str):
+            jobs = [job for job in jobs if filter in job.parameters]
+        return jobs
 
     def getQueueStatistics(self, *args, **kwargs):
         self._record("getQueueStatistics", *args, **kwargs)

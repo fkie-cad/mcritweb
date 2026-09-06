@@ -14,6 +14,64 @@ from mcritweb.views.utility import get_user_column_setup, mcrit_server_required
 
 bp = Blueprint('explore', __name__, url_prefix='/explore')
 
+#: The queue methods a sample listing can show. `table/sample_row.html` asks the
+#: collection for `matching_only=True` and for `method="getMatchesForSample"`, and
+#: `Job.has_sample_id` answers only for the methods that carry a sample id as an
+#: argument - so of the matching methods even `combineMatchesToCross` never reaches a
+#: row. Everything else in the queue used to be fetched, deserialised into a `Job` and
+#: dropped again on every listing view. mcrit's `/jobs` takes one method per request
+#: and applies it as a mongo query *before* start/limit, so naming them costs two
+#: requests and leaves submissions, minhashing and block jobs on the server. See #77.
+SAMPLE_ROW_JOB_METHODS = ("getMatchesForSample", "getMatchesForSampleVs")
+
+#: How many names `family_names` offers a type-ahead. The widget shows five of them;
+#: the slack is there so a prefix with near-duplicates still reaches five.
+FAMILY_NAME_SUGGESTIONS = 10
+
+#: What `/explore/search` searches when the caller named nothing. See `search()`.
+DEFAULT_SEARCH_TYPES = ["family", "sample"]
+
+
+def sample_row_job_collection(client, samples):
+    """The jobs a sample listing annotates its rows with.
+
+    `filterToSampleIds` is what makes the result exact: it keeps only jobs whose own
+    `sample_id` - their first argument - is on the page, which is the same set the row
+    macro would have found in a collection built from the whole queue. An empty page
+    has nothing to annotate, so it asks the backend for nothing.
+
+    A failed queue read used to take the whole page down (`JobCollection(None)`), so
+    say what was lost and render the rows without their annotations instead.
+
+    All or nothing across the two requests. Keeping the half that answered would
+    render badges that count some of a sample's matching jobs and not others, and the
+    "Last 1:N Job" link comes from only one of the two methods - so a partial result
+    is not a smaller true answer, it is a wrong one, shown with no indication that it
+    is wrong. An empty collection at least matches what the message says.
+
+    Concatenating the per-method answers would leave the result newest-first only
+    *within* a method, so the merge is sorted back into one order. `Job.number` is the
+    queue's own submission counter - `MongoQueue.put` takes it from a mongo counter,
+    `LocalQueue.put` from an instance one - so descending `number` is the newest-first
+    order an unqualified `getQueueData()` answered in. A job old enough to predate the
+    counter carries no number, which `Job.number` reports as -1; those sort last, as
+    the oldest, and python's stable sort leaves them in the order the backend listed
+    them.
+    """
+    if not samples:
+        return JobCollection([])
+    jobs = []
+    for method in SAMPLE_ROW_JOB_METHODS:
+        jobs_for_method = client.getQueueData(method=method)
+        if jobs_for_method is None:
+            flash("Ups, reading MCRIT's job queue failed - rows are shown without their job annotations.", category="error")
+            return JobCollection([])
+        jobs.extend(jobs_for_method)
+    jobs.sort(key=lambda job: job.number if isinstance(job.number, int) else -1, reverse=True)
+    job_collection = JobCollection(jobs)
+    job_collection.filterToSampleIds([sample.sample_id for sample in samples])
+    return job_collection
+
 
 ##############################################################
 ### Unfiltered Collections: Families, Samples, Function
@@ -66,6 +124,31 @@ def modifyFamily():
         flash("Job to modify family was scheduled.", category="info")
     return redirect(url_for('explore.families'))
 
+@bp.route('/familyNames')
+@visitor_required
+@mcrit_server_required
+def family_names():
+    """Names for the family type-ahead in the edit modals, as JSON.
+
+    Every page carrying one of those modals used to embed the complete list of family
+    names in its source. mcrit answers `getFamilies()` with one storage lookup per
+    family (`MinHashIndex.getFamilies`), so a listing paid for the whole family table
+    on every view whether or not anyone opened a modal, and the cost grew with the
+    corpus. A prefix needs a handful of names, and `search_families` is the bounded way
+    to ask for them. Visitors already read every family name off `/explore/families`,
+    so this exposes nothing new. See issue #77.
+
+    A backend that cannot answer costs the suggestions, not the modal - the field is a
+    free-text input and stays usable without them.
+    """
+    query = request.args.get('q', "")
+    client = get_client()
+    results = client.search_families(query, limit=FAMILY_NAME_SUGGESTIONS)
+    if results is None:
+        return {"family_names": []}
+    return {"family_names": [FamilyEntry.fromDict(entry).family_name for entry in results['search_results'].values()]}
+
+
 @bp.route('/families')
 @visitor_required
 @mcrit_server_required
@@ -84,10 +167,8 @@ def families():
     else:
         for family_dict in results['search_results'].values():
             families.append(FamilyEntry.fromDict(family_dict))
-    all_families = client.getFamilies()
-    family_names = [family_entry.family_name for family_entry in all_families.values()]
     user_column_setup = get_user_column_setup("family_table")
-    return render_template("families.html", families=families, family_names=family_names, pagination=pagination, query=query, user_column_setup=user_column_setup)
+    return render_template("families.html", families=families, pagination=pagination, query=query, user_column_setup=user_column_setup)
 
 @bp.route('/modifySample', methods=['POST'])
 @contributor_required
@@ -165,14 +246,10 @@ def samples():
         for sample_dict in results['search_results'].values():
             samples.append(SampleEntry.fromDict(sample_dict))
 
-    jobs = client.getQueueData()
-    job_collection = JobCollection(jobs)
-    job_collection.filterToSampleIds([s.sample_id for s in samples])
+    job_collection = sample_row_job_collection(client, samples)
 
-    all_families = client.getFamilies()
-    family_names = [family_entry.family_name for family_entry in all_families.values()]
     user_column_setup = get_user_column_setup("samples_table")
-    return render_template("samples.html", samples=samples, family_names=family_names, job_collection=job_collection, pagination=pagination, query=query, user_column_setup=user_column_setup)
+    return render_template("samples.html", samples=samples, job_collection=job_collection, pagination=pagination, query=query, user_column_setup=user_column_setup)
 
 
 @bp.route('/functions')
@@ -220,14 +297,9 @@ def family_by_id(family_id):
         else:
             for sample_dict in results['search_results'].values():
                 samples.append(SampleEntry.fromDict(sample_dict))
-        all_families = client.getFamilies()
-        family_names = [family_entry.family_name for family_entry in all_families.values()]
-
-        jobs = client.getQueueData()
-        job_collection = JobCollection(jobs)
-        job_collection.filterToSampleIds([s.sample_id for s in samples])
+        job_collection = sample_row_job_collection(client, samples)
         user_column_setup = get_user_column_setup("samples_table")
-        return render_template("single_family.html", family=family_info, samples=samples, family_names=family_names, job_collection=job_collection, pagination=pagination, query=original_query, user_column_setup=user_column_setup)
+        return render_template("single_family.html", family=family_info, samples=samples, job_collection=job_collection, pagination=pagination, query=original_query, user_column_setup=user_column_setup)
     else:
         flash("The given Family ID doesn't exist", category='error')
         return redirect(url_for('explore.families'))
@@ -245,26 +317,39 @@ def sample_by_id(sample_id):
         original_query = request.args.get('query', "")
         query = f"sample_id:{sample_id} {original_query}"
         functions = []
+        # bound up front: the job table below is read outside the branch that fills it,
+        # and a failed function search left the name undefined - a 500 on the page that
+        # was meant to report the failure. A failed queue read is the same story one
+        # level down, since `JobCollection(None)` is only a TypeError waiting to happen.
+        job_collection = JobCollection([])
         pagination = CursorPagination(request, default_sort="function_id", limit=100)
         results = client.search_functions(query, **pagination.getSearchParams(), limit=pagination.limit)
         pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's functions failed!", category="error")
         else:
-            jobs = client.getQueueData(filter=sample_id)
-            job_collection = JobCollection(jobs)
-            job_collection.filterToSampleIds([sample_id])
+            # `McritClient.getQueueData` only forwards a `filter` that is a str, so
+            # this used to be dropped on the floor and the whole queue came back. The
+            # server matches it as a substring of the job's `method(args...)` string
+            # *after* paging (`QueueRemoteCalls.getQueueData`), which is unusable with
+            # a `limit` - but there is none here, and every job whose own `sample_id`
+            # is this one renders that id into its parameters, so the narrowed set is
+            # a superset of what `filterToSampleIds` keeps below. See #77.
+            jobs = client.getQueueData(filter=str(sample_id))
+            if jobs is None:
+                flash("Ups, reading MCRIT's job queue failed - this sample's jobs are not shown.", category="error")
+            else:
+                job_collection = JobCollection(jobs)
+                job_collection.filterToSampleIds([sample_id])
             for function_dict in results['search_results'].values():
                 functions.append(FunctionEntry.fromDict(function_dict))
-        all_families = client.getFamilies()
-        family_names = [family_entry.family_name for family_entry in all_families.values()]
         samples_by_id = {}
         for job in job_collection.getJobs():
             if job.sample_ids is not None:
                 for sample_id in [sid for sid in job.sample_ids if sid not in samples_by_id]:
                     samples_by_id[sample_id] = client.getSampleById(sample_id)
         user_column_setup = get_user_column_setup("functions_table")
-        return render_template("single_sample.html", entry=sample_entry, functions=functions, pagination=pagination, query=original_query, samples=samples_by_id, job_collection=job_collection, family_names=family_names, user_column_setup=user_column_setup)
+        return render_template("single_sample.html", entry=sample_entry, functions=functions, pagination=pagination, query=original_query, samples=samples_by_id, job_collection=job_collection, user_column_setup=user_column_setup)
     else:
         flash("The given Sample ID doesn't exist", category='error')
         return redirect(url_for('explore.samples'))
@@ -350,7 +435,14 @@ def search():
         args["type"] = ",".join(types)
         return redirect(url_for("explore.search", **args))
     if "type" not in request.args:
-        types = ["family", "sample", "function"]
+        # Functions are deliberately not in the default. A function search scans the
+        # whole function collection and takes ~30 seconds on a large instance when it
+        # finds nothing (issue #76), and running it unasked charged that to every
+        # search from the navbar and to every pagination click on the other two
+        # tables. It is one tick away, and search.html says so where the function
+        # results would have been - this narrows who pays for the scan, it does not
+        # make the scan faster. That part is mcrit's.
+        types = list(DEFAULT_SEARCH_TYPES)
     else:
         types = request.args["type"].split(",")
     if not query:

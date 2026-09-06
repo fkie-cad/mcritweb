@@ -86,18 +86,23 @@ def fake_mcrit(corpus_mcrit):
     return corpus_mcrit
 
 
-@pytest.mark.parametrize("path", ["/explore/families", "/explore/samples"])
+@pytest.mark.parametrize("path", ["/explore/families", "/explore/samples", "/data/submit"])
 def test_a_family_name_cannot_break_out_of_a_script_string(client, as_role, fake_mcrit, path):
-    """`js/ac_family_names.html` builds the autocomplete list from backend family names.
+    """A family name is chosen by whoever submits or renames a family, so it is user
+    input arriving by way of the backend - exactly what AGENTS.md says must never reach
+    `|safe`.
 
-    A family name is chosen by whoever submits or renames a family, so it is user input
-    arriving by way of the backend - exactly what AGENTS.md says must never reach `|safe`.
+    `/data/submit` is the remaining page that embeds the names in its source, through
+    `table/submit_or_query_dropzone.html`. The two explore listings used to do the same
+    through `js/ac_family_names.html`; #77 moved them onto `explore.family_names`, which
+    the test below covers. They stay in this list so that re-embedding a name there
+    would have to pass this again.
     """
     family_id, family_entry = next(iter(fake_mcrit._families.items()))
     fake_mcrit._families[family_id] = FamilyEntry.fromDict(
         dict(family_entry.toDict(), family_name=BREAKOUT_NAME)
     )
-    as_role("visitor")
+    as_role("contributor")
 
     response = client.get(path)
 
@@ -105,3 +110,27 @@ def test_a_family_name_cannot_break_out_of_a_script_string(client, as_role, fake
     assert b"<script>alert(1)</script>" not in response.data, (
         f"a crafted family name broke out of the JS string literal on {path}"
     )
+
+
+def test_a_family_name_stays_a_string_in_the_type_ahead_response(client, as_role, fake_mcrit):
+    """Where those names travel since #77: JSON, fetched by `js/ac_family_names.html`.
+
+    A JSON body is not a script context and is not served as one, so what this pins is
+    that the endpoint stays JSON and the name stays a string *value* in it - never
+    concatenated into a document. Note what it does not cover: the widget that receives
+    it, `Autocomplete.createItem` in `static/autocomplete.js`, builds its dropdown by
+    interpolating the label into an HTML string. That injection point predates #77 and
+    is unchanged by it - the names reached exactly the same call when they were embedded
+    in the page - but it is not made safe by anything here.
+    """
+    family_id, family_entry = next(iter(fake_mcrit._families.items()))
+    fake_mcrit._families[family_id] = FamilyEntry.fromDict(
+        dict(family_entry.toDict(), family_name=BREAKOUT_NAME)
+    )
+    as_role("visitor")
+
+    response = client.get("/explore/familyNames?q=evil")
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/json"
+    assert response.json["family_names"] == [BREAKOUT_NAME]

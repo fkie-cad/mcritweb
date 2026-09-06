@@ -57,10 +57,25 @@ Additionally, you can also use operands to further limit the term:
 * `<`, `<=`, `>`, `>=` -> limit the range
 * `!=` -> not equal
 * `!` -> logical not
-* `?` -> interpret as regular expression
+* `?` -> match anywhere in the field, as a literal substring rather than a pattern
 
 Furthermore, search terms can be combined using the `AND` and `OR` directives, e.g. like so:
 * `family_id:1 AND offset:<=0x2399fff AND offset:>=0x2398fff`
+
+##### Plain terms and prefixed terms are not the same search
+
+A term with no field prefix is matched as a case-insensitive **substring** of every field
+listed above for that category. A term *with* a prefix and no operand is matched
+**exactly**: `function_name:memcpy` finds the function called `memcpy`, not the ones
+called `memcpy_s`. Use `?` when you want a substring of one named field
+(`function_name:?memcpy`).
+
+The difference is worth knowing for functions. A plain term has to be compared against
+the name of every function in the database, and when nothing matches there is no partial
+result to stop at, so the search reads all of them — on a large instance that takes tens
+of seconds. An exact `function_name:` term is answered from an index instead and does not
+have that cost. This is also why *Functions* starts unticked on the combined search page:
+tick it when you want them, and prefix the term if you already know the whole name.
 
 #### Families
 

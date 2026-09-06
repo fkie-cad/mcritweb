@@ -67,6 +67,17 @@ Search
     {% endif %}
   {% endif %}
 
+  {% if query and not search_types.__contains__('function') %}
+    {# Never leave the omission silent: without this, a search for a function name
+       reads as "no such function" rather than "functions were not searched". #}
+    <h3 id="function-results">Functions</h3>
+    <p class="text-muted">
+      Not searched.
+      <a href="{{ url_for('explore.search', query=query, type=(search_types + ['function'])|join(',')) }}">Search functions too</a>
+      &ndash; on a large database this takes a while, longest when there is nothing to find.
+    </p>
+  {% endif %}
+
   {% if functions |length > 0 or (function_pagination and function_pagination.hasCurrent) %}
     <h3 id="function-results">Functions</h3>
     {{ set_pagination_params(function_pagination, _anchor="function-results") }}

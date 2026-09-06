@@ -55,6 +55,21 @@ def test_the_anchors_other_templates_link_to_exist(client, anchor):
     assert f'id="{anchor}"' in page
 
 
+def test_the_search_section_names_the_cheap_form_of_a_function_search(client):
+    """Issue #76. A plain term is a case-insensitive substring match against every
+    function name, which mcrit cannot serve from an index and cannot cut short when
+    nothing matches; a `function_name:` term is an equality match and can be. The
+    combined search page defers the plain one and says so, but the only place that
+    can tell a user how to *avoid* paying for it is the manual - so this pins that
+    the advice is there, and reachable from the `#search` anchor the search pages
+    link to."""
+    page = client.get("/help").get_data(as_text=True)
+    search_section = page.split('id="search"', 1)[-1].split('id="families"', 1)[0]
+
+    assert "function_name:memcpy" in search_section, "the manual does not show the exact form"
+    assert "substring" in search_section, "the manual does not say what a plain term matches"
+
+
 def test_the_screenshots_are_served_and_reachable(client):
     """The markdown says `images/x.png`, relative to itself, which is what makes it
     render on GitHub. In the app that has to be rewritten to a real URL."""
