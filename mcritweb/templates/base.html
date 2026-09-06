@@ -20,6 +20,7 @@
   <script src="{{ url_for('static', filename='autocomplete.js') }}"></script>
   <script src="{{ url_for('static', filename='bootstrap-5.0.2-dist/js/bootstrap.bundle.min.js') }}"></script>
   <script src="{{ url_for('static', filename='post_action.js') }}"></script>
+  <script src="{{ url_for('static', filename='page_loading.js') }}"></script>
 
   {% if not suppress_dropzone_overlay %}
     {{ submit_or_query_dropzone_js(select_form_type=True) }}

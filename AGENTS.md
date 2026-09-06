@@ -37,8 +37,12 @@ This repository owns **no analysis data of its own**. Families, samples, functio
 The README states Python 3.8+; the reference deployment (`docker-mcrit`) runs **Python 3.12**. Target 3.11/3.12 for anything new.
 
 ```bash
-pip install -r requirements.txt
+make init   # requirements.txt, plus pytest/pytest-cov/ruff at the versions CI pins
 ```
+
+`pytest`, `pytest-cov` and `ruff` are not runtime dependencies, so they are not in
+`requirements.txt`; `mcrit` declares the first two under its `dev` extra, so they do
+not arrive with it either.
 
 A running MCRIT backend (server + worker + MongoDB) is required for essentially every page beyond login/register. Without it, `mcrit_server_required` flashes an error and redirects to the index.
 
@@ -85,6 +89,7 @@ Optional: set `PROFILER=True` in `instance/config.py` while `FLASK_DEBUG=1` to e
 - **Python:** 4-space indent. `ruff check .` is configured (`ruff.toml`) and CI runs exactly that; no formatter is configured, deliberately — this codebase has never been formatted and reflowing it would bury the history of every file. Match the surrounding style rather than reformatting; do **not** introduce a repo-wide reformat as a side effect of a change.
 - **Templates:** Jinja2 with Bootstrap 5 markup. Put reusable table rows/headers in `templates/table/` as macros and import them; do not copy row markup between pages.
 - **Front-end:** no build step, no npm, no bundler. All libraries are vendored under `static/` and included via `url_for('static', ...)` in `base.html`. Do not add a CDN link (deployments are expected to work offline) and do not add a toolchain without being asked.
+- **Tables reload by navigating, not by swapping.** A pagination, sort or page-size click is an ordinary link click; `static/page_loading.js` covers the wait with a spinner. Partial rendering was considered and declined in [ADR-0003](docs/adr/0014-no-htmx-for-table-reloads.md) (issue #60) — note in particular that every row-click handler is a direct `$(sel).click(...)` bound at `$(document).ready`, so replacing a table's markup kills its rows silently.
 - **Route naming:** blueprint + snake_case function; always build URLs with `url_for(...)`, never string concatenation.
 - **User feedback:** `flash(msg, category=...)` with categories `error` / `warning` / `success` / `info` — `base.html` maps these to Bootstrap alert classes.
 - **Request parsing:** use the `parse_*_query_param` / `parse_*_post_param` helpers in `params.py` instead of ad-hoc `request.args.get` + `int()`.
