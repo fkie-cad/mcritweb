@@ -5,7 +5,7 @@ from flask import Blueprint, current_app, flash, g, redirect, render_template, r
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from mcritweb import db
-from mcritweb.db import ServerInfo, UserColumnSettings, UserFilters, UserInfo
+from mcritweb.db import ServerInfo, UserColumnSettings, UserFilters, UserInfo, generate_apitoken
 from mcritweb.views.authentication import KNOWN_ROLES, admin_required, login_required, multi_user
 from mcritweb.views.client import get_client
 from mcritweb.views.params import parse_checkbox_post_param, parse_integer_post_param
@@ -155,6 +155,29 @@ def reset_column_settings():
     except Exception as e:
         flash(f'Error resetting column settings: {str(e)}', category='error')
     
+    return redirect(url_for('authentication.settings'))
+
+@bp.route('/regenerate_apitoken', methods=('POST',))
+@login_required
+def regenerate_apitoken():
+    """Issue the caller a new API token, replacing the one they have.
+
+    Only ever touches the caller's own row - the user id comes from the session, not
+    from the request - so this needs no more than a session. Until now a token could
+    not be replaced at all: deleting the account was the only way to retire one, which
+    is not a thing you can ask of someone whose token has leaked. See issue #100.
+    """
+    user_id = get_session_user_id()
+    if user_id is None:
+        flash('User ID was not recognized', category='error')
+        return redirect(url_for('index'))
+    user_info = UserInfo.fromDb(user_id=user_id)
+    if user_info is None:
+        flash('User ID was not recognized', category='error')
+        return redirect(url_for('index'))
+    user_info.apitoken = generate_apitoken()
+    user_info.saveToDb()
+    flash('A new API token was generated. Anything using the old one has to be updated.', category='success')
     return redirect(url_for('authentication.settings'))
 
 @bp.route('/users/')

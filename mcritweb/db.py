@@ -1,12 +1,27 @@
 import datetime
-import hashlib
 import os
+import secrets
 import sqlite3
-import uuid
 
 import click
 from flask import current_app, g
 from flask.cli import with_appcontext
+
+#: Bytes of entropy behind a per-user API token. 32 gives a 64-character hex string.
+APITOKEN_BYTES = 32
+
+
+def generate_apitoken():
+    """A fresh API token.
+
+    This used to be `md5(uuid4().bytes)`. The entropy was always UUID4's rather than
+    MD5's, so the tokens were never weak - but MD5 in an authentication path is a
+    finding every auditor writes up, and there is no reason to keep it. See issue #100.
+
+    Tokens already issued stay valid: nothing validates their shape, and
+    `get_user_by_apitoken` matches on equality.
+    """
+    return secrets.token_hex(APITOKEN_BYTES)
 
 
 class UserInfo:
@@ -572,9 +587,11 @@ def migrate(app_context):
             for record in cursor.execute("select * from user;").fetchall():
                 user_ids.append(record[0])
             for user_id in user_ids:
-                generated_apitoken = hashlib.md5(uuid.uuid4().bytes).hexdigest()
+                generated_apitoken = generate_apitoken()
                 db.execute("UPDATE user SET apitoken = ? WHERE id = ?", (generated_apitoken, user_id))
-                print(f"EXECUTED MIGRATION: ADD APITOKEN {generated_apitoken} TO USER_ID {user_id} FROM TABLE USER")
+                # the token itself is deliberately not printed: it authenticates its
+                # owner to /api, and this line goes to the container log
+                print(f"EXECUTED MIGRATION: ADD APITOKEN TO USER_ID {user_id} FROM TABLE USER")
         # since version v1.2.10, we have an additional server_token field, ensure it exists (empty)
         server_table_columns = list(map(lambda x: x[0], db.execute('SELECT * FROM server').description))
         if "server_token" not in server_table_columns:
