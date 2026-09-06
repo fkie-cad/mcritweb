@@ -3,6 +3,48 @@ import os
 
 from flask import Flask, g, redirect, render_template, request, send_from_directory, url_for
 
+#: Ceiling on TRUSTED_PROXY_COUNT. A CDN in front of a load balancer in front of NGINX
+#: is three hops; nothing real is anywhere near this. The point is that a fat-fingered
+#: count is refused loudly instead of installed: ProxyFix accepts x_for=1000000000
+#: happily and then never matches a header, so every request falls back to the proxy's
+#: address - the whole-instance login lockout this setting exists to prevent, restored
+#: with nothing in the log to point at it.
+MAX_TRUSTED_PROXY_COUNT = 16
+
+
+def _trusted_proxy_count(configured, logger):
+    """Validate TRUSTED_PROXY_COUNT, or 0 - trust nothing - if it is not a hop count.
+
+    Every rejection is a fall back to 0 and a warning, because the alternative is to
+    guess: the value decides whose address the /login throttle meters, and a wrong guess
+    is either a whole-instance lockout or a throttle an attacker can key themselves.
+
+    `int()` alone is not this check. It accepts a bool - and `TRUSTED_PROXY_COUNT = True`
+    is the plausible typo, an operator answering "yes, I am behind a proxy" without
+    saying how many - landing on `1`, the blind one-hop default this setting exists to
+    avoid. It also truncates a float, turning 1.9 into a confident 1. A string of digits
+    is the one lenient case, because environment-driven config arrives as text and "2" is
+    not ambiguous about anything.
+    """
+    if isinstance(configured, bool):
+        value = None
+    elif isinstance(configured, int):
+        value = configured
+    elif isinstance(configured, str):
+        try:
+            value = int(configured.strip())
+        except ValueError:
+            value = None
+    else:
+        value = None
+    if value is None or not 0 <= value <= MAX_TRUSTED_PROXY_COUNT:
+        logger.warning(
+            "TRUSTED_PROXY_COUNT=%r is not a proxy hop count between 0 and %d; "
+            "trusting no proxy, so request addresses will be the proxy's",
+            configured, MAX_TRUSTED_PROXY_COUNT)
+        return 0
+    return value
+
 
 def create_app(test_config=None, instance_path=None):
     # NOTE: these are imported here rather than at module scope on purpose. Importing any
@@ -47,6 +89,10 @@ def create_app(test_config=None, instance_path=None):
         # uncapped beyond MAX_CONTENT_LENGTH. Issue #19: this was hardcoded at 1 MiB for
         # visitors, which is the right default but the wrong place for it.
         QUERY_UPLOAD_LIMITS={'visitor': 1 * 2**20},
+        # How many reverse proxies sit in front of this app, all of which append to
+        # X-Forwarded-For. 0 means "served directly": nothing about the request is
+        # taken from a header. See the block below create_app's config load.
+        TRUSTED_PROXY_COUNT=0,
     )
 
     if test_config is None:
@@ -56,6 +102,58 @@ def create_app(test_config=None, instance_path=None):
     else:
         # load the test config if passed in
         app.config.from_mapping(test_config)
+
+    # Behind a reverse proxy - and the recommended deployment, docker-mcrit, terminates
+    # TLS in NGINX in front of this app - the only peer the WSGI server ever sees is the
+    # proxy, so `request.remote_addr` is the proxy's address on every request. Anything
+    # keyed on it then meters the whole internet into one bucket: the /login throttle
+    # (#101) would refuse *everybody* for the length of its window after ten failures
+    # from anyone, and would meter nothing per attacker, which is the protection it
+    # exists to provide. ProxyFix rewrites REMOTE_ADDR from X-Forwarded-For.
+    #
+    # The count is the operator's to give, and the default is 0 - trust nothing.
+    # X-Forwarded-For is client-supplied until a proxy we trust has appended to it, so
+    # trusting it uninvited is how a working throttle becomes a no-op: an attacker sends
+    # a fresh value per request and every request is a new bucket, or picks a victim's
+    # address and spends their budget for them. A directly served instance must not be
+    # made worse by this setting existing.
+    #
+    # N counts hops from the RIGHT: ProxyFix takes the Nth value from the end of the
+    # header, which is the only part of it a trusted proxy wrote (NGINX's
+    # `proxy_add_x_forwarded_for` appends), and ignores whatever the client put to its
+    # left. Both ways of getting N wrong are documented in the README: too low meters a
+    # proxy again, too high hands the key to the client.
+    #
+    # A value that is not a hop count falls back to 0 rather than to ProxyFix's own
+    # default, which trusts one hop: a typo in instance/config.py must fail closed.
+    trusted_proxy_count = _trusted_proxy_count(
+        app.config.get('TRUSTED_PROXY_COUNT', 0), app.logger)
+    app.config['TRUSTED_PROXY_COUNT'] = trusted_proxy_count
+    if trusted_proxy_count:
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        # ProxyFix defaults x_for and x_proto to 1, so every count is passed explicitly.
+        #
+        # x_proto is 1 at every hop count, and that is not an oversight. The two headers
+        # are written differently: a proxy *appends* to X-Forwarded-For
+        # (`$proxy_add_x_forwarded_for`), so its depth grows with the chain, but it
+        # *replaces* X-Forwarded-Proto (`$scheme`), so the header carries exactly one
+        # value - the innermost trusted proxy's - however many proxies there are.
+        # Asking for the Nth value of a one-value header gets None, and ProxyFix then
+        # leaves the scheme alone: at TRUSTED_PROXY_COUNT = 2 behind TLS every
+        # `url_for(..., _external=True)` would silently come out http://, including the
+        # registration link admin_server.html hands the admin to send to people.
+        #
+        # -Host, -Port and -Prefix change what the app believes its own address is,
+        # which nothing here needs and which a proxy that does not set them would leave
+        # forgeable, so they stay off.
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app,
+            x_for=trusted_proxy_count,
+            x_proto=1,
+            x_host=0,
+            x_port=0,
+            x_prefix=0,
+        )
 
     # To enable profiling, put "PROFILER=True" in your config.py (stored in instance folder)
     profiling = False
