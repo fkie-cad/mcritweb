@@ -37,8 +37,12 @@ This repository owns **no analysis data of its own**. Families, samples, functio
 The README states Python 3.8+; the reference deployment (`docker-mcrit`) runs **Python 3.12**. Target 3.11/3.12 for anything new.
 
 ```bash
-pip install -r requirements.txt
+make init   # requirements.txt, plus pytest/pytest-cov/ruff at the versions CI pins
 ```
+
+`pytest`, `pytest-cov` and `ruff` are not runtime dependencies, so they are not in
+`requirements.txt`; `mcrit` declares the first two under its `dev` extra, so they do
+not arrive with it either.
 
 A running MCRIT backend (server + worker + MongoDB) is required for essentially every page beyond login/register. Without it, `mcrit_server_required` flashes an error and redirects to the index.
 
@@ -99,7 +103,7 @@ Optional: set `PROFILER=True` in `instance/config.py` while `FLASK_DEBUG=1` to e
 - **Actions are not links.** For a control that triggers a write, use `<button data-post="{{ url_for(...) }}">` — `static/post_action.js` turns the click into a `POST`. An `<a href>` to a writing route is a bug even if JavaScript intercepts it, because middle-click and prefetch do not run the handler.
 - **`SECRET_KEY` is generated and kept in `instance/secret_key`** when the operator has not set one in `instance/config.py` (`mcritweb/secret_key.py`). It used to default to `'dev'`, which let anyone reading this repository sign a session cookie saying `role: admin`. An explicit key still wins, and is still the right answer for a multi-host deployment, where every host must share one.
 - **Never log or render secrets:** user API tokens, the server token, password hashes. `ServerInfo.__str__` contains tokens — do not `print` or flash it.
-- **Uploads** land in `instance/temp/uploads/` named by SHA-256. Two ceilings apply and both are config keys, set in `create_app()` and overridable from `instance/config.py`: `MAX_CONTENT_LENGTH` is the app-wide request body limit Werkzeug enforces with a 413 before buffering — generous by necessity, since it applies to every route and `/data/import` takes whole-corpus exports — and `QUERY_UPLOAD_LIMITS` is a `{role: bytes}` mapping checked in `analyze.query`, defaulting to 1 MiB for `visitor` and uncapped for any role it does not name (#19). Keep both checks in place when touching the upload paths; `tests/testAppConfig.py` covers them.
+- **Uploads** land in `instance/temp/uploads/`. A query upload (`analyze.query`) is named by the **job id** the backend issued for it, and is written only once that job is queued; `data.submit` still names its own copy by the SHA-256 of the bytes. No part of either name may come from the request: naming a `.smda` query by the `sha256` its own report declares let any visitor overwrite another user's stored query, and naming it by a digest of the upload instead makes it unfindable, because promoting a query to a sample (#9) has only the job to go on. `views/utility.query_upload_path` is the single definition of that path, used by both sides. Two ceilings apply and both are config keys, set in `create_app()` and overridable from `instance/config.py`: `MAX_CONTENT_LENGTH` is the app-wide request body limit Werkzeug enforces with a 413 before buffering — generous by necessity, since it applies to every route and `/data/import` takes whole-corpus exports — and `QUERY_UPLOAD_LIMITS` is a `{role: bytes}` mapping checked in `analyze.query`, defaulting to 1 MiB for `visitor` and uncapped for any role it does not name (#19). Keep both checks in place when touching the upload paths; `tests/testAppConfig.py` covers them.
 - **The `/api` blueprint is a passthrough, not an API of its own.** When the backend `McritClient` gains a method, extend the router in `api.py` by adding a regex branch — keep paths and parameter names aligned with the backend's REST API rather than inventing new ones. A token carries its owner's role (`g.api_user`), so a branch that writes must also be listed in `CONTRIBUTOR_ONLY` in that module; otherwise the API becomes the cheap way around a role check in the UI.
 - **Validate IDs before use.** Route converters use `<int(signed=True):...>` where negative IDs are meaningful (query samples have negative `sample_id`). Check `client.isSampleId` / `isFamilyId` / `isFunctionId` before acting on user-supplied IDs.
 

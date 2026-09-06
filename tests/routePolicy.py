@@ -161,6 +161,9 @@ ROUTE_POLICY = {
     # --- contributor and above ---------------------------------------------------
     "data.submit": (CONTRIBUTOR, WRITES_ON_POST),
     "data.submit_or_query": (CONTRIBUTOR, WRITES_ON_POST),
+    # adds the file a query was run for to the corpus - the same write data.submit
+    # performs, from a copy already on disk instead of a fresh upload. See issue #9.
+    "data.promote_query": (CONTRIBUTOR, WRITES_ON_POST),
     "data.import_view": (CONTRIBUTOR, WRITES_ON_POST),
     "data.import_complete": (CONTRIBUTOR, READ_ONLY),
     "data.export_view": (CONTRIBUTOR, READ_ONLY),

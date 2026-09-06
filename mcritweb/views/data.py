@@ -4,7 +4,9 @@ import re
 from datetime import datetime
 
 from flask import Blueprint, Response, current_app, flash, json, redirect, render_template, request, send_from_directory, session, url_for
+from mcrit.libs.utility import decode_two_complement
 from mcrit.queue.LocalQueue import Job
+from mcrit.queue.QueueRemoteCalls import to_binary as canonicalise_queue_json
 from mcrit.storage.FunctionEntry import FunctionEntry
 from mcrit.storage.MatchedFunctionEntry import MatchedFunctionEntry
 from mcrit.storage.MatchingResult import MatchingResult
@@ -29,7 +31,7 @@ from mcritweb.views.params import (
     parseBitnessFromFilename,
 )
 from mcritweb.views.ScoreColorProvider import ScoreColorProvider
-from mcritweb.views.utility import get_session_user_id, mcrit_server_required
+from mcritweb.views.utility import get_session_user_id, mcrit_server_required, query_upload_path
 
 bp = Blueprint('data', __name__, url_prefix='/data')
 
@@ -523,7 +525,11 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         family_pagination = Pagination(request, matching_result.num_family_matches, limit=10, query_param="famp", limit_param="fampl")
         library_pagination = Pagination(request, matching_result.num_library_matches, limit=10, query_param="libp", limit_param="libl")
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), limit=100, query_param="funp", limit_param="funl")
-        return render_template("result_compare_all.html", job_info=job_info, famp=family_pagination, libp=library_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider, ucs_famlib=user_column_setup_family_library, ucs_functions=user_column_setup_function_all)
+        # a query can be promoted to a sample (issue #9), but only while the file it
+        # was run for is still on this host - the page has to say which it is. The file
+        # is filed under the job's own id, so this costs no round trip either
+        is_query_result = job_info.method in QUERY_UPLOAD_KINDS
+        return render_template("result_compare_all.html", job_info=job_info, famp=family_pagination, libp=library_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider, ucs_famlib=user_column_setup_family_library, ucs_functions=user_column_setup_function_all, is_query_result=is_query_result, can_promote_query=is_query_result and query_upload_exists(current_app, job_info.job_id))
 
 
 def result_matches_for_cross(job_info, result_json):
@@ -963,3 +969,208 @@ def submit():
     all_families = client.getFamilies()
     family_names = [family_entry.family_name for family_entry in all_families.values()]
     return render_template('submit.html', families=family_names, show_submit_fields=True)
+
+
+################################################################
+# Promoting a query to a sample - issue #9
+################################################################
+
+#: The query job methods, mapped to the kind of upload each was made from. A query is
+#: matched without ever being stored, so promoting one means resubmitting the same
+#: bytes the same way they were queried.
+QUERY_UPLOAD_KINDS = {
+    "getMatchesForUnmappedBinary": "unmapped",
+    "getMatchesForMappedBinary": "dumped",
+    "getMatchesForSmdaReport": "smda",
+}
+
+#: What may be submitted as a family or a version. `McritClient.addBinarySample`
+#: builds its request by concatenating these into a query string without
+#: percent-encoding, so a value carrying '&' or '=' would append parameters of its own
+#: to the backend call. Anything outside this set is refused rather than escaped,
+#: because escaping it correctly depends on internals of a client we do not own.
+#: The same reasoning keeps out characters that arrive as something else: '+' is safe
+#: per `requote_uri`, so `requests` leaves it in the URL, and Falcon decodes a query
+#: string with `unquote_plus` - "win.a+b" would be stored as "win.a b", and only on
+#: this path, since the .smda path posts the report as JSON and keeps it. A space is
+#: sent as %20 and does arrive as one, so it stays.
+#: `\Z` rather than `$`, which would also match before a trailing newline.
+PROMOTION_METADATA = re.compile(r"^[A-Za-z0-9 ._-]{0,64}\Z")
+
+
+def query_upload_exists(app, job_id):
+    """Whether a query can still be promoted, i.e. whether its bytes are still here.
+
+    The bytes of a query live in the backend's GridFS behind a job reference, and the
+    backend exposes no route that reads a job's *input* back, so the copy
+    `analyze.query` keeps is the only one that can be resubmitted. It follows that a
+    query is promotable only on the host that received it, and only when it arrived
+    through the web upload - `api.api_router` never writes that file.
+
+    It is filed under the job id, which is why nothing here has to reason about hashes
+    to find it. `utility.query_upload_path` is the single definition of that name, and
+    carries the reason it is not a hash: the sha256 a query report records is the one
+    the uploaded .smda report declared about itself, so naming the file by it let one
+    visitor overwrite another user's stored query - and a digest of the uploaded bytes,
+    which fixes that, is a value nothing on this side of the feature can reconstruct.
+    """
+    upload_path = query_upload_path(app, job_id)
+    return upload_path is not None and os.path.isfile(upload_path)
+
+
+def query_payload_sha256(job_info):
+    """The sha256 the backend recorded for the payload a query ran on, or None.
+
+    `QueueRemoteCalls` hashes every parameter it ships through GridFS and writes the
+    hashes into the job's descriptor, which `Job.sha256` reads back for exactly the
+    three query methods. That is the only statement about the queried bytes that a
+    promotion does not get from the file it is about to resubmit, and it is worth
+    having even now that the file is named by the job rather than by anything the
+    upload chose: the folder is shared, unpruned, and a report checked against a field
+    of its own only ever agrees with itself. This hash was taken over what the job
+    actually ran on.
+
+    The descriptor is job data from the backend, so it is read defensively rather than
+    trusted to be shaped as expected.
+    """
+    try:
+        return job_info.sha256
+    except (LookupError, TypeError, ValueError):
+        current_app.logger.warning("promote_query - job %s records no payload hash", job_info.job_id)
+        return None
+
+
+def query_report_base_address(sample_info):
+    """The address a dumped query was mapped at, as an address again, or None.
+
+    `SampleEntry.toDict` writes `base_addr` through `encode_two_complement`, so a dump
+    mapped above 0x7fffffffffffffff - which is where every Windows kernel-mode dump
+    sits - is recorded as a negative number. Read as one it is not an address at all,
+    so it is decoded back into the unsigned 64-bit range it was encoded from, and a
+    value that does not land there is refused rather than resubmitted somewhere else.
+    """
+    base_address = sample_info.get("base_addr")
+    if not isinstance(base_address, int) or isinstance(base_address, bool):
+        return None
+    base_address = decode_two_complement(base_address)
+    return base_address if 0 <= base_address < 0x10000000000000000 else None
+
+
+def query_report_sample_info(client, job_info):
+    """The `info.sample` block of a job's report, or an empty dict.
+
+    Everything a promotion needs about the queried sample is here: the sha256 that
+    names the stored upload, and - for a dump - the base address and bitness it was
+    queried under, without which the backend would disassemble it differently than
+    the report on screen describes. The job payload records neither.
+    """
+    result_json = load_cached_result(current_app, job_info.job_id)
+    if not result_json:
+        result_json = client.getResultForJob(job_info.job_id)
+    if not isinstance(result_json, dict):
+        return {}
+    info = result_json.get("info")
+    sample_info = info.get("sample") if isinstance(info, dict) else None
+    return sample_info if isinstance(sample_info, dict) else {}
+
+
+@bp.route('/promote_query/<job_id>', methods=('POST',))
+@contributor_required
+@mcrit_server_required
+def promote_query(job_id):
+    """Add the file a query was run for to the corpus, without a second upload."""
+    client = get_client()
+    job_info = client.getJobData(job_id)
+    if job_info is None:
+        flash("The given Job ID doesn't exist", category='error')
+        return redirect(url_for('data.jobs'))
+    result_page = url_for('data.result', job_id=job_info.job_id)
+    if job_info.method not in QUERY_UPLOAD_KINDS:
+        flash('Only a query can be promoted to a sample.', category='error')
+        return redirect(result_page)
+    upload_path = query_upload_path(current_app, job_info.job_id)
+    if upload_path is None:
+        flash('This job cannot be promoted.', category='error')
+        return redirect(result_page)
+    sample_info = query_report_sample_info(client, job_info)
+    # the sample's declared sha256 no longer names the stored file. It is only what the
+    # corpus is asked about below; what was actually resubmitted is checked against the
+    # job descriptor further down instead.
+    upload_sha256 = sample_info.get("sha256")
+    upload_sha256 = upload_sha256.lower() if isinstance(upload_sha256, str) else None
+    if upload_sha256 is None:
+        flash('The report of this query does not record which file it was run for, so it cannot be promoted.', category='error')
+        return redirect(result_page)
+    # whether the local copy survived or not, a sample that is already stored is the
+    # answer to "promote this" - so promoting twice lands on it instead of adding it.
+    # Two promotions racing past this check still make one sample, but they are not
+    # told the same thing: addReport answers a known sha256 with the entry that already
+    # exists, while SampleResource.on_post_submit_binary refuses one with 409, which
+    # handle_response turns into None - so the second promotion of a binary query says
+    # the sample could not be added. It is one sample all the same: the corpus is
+    # checked again by Worker.addBinarySample when the job runs.
+    sample_entry = client.getSampleBySha256(upload_sha256)
+    if sample_entry is not None:
+        flash('Sample was already in database', category='warning')
+        return redirect(url_for('explore.sample_by_id', sample_id=sample_entry.sample_id))
+    if not os.path.isfile(upload_path):
+        flash('The file this query was run for is no longer available on this server, so it cannot be promoted. Please submit it again.', category='error')
+        return redirect(result_page)
+    family = request.form.get('family', '').strip()
+    version = request.form.get('version', '').strip()
+    for field_name, field_value in (('family', family), ('version', version)):
+        if not PROMOTION_METADATA.match(field_value):
+            flash(f'The {field_name} may only contain up to 64 letters, digits, spaces, or any of ". _ -".', category='error')
+            return redirect(result_page)
+    with open(upload_path, "rb") as fin:
+        upload_content = fin.read()
+    upload_kind = QUERY_UPLOAD_KINDS[job_info.method]
+    smda_report = None
+    stored_sha256 = None
+    if upload_kind == "smda":
+        try:
+            # the backend was handed the report, not the file: McritClient posts
+            # toDict(), and QueueRemoteCalls hashes the canonicalisation of that
+            smda_report = SmdaReport.fromDict(json.loads(upload_content))
+            stored_sha256 = hashlib.sha256(canonicalise_queue_json(smda_report.toDict())).hexdigest()
+        except Exception:
+            # the uploads folder holds uploaded files, so a stored report that no
+            # longer reads back is normal input and has to become a message, not a 500
+            current_app.logger.warning("promote_query - could not read the stored SMDA report of job %s", job_info.job_id)
+    else:
+        stored_sha256 = hashlib.sha256(upload_content).hexdigest()
+    # the file is only this query's input if it hashes to what the backend recorded for
+    # it. Nothing weaker will do: for an .smda query the name it is filed under is one
+    # the upload chose, so it is no evidence at all about the bytes it names.
+    payload_sha256 = query_payload_sha256(job_info)
+    if stored_sha256 is None or payload_sha256 is None or stored_sha256 != payload_sha256:
+        flash('The stored copy of this query no longer matches it, so it was not promoted.', category='error')
+        return redirect(result_page)
+    if upload_kind == "smda":
+        if family:
+            smda_report.family = family
+        if version:
+            smda_report.version = version
+        # the client answers (SampleEntry, job_id), or None when the backend refused
+        added = client.addReport(smda_report)
+        new_sample_entry = added[0] if isinstance(added, tuple) and added else None
+        if new_sample_entry is None:
+            flash('The sample could not be added to the database.', category='error')
+            return redirect(result_page)
+        flash('The query was promoted to a sample.', category='success')
+        return redirect(url_for('explore.sample_by_id', sample_id=new_sample_entry.sample_id))
+    is_dump = upload_kind == "dumped"
+    base_address = None
+    bitness = None
+    if is_dump:
+        base_address = query_report_base_address(sample_info)
+        bitness = sample_info.get("bitness")
+        if base_address is None or bitness not in [32, 64]:
+            flash('The report of this query no longer records how the dump was mapped, so it cannot be promoted.', category='error')
+            return redirect(result_page)
+    new_job_id = client.addBinarySample(upload_content, family=family or None, version=version or None, is_dump=is_dump, base_addr=base_address, bitness=bitness)
+    if not new_job_id:
+        flash('The sample could not be added to the database.', category='error')
+        return redirect(result_page)
+    flash('The query was promoted to a sample.', category='success')
+    return redirect(url_for('data.job_by_id', job_id=new_job_id, refresh=3, forward=1))

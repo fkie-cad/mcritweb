@@ -154,6 +154,12 @@ This allows you to upload a single sample, have it disassembled, and performed a
 
 ![An example for creating a query](images/query.png "An example for creating a query")
 
+If the sample turns out to be interesting after all, the result page of a query offers to promote it to a full sample, so you can give it a family and a version without uploading the file a second time.
+
+Promotion works from the copy of the upload that MCRITweb keeps under `instance/temp/uploads/`, because MCRIT itself does not hand a query's input back out again.
+That copy only exists on the machine that received the upload through the web interface, so a query submitted through the API or the IDA plugin, or one made against a different host of the same deployment, cannot be promoted - the result page says so instead of offering the form.
+Promoting a sample that is already in the collection simply takes you to it.
+
 
 #### Unique Blocks
 

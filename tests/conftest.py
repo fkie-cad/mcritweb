@@ -109,6 +109,13 @@ class FakeMcritClient:
         self._record("requestMatchesForMappedBinary", binary, base_address, **kwargs)
         return FAKE_JOB_ID
 
+    def requestMatchesForSmdaReport(self, smda_report, **kwargs):
+        """The '.smda' branch of `analyze.query`: the view parses the upload into an
+        SmdaReport and hands the object over, so nothing about the file survives past
+        here except what the view chose to keep on disk."""
+        self._record("requestMatchesForSmdaReport", smda_report, **kwargs)
+        return FAKE_JOB_ID
+
     def addImportData(self, import_data):
         """The dropzone upload path: `data.import_view` parses the uploaded file and
         hands the parsed object straight here.
