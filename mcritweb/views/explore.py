@@ -10,6 +10,7 @@ import mcritweb.views.cfg_explorer_detector as cfg_explorer_detector
 from mcritweb.views.authentication import contributor_required, visitor_required
 from mcritweb.views.client import get_client
 from mcritweb.views.cursor_pagination import CursorPagination
+from mcritweb.views.pagination import request_args_for_link_building
 from mcritweb.views.utility import get_user_column_setup, mcrit_server_required
 
 bp = Blueprint('explore', __name__, url_prefix='/explore')
@@ -346,7 +347,10 @@ def search():
     query = request.args.get('query', None)
     types = request.args.getlist("type")
     if len(types) > 1:
-        args = {**request.args}
+        # the same collision the pagination classes have, one step worse: this URL
+        # goes out in a Location header, so an unfiltered `?_external=1` redirected
+        # the visitor to whatever the Host header said.
+        args = request_args_for_link_building(request)
         args["type"] = ",".join(types)
         return redirect(url_for("explore.search", **args))
     if "type" not in request.args:
