@@ -14,6 +14,7 @@ answered by the suite rather than by hand.
 import io
 import json
 import logging
+from urllib.parse import quote
 
 import pytest
 
@@ -138,14 +139,21 @@ def test_a_binary_far_past_the_form_memory_limit_is_still_accepted(client, as_ro
 def test_the_fields_beside_the_file_travel_with_it(client, as_role, fake_mcrit):
     """Family and version are typed into a form that is *not* the dropzone's own; the
     `sending` handler copies them into the multipart body. If that ever stops working
-    every upload lands unlabelled."""
+    every upload lands unlabelled.
+
+    What arrives at the client is the wire form, not the typed form: `data.submit`
+    percent-encodes all three for the query string McritClient builds by hand, so the
+    expectations are written through the same encoder. These particular values happen
+    to be invariant under it, and asserting them raw would pass for that reason alone -
+    and then confuse whoever first puts a '+' or an '&' in a fixture here. What the
+    encoding is *for* is tests/testSubmitMetadata.py."""
     as_role("contributor")
     submit_binary(client, b"MZ small", filename="thing.exe")
 
     _, _, kwargs = next(c for c in fake_mcrit.calls if c[0] == "addBinarySample")
-    assert kwargs["family"] == "test.family"
-    assert kwargs["version"] == "1.0"
-    assert kwargs["filename"] == "thing.exe"
+    assert kwargs["family"] == quote("test.family", safe="")
+    assert kwargs["version"] == quote("1.0", safe="")
+    assert kwargs["filename"] == quote("thing.exe", safe="")
 
 
 def test_a_dump_carries_its_bitness_and_base_address(client, as_role, fake_mcrit):

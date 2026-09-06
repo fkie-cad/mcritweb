@@ -2,6 +2,7 @@ import hashlib
 import os
 import re
 from datetime import datetime
+from urllib.parse import quote
 
 from flask import Blueprint, Response, current_app, flash, json, redirect, render_template, request, send_from_directory, session, url_for
 from mcrit.queue.LocalQueue import Job
@@ -36,6 +37,25 @@ bp = Blueprint('data', __name__, url_prefix='/data')
 ################################################################
 # Helper functions
 ################################################################
+
+def quote_backend_query_value(value):
+    """Percent-encode one value for a query string `McritClient` builds by hand.
+
+    `safe=""` escapes every character outside the unreserved set, and escapes nothing
+    inside it. That is exactly the set `requests.requote_uri` leaves alone on the way
+    to the wire, so no escape written here is undone and none is written twice:
+    "100%" stays "100%", "%41" stays "%41", "C++_sample.exe" keeps its plusses.
+
+    Correct only while the client concatenates rather than passing `params=` to
+    requests, which would encode these a second time. `setup.py` has no ceiling on
+    mcrit, so tests/testSubmitMetadata.py asserts the concatenation is still there.
+
+    Used for `addBinarySample`'s three text fields. `getQueueData` and
+    `deleteQueueData` build their query strings the same way and are reached with
+    unvalidated values through `api.api_router`; that is a separate change.
+    """
+    return quote(str(value), safe="")
+
 
 def load_cached_result(app, job_id):
     matching_result = {}
@@ -955,7 +975,17 @@ def submit():
             else:
                 with open(os.sep.join([current_app.instance_path, "temp", "uploads", upload_sha256]), "wb") as fout:
                     fout.write(binary_content)
-                job_id = client.addBinarySample(binary_content, filename=f.filename, family=family, version=version, is_dump=is_dump, base_addr=base_address, bitness=bitness)
+                # These three ride in the query string McritClient builds by hand, so
+                # they are escaped rather than trusted. All three are str by
+                # construction - `f` is None-checked above, and both form fields would
+                # have raised a 400 before here. The cost is length: a 255-character
+                # non-ASCII filename encodes to ~2.3 kB of request line, against
+                # gunicorn's 4094-byte default for the whole line.
+                job_id = client.addBinarySample(binary_content,
+                    filename=quote_backend_query_value(f.filename),
+                    family=quote_backend_query_value(family),
+                    version=quote_backend_query_value(version),
+                    is_dump=is_dump, base_addr=base_address, bitness=bitness)
                 return url_for('data.job_by_id', job_id=job_id, refresh=3, forward=1), 202 # Accepted
         else:
             flash('Sample was already in database', category='warning')

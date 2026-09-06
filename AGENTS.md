@@ -38,6 +38,7 @@ The README states Python 3.8+; the reference deployment (`docker-mcrit`) runs **
 
 ```bash
 pip install -r requirements.txt
+pip install pytest pytest-cov   # not runtime dependencies, so not in requirements.txt
 ```
 
 A running MCRIT backend (server + worker + MongoDB) is required for essentially every page beyond login/register. Without it, `mcrit_server_required` flashes an error and redirects to the index.
