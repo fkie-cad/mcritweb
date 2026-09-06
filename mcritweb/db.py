@@ -524,6 +524,8 @@ def init_db():
         db.executescript(f.read().decode('utf8'))
     with current_app.open_resource('sql' + os.sep + 'create_table_server.sql') as f:
         db.executescript(f.read().decode('utf8'))
+    with current_app.open_resource('sql' + os.sep + 'create_table_query_upload.sql') as f:
+        db.executescript(f.read().decode('utf8'))
 
 @click.command('init-db')
 @with_appcontext
@@ -588,6 +590,13 @@ def migrate(app_context):
             with app_context.open_resource('sql' + os.sep + 'create_table_user_column_settings.sql') as f:
                 db.executescript(f.read().decode('utf8'))
             print("EXECUTED MIGRATION: CREATED TABLE USER_COLUMN_SETTINGS")
+        # since query results name the file they were uploaded as (#40), ensure the table exists
+        try:
+            db.execute('SELECT * FROM query_upload').fetchone()
+        except sqlite3.OperationalError:
+            with app_context.open_resource('sql' + os.sep + 'create_table_query_upload.sql') as f:
+                db.executescript(f.read().decode('utf8'))
+            print("EXECUTED MIGRATION: CREATED TABLE QUERY_UPLOAD")
 
         db.commit()
     finally:
@@ -637,3 +646,42 @@ def get_username_by_apitoken(apitoken):
     if record is not None:
         username = record["username"]
     return username
+
+#: A query filename is display metadata, never a path. Cap it so a hostile upload can
+#: neither bloat the table nor push everything else off the result page.
+MAX_QUERY_FILENAME_LENGTH = 255
+
+def _displayable_filename(filename):
+    """Reduce an uploaded filename to what may be shown to another user.
+
+    `isprintable()` drops control characters and the invisible formatting characters
+    that let one name be dressed as another. Path separators are kept - the value is
+    never used to build a path here, and mangling them would show the uploader a name
+    they do not recognize.
+    """
+    if not filename or not isinstance(filename, str):
+        return ""
+    return "".join(character for character in filename if character.isprintable()).strip()[:MAX_QUERY_FILENAME_LENGTH]
+
+def remember_query_filename(job_id, filename):
+    """Record the name a query was uploaded under, so its result page can show it.
+
+    None of the backend's query endpoints accepts a filename, so this is the only
+    place the name is ever kept. Keyed by job id: the backend deduplicates a repeated
+    query onto the job it already has, and the name kept is the first one seen for it.
+    """
+    filename = _displayable_filename(filename)
+    if not job_id or not filename:
+        return
+    db = get_db()
+    db.execute("INSERT OR IGNORE INTO query_upload (job_id, filename) VALUES (?, ?);", (str(job_id), filename))
+    db.commit()
+
+def get_query_filename(job_id):
+    """The name a query job's upload carried, or None if this instance never saw it."""
+    if not job_id:
+        return None
+    db = get_db()
+    cursor = db.cursor()
+    record = cursor.execute("SELECT filename FROM query_upload WHERE job_id = ?;", (str(job_id),)).fetchone()
+    return record["filename"] if record is not None else None

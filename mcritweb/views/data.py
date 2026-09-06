@@ -12,7 +12,7 @@ from mcrit.storage.SampleEntry import SampleEntry
 from mcrit.storage.UniqueBlocksResult import UniqueBlocksResult
 from smda.common.SmdaReport import SmdaReport
 
-from mcritweb.db import UserColumnSettings, UserFilters
+from mcritweb.db import UserColumnSettings, UserFilters, get_query_filename
 from mcritweb.views.analyze import query as analyze_query
 from mcritweb.views.authentication import contributor_required, visitor_required
 from mcritweb.views.client import get_client
@@ -372,7 +372,28 @@ def assign_matched_offsets(client, function_matches):
     return is_complete
 
 
+def name_query_sample(job_info, matching_result: MatchingResult):
+    """Fill in the filename of a queried binary, in place.
+
+    A query is matched without being stored, so the backend has no sample of its own
+    to name and sends `filename: ""` back in the report - the result page showed "-"
+    where every other input sample shows a name (issue #40). None of the query
+    endpoints accepts a filename either, so the upload's name only ever existed here,
+    and `analyze.query` records it against the job id it was queued as.
+
+    Keyed off a negative sample_id rather than `MatchingResult.is_query`, which is
+    derived from the sign of the last function match and stays False for a report
+    that matched nothing.
+    """
+    sample_entry = matching_result.reference_sample_entry
+    if sample_entry is None or sample_entry.sample_id is None or sample_entry.sample_id >= 0:
+        return
+    if not sample_entry.filename:
+        sample_entry.filename = get_query_filename(job_info.job_id) or ""
+
+
 def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult):
+    name_query_sample(job_info, matching_result)
     score_color_provider = ScoreColorProvider()
     filtered_family_id = parse_integer_query_param(request, "famid")
     filtered_sample_id = parse_integer_query_param(request, "samid")
@@ -617,6 +638,7 @@ def linkhunt(job_id):
         return render_template("result_incompatible.html", job_id=job_id)
 
 def linkhunt_for_sample_or_query(job_info, matching_result: MatchingResult):
+    name_query_sample(job_info, matching_result)
     client = get_client()
     score_color_provider = ScoreColorProvider()
     # generic filtering of function results
