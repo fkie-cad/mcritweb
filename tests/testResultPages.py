@@ -47,6 +47,31 @@ def test_linkhunt_renders_for_every_matching_report(client, as_role, report):
     assert response.status_code == 200
 
 
+def test_the_match_diagram_is_cached_per_theme(app, client, as_role):
+    """Diagrams are rendered once into instance/cache/diagrams and never invalidated,
+    so the theme has to be part of the name (#70) - otherwise whichever palette
+    reached a job first is the palette everyone gets for it, permanently."""
+    from mcritweb.db import UserInfo
+
+    user_id = as_role("visitor")
+    job_id = job_id_of("matches_for_sample")
+
+    light = client.get(f"/data/result/{job_id}").get_data(as_text=True)
+    assert f"{job_id}.png" in light
+    assert "-dark.png" not in light
+
+    with app.app_context():
+        user_info = UserInfo.fromDb(user_id=user_id)
+        user_info.theme = "dark"
+        user_info.saveToDb()
+
+    dark = client.get(f"/data/result/{job_id}").get_data(as_text=True)
+    assert f"{job_id}-dark.png" in dark
+    # both are on disk, so switching back does not re-render or serve the other one
+    assert client.get(f"/data/diagrams/{job_id}-dark.png").status_code == 200
+    assert client.get(f"/data/diagrams/{job_id}.png").status_code == 200
+
+
 def test_result_page_applies_a_score_filter(client, as_role):
     """The filter parameters drive MatchingResult.applyFilterValues, which is where a
     report gets narrowed - rendering it unfiltered proves much less."""

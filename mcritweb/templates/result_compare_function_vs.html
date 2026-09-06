@@ -53,7 +53,7 @@ Function: {{ function_id_a }} vs {{ function_id_b }}
         <span style="float:right"><a href="#top">go to top</a></span>
         <input style=" margin: 3px;" type="button" id="showCycles" value="Show Cycles"/>
         <input style=" margin: 3px;" type="button" id="showLoops" value="Show Loops"/>
-        <label style=" margin:3px; background-color:#fdd0a2; padding:1px"><input style=" margin: 3px;" type="checkbox" id="loopBgFill" value="loopBgFill" checked>Show Loop Boundaries</label>
+        <label style=" margin:3px; background-color:var(--legend-loop-bg); color:var(--legend-loop-text); padding:1px"><input style=" margin: 3px;" type="checkbox" id="loopBgFill" value="loopBgFill" checked>Show Loop Boundaries</label>
         <!-- <label style=" margin:3px; padding: 3px;"><input style=" margin: 3px;" type="checkbox" id="enableNodeDrag" value="enableNodeDrag">Enable Node Dragging</label> -->
         <label style=" margin:3px; padding: 3px;"><input style=" margin: 3px;" type="checkbox" id="enableTooltip" value="enableTooltip">Enable Tooltip</label>
     </div>
@@ -62,7 +62,7 @@ Function: {{ function_id_a }} vs {{ function_id_b }}
             <div id="tooltip_a" class="hidden">
             <p><span id="value_a"></span></p>
             </div>
-            <div id="loading_a" class="hidden" style="margin-left: 20px; margin-top:400px; font-size: x-large; color:#3f51b5 ; ">
+            <div id="loading_a" class="hidden" style="margin-left: 20px; margin-top:400px; font-size: x-large; color:var(--spinner-text) ; ">
             Loading. Please Wait!
             </div>
             <svg id="graphContainer_a">
@@ -73,7 +73,7 @@ Function: {{ function_id_a }} vs {{ function_id_b }}
           <div id="tooltip_b" class="hidden">
             <p><span id="value_b"></span></p>
             </div>
-            <div id="loading_b" class="hidden" style="margin-left: 20px; margin-top:400px; font-size: x-large; color:#3f51b5 ; ">
+            <div id="loading_b" class="hidden" style="margin-left: 20px; margin-top:400px; font-size: x-large; color:var(--spinner-text) ; ">
             Loading. Please Wait!
             </div>
             <svg id="graphContainer_b">

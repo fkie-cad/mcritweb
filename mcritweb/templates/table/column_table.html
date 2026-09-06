@@ -26,7 +26,7 @@
           <td valign="middle">
             {{ name_and_sample[1].version or "-" }} | 
             {{ name_and_sample[1].component or "-" }} | 
-            <i {% if name_and_sample[1].is_library %} style="color:green;" class="fa-solid fa-square-check" {% else %} style="color:darkred;" class="fa-solid fa-times-circle"> {% endif %}</i></td>
+            <i {% if name_and_sample[1].is_library %} style="color:var(--status-yes);" class="fa-solid fa-square-check" {% else %} style="color:var(--status-no);" class="fa-solid fa-times-circle"> {% endif %}</i></td>
         {% endfor %}
       </tr>
       <tr>
@@ -120,7 +120,7 @@
           {% for label_entry in name_fe_se_ph[1].function_labels|sort(attribute='timestamp', reverse=True) %}
             <p>
               {{ label_entry.function_label }}<br />
-              <span style="font-size: 0.7em; color: grey;">
+              <span style="font-size: 0.7em; color: var(--muted-text);">
                 {{ label_entry.username }} | {{ label_entry.timestamp }}
               </span>
             </p>

@@ -8,6 +8,17 @@ import click
 from flask import current_app, g
 from flask.cli import with_appcontext
 
+#: The palettes `static/style.css` defines. Stored per user because #70 asked for a
+#: setting in the profile rather than a switch: the theme is decided before the page
+#: is rendered, so there is no unthemed first paint to hide.
+KNOWN_THEMES = ('light', 'dark')
+DEFAULT_THEME = 'light'
+
+
+def normalize_theme(theme):
+    """Anything this application does not have a palette for is the default one."""
+    return theme if theme in KNOWN_THEMES else DEFAULT_THEME
+
 
 class UserInfo:
 
@@ -20,6 +31,7 @@ class UserInfo:
         self.registered = None
         self.last_login = None
         self.apitoken = None
+        self.theme = DEFAULT_THEME
 
     @classmethod
     def fromDb(cls, user_id=None, username=None):
@@ -41,6 +53,7 @@ class UserInfo:
             if record["last_login"] != "no login":
                 user_info.last_login = datetime.datetime.strptime(record["last_login"], "%Y-%m-%d %H:%M:%S.%f")
             user_info.apitoken = record["apitoken"]
+            user_info.theme = normalize_theme(record["theme"])
         else:
             user_info = None
         return user_info
@@ -59,10 +72,11 @@ class UserInfo:
             if isinstance(self.last_login, datetime.datetime):
                 database.execute("UPDATE user SET last_login = ? WHERE id = ?;",(self.last_login.strftime("%Y-%m-%d %H:%M:%S.%f"), self.user_id,))
             database.execute("UPDATE user SET apitoken = ? WHERE id = ?;",(self.apitoken, self.user_id,))
+            database.execute("UPDATE user SET theme = ? WHERE id = ?;",(normalize_theme(self.theme), self.user_id,))
         else:
             database.execute(
-                "INSERT INTO user (username, password, role, registered, last_login, apitoken) VALUES (?,?,?,?,?,?)",
-                (self.username, self.password, self.role, datetime.datetime.utcnow(), 'no login', self.apitoken),
+                "INSERT INTO user (username, password, role, registered, last_login, apitoken, theme) VALUES (?,?,?,?,?,?,?)",
+                (self.username, self.password, self.role, datetime.datetime.utcnow(), 'no login', self.apitoken, normalize_theme(self.theme)),
             )
         database.commit()
     
@@ -581,6 +595,11 @@ def migrate(app_context):
             db.execute('ALTER TABLE server ADD server_token VARCHAR')
             db.execute("UPDATE server SET server_token = ?;", ("",))
             print("EXECUTED MIGRATION: ADD SERVER_TOKEN TO TABLE SERVER")
+        # since #70, users pick a theme, ensure the column exists.
+        # NULL reads back as the default, so existing accounts need no backfill.
+        if "theme" not in user_table_columns:
+            db.execute('ALTER TABLE user ADD theme VARCHAR')
+            print("EXECUTED MIGRATION: ADD THEME TO TABLE USER")
         # since version v1.4.0, we have user_column_settings, ensure table exists
         try:
             db.execute('SELECT * FROM user_column_settings').fetchone()

@@ -110,6 +110,84 @@ CREATE TABLE server (
 """
 
 
+
+# v1.4.8: the schema the theme column arrives on top of - everything the migration
+# steps above produce, and a `user` table that still has no `theme`.
+SCHEMA_V1_4_8 = SCHEMA_V1_3_6 + """
+CREATE TABLE user_column_settings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  family_table_family_id INTEGER DEFAULT 0,
+  family_table_family_name INTEGER DEFAULT 1,
+  family_table_num_samples INTEGER DEFAULT 2,
+  family_table_num_functions INTEGER DEFAULT 3,
+  family_table_is_library INTEGER DEFAULT 4,
+  samples_table_sample_id INTEGER DEFAULT 0,
+  samples_table_sha256 INTEGER DEFAULT 1,
+  samples_table_family INTEGER DEFAULT 2,
+  samples_table_version INTEGER DEFAULT 3,
+  samples_table_filename INTEGER DEFAULT 4,
+  samples_table_bitness INTEGER DEFAULT 5,
+  samples_table_num_functions INTEGER DEFAULT 6,
+  samples_table_is_library INTEGER DEFAULT 7,
+  functions_table_function_id INTEGER DEFAULT 0,
+  functions_table_family_id INTEGER DEFAULT 1,
+  functions_table_sample_id INTEGER DEFAULT 2,
+  functions_table_pic_hash INTEGER DEFAULT 3,
+  functions_table_has_minhash INTEGER DEFAULT 4,
+  functions_table_offset INTEGER DEFAULT 5,
+  functions_table_function_name INTEGER DEFAULT 6,
+  functions_table_num_instructions INTEGER DEFAULT 7,
+  functions_table_num_blocks INTEGER DEFAULT 8,
+  result_family_table_family_name INTEGER DEFAULT 0,
+  result_family_table_version INTEGER DEFAULT 1,
+  result_family_table_sample_id INTEGER DEFAULT 2,
+  result_family_table_sha256 INTEGER DEFAULT 3,
+  result_family_table_filename INTEGER DEFAULT 4,
+  result_family_table_num_functions INTEGER DEFAULT 5,
+  result_family_table_num_minhash INTEGER DEFAULT 6,
+  result_family_table_num_pichash INTEGER DEFAULT 7,
+  result_family_table_direct_score INTEGER DEFAULT 8,
+  result_family_table_direct_nonlib_score INTEGER DEFAULT 9,
+  result_family_table_frequency_score INTEGER DEFAULT 10,
+  result_family_table_frequency_nonlib_score INTEGER DEFAULT 11,
+  result_family_table_uniq_score INTEGER DEFAULT 12,
+  result_function_unfiltered_table_matched_function_id INTEGER DEFAULT 0,
+  result_function_unfiltered_table_offset INTEGER DEFAULT 1,
+  result_function_unfiltered_table_num_bytes INTEGER DEFAULT 2,
+  result_function_unfiltered_table_num_matched_families INTEGER DEFAULT 3,
+  result_function_unfiltered_table_num_matched_samples INTEGER DEFAULT 4,
+  result_function_unfiltered_table_num_matched_functions INTEGER DEFAULT 5,
+  result_function_unfiltered_table_best_score INTEGER DEFAULT 6,
+  result_function_unfiltered_table_num_minhash INTEGER DEFAULT 7,
+  result_function_unfiltered_table_num_pichash INTEGER DEFAULT 8,
+  result_function_unfiltered_table_is_library_match INTEGER DEFAULT 9,
+  result_function_unfiltered_table_is_unique_match INTEGER DEFAULT 10,
+  result_function_sample_filtered_table_function_id_a INTEGER DEFAULT 0,
+  result_function_sample_filtered_table_offset_a INTEGER DEFAULT 1,
+  result_function_sample_filtered_table_offset_b INTEGER DEFAULT 2,
+  result_function_sample_filtered_table_function_id_b INTEGER DEFAULT 3,
+  result_function_sample_filtered_table_num_bytes INTEGER DEFAULT 4,
+  result_function_sample_filtered_table_best_score INTEGER DEFAULT 5,
+  result_function_sample_filtered_table_is_minhash_match INTEGER DEFAULT 6,
+  result_function_sample_filtered_table_is_pichash_match INTEGER DEFAULT 7,
+  result_function_sample_filtered_table_is_library_match INTEGER DEFAULT 8,
+  result_function_sample_filtered_table_is_unique_match INTEGER DEFAULT 9,
+  result_function_function_filtered_table_function_id_a INTEGER DEFAULT 0,
+  result_function_function_filtered_table_offset_a INTEGER DEFAULT 1,
+  result_function_function_filtered_table_offset_b INTEGER DEFAULT 2,
+  result_function_function_filtered_table_function_id_b INTEGER DEFAULT 3,
+  result_function_function_filtered_table_family_name_b INTEGER DEFAULT 4,
+  result_function_function_filtered_table_sample_id_b INTEGER DEFAULT 5,
+  result_function_function_filtered_table_best_score INTEGER DEFAULT 6,
+  result_function_function_filtered_table_is_minhash_match INTEGER DEFAULT 7,
+  result_function_function_filtered_table_is_pichash_match INTEGER DEFAULT 8,
+  result_function_function_filtered_table_is_library_match INTEGER DEFAULT 9,
+  result_function_function_filtered_table_is_unique_match INTEGER DEFAULT 10,
+  FOREIGN KEY (user_id) REFERENCES user (id)
+);
+"""
+
 # --- helpers ---------------------------------------------------------------------
 
 def _legacy_database(tmp_path, schema=None):
@@ -300,6 +378,38 @@ def test_a_v1_3_6_database_only_gains_column_settings(tmp_path):
     assert "user_column_settings" in _tables(db_path)
     assert _query(db_path, "SELECT apitoken FROM user") == [("preexisting-token",)]
     assert _query(db_path, "SELECT server_token FROM server") == [("srvtoken",)]
+
+
+def test_a_v1_4_8_database_only_gains_the_theme_column(tmp_path):
+    """The theme is a per-user preference, so it lands on `user` (#70). An account
+    that predates it has no theme to keep and is not backfilled - `UserInfo` reads a
+    NULL back as the default, which testTheme.py pins."""
+    db_path = _legacy_database(tmp_path, SCHEMA_V1_4_8)
+    _insert_legacy_user(db_path, "olduser", with_apitoken=True)
+    _insert_legacy_server(db_path, with_server_token=True)
+
+    assert "theme" not in _columns(db_path, "user")
+    _run_migration(tmp_path, db_path)
+
+    assert "theme" in _columns(db_path, "user")
+    assert _query(db_path, "SELECT username, apitoken, theme FROM user") == [("olduser", "preexisting-token", None)]
+    assert _query(db_path, "SELECT server_token FROM server") == [("srvtoken",)]
+
+
+def test_a_stored_theme_survives_a_second_run(tmp_path):
+    """migrate() runs on every start; a preference that reset on restart would be
+    indistinguishable from one that never saved."""
+    db_path = _legacy_database(tmp_path, SCHEMA_V1_4_8)
+    _insert_legacy_user(db_path, "olduser", with_apitoken=True)
+
+    _run_migration(tmp_path, db_path)
+    connection = sqlite3.connect(str(db_path))
+    connection.execute("UPDATE user SET theme = 'dark'")
+    connection.commit()
+    connection.close()
+    _run_migration(tmp_path, db_path)
+
+    assert _query(db_path, "SELECT theme FROM user") == [("dark",)]
 
 
 def test_the_current_schema_is_a_no_op(tmp_path):

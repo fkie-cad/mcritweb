@@ -9,6 +9,15 @@ from PIL import Image
 
 from mcritweb.views.client import get_client
 
+#: The ground a diagram is drawn on, and the grey it draws its frame and its
+#: not-matchable filler blocks in, per theme. The maps below use "nothing here" and
+#: "the paper" interchangeably - `frequency_color_map[0]` is both - so a dark
+#: diagram is the same picture with those two roles moved, not a second palette.
+THEME_GROUNDS = {
+    "light": {"ground": (0xff, 0xff, 0xff), "frame": (0x22, 0x22, 0x22)},
+    "dark": {"ground": (0x1a, 0x1d, 0x20), "frame": (0x49, 0x50, 0x57)},
+}
+
 
 def load_cached_result(result_filepath):
     result_json = {}
@@ -119,7 +128,14 @@ class MatchReportRenderer:
         num_matched_functions = len(set([match.function_id for match in self.match_report.function_matches]))
         print(f"Sample has {len(self.function_infos)} functions, {num_matchable_functions} matchable and {num_matched_functions} with matches.")
 
-    def __init__(self):
+    def __init__(self, theme="light"):
+        grounds = THEME_GROUNDS.get(theme, THEME_GROUNDS["light"])
+        self.ground = grounds["ground"]
+        self.frame_color = grounds["frame"]
+        # index 0 of the frequency map is "no families matched", which is drawn as the
+        # paper. Rebinding it here rather than at each use keeps every reader of the
+        # map - _mapConfidence, the legend, the top row - on the current ground.
+        self.frequency_color_map = {**self.frequency_color_map, 0: self.ground}
         self._function_visualization_width = 1
         self.match_report = None
         self.sample_info = None
@@ -318,14 +334,14 @@ class MatchReportRenderer:
 
     def drawFamilyLegend(self, image, x, y):
         # TODO we can use this to draw boxes and scores, via ImageDraw.Draw(image).text(...)
-        border_color_tuple = (0x22, 0x22, 0x22)
+        border_color_tuple = self.frame_color
         pixels = image.load()
         self.drawBlock(pixels, x, y, 13, border_color_tuple)
         self.drawBlock(pixels, x + 1, y + 1, 11, self.frequency_color_map[0])
 
     def renderStackedDiagram(self, filtered_family_id=None, filtered_sample_id=None, filtered_function_id=None):
-        background_color_tuple = (0xff, 0xff, 0xff)
-        border_color_tuple = (0x22, 0x22, 0x22)
+        background_color_tuple = self.ground
+        border_color_tuple = self.frame_color
         # additional line where top X families or family clusters are highlighted in flavors of the same color?
         output_map = self._calculateOutputMap(filtered_family_id=filtered_family_id, filtered_sample_id=filtered_sample_id, filtered_function_id=filtered_function_id)
         num_matchable = sum([1 for fid, item in output_map.items() if item["is_matchable"]])
@@ -354,7 +370,7 @@ class MatchReportRenderer:
         block_index = 0
         function_index = 0
         for function_id, function_output in sorted(output_map.items()):
-            top_color_tuple = (255, 255, 255)
+            top_color_tuple = self.ground
             # determine confidence color based on filter preferences
             bottom_color_tuple = self._mapConfidence(function_output["best_non_family_score"])
             if filtered_family_id is not None:
@@ -377,7 +393,7 @@ class MatchReportRenderer:
             elif filtered_sample_id is not None:
                 if function_output["best_target_sample_score"] > 0:
                     top_color_tuple = self.frequency_color_map[1]
-            library_color_tuple = (255, 255, 255)
+            library_color_tuple = self.ground
             if function_output["library_match_class"]:
                 if function_output["library_match_class"] == "M":
                     library_color_tuple = (0xfd, 0x1a, 0x20)

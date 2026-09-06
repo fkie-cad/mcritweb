@@ -14,15 +14,19 @@ Compare
   var selected = {{ cached|tojson }};
   console.log(selected)
   $(document).ready(function(){
+    // A row already in the comparison is not toggled here - it is dropped with the
+    // "x" beside it instead. That used to be recognised by comparing the row's
+    // background against the literal "yellowgreen", which is why neither tint could
+    // follow the theme; the state is a class now, and the class is what is read.
     $("tr.parent").click(function(){
-      if(this.style.backgroundColor != "yellowgreen")
+      if(!this.classList.contains("row-selected"))
       {
         if(selected.indexOf($(this).children("th.id").text()) == -1){
-        this.style.backgroundColor = "rgb(240, 240, 240)";
+        this.classList.add("row-pending");
         selected.push($(this).children("th.id").text());
         }
         else{
-          this.style.backgroundColor = "white";
+          this.classList.remove("row-pending");
           pos = selected.indexOf($(this).children("th.id").text());
           console.log(pos);
           if(pos == 0){
@@ -143,7 +147,7 @@ function handleSliderChange(val) {
         <td valign="middle">{{ sample.getShortFilename() }}</td>
         <td align="right" valign="middle">{{ "%d"|format(sample.bitness) }}</td>
         <td align="right" valign="middle">{{ "%d"|format(sample.statistics['num_functions']) }}</td>
-        <td valign="middle"><a style="color: black;" onclick="deleteSample(this)"><i class="fa-solid fa-xmark"></i></a></td>
+        <td valign="middle"><a style="color: var(--control-text);" onclick="deleteSample(this)"><i class="fa-solid fa-xmark"></i></a></td>
 
       </tr>
       {% endfor %}
@@ -171,7 +175,9 @@ function handleSliderChange(val) {
       </thead>
       <tbody>
         {% for sample in samples %}
-        <tr {% if sample.sample_id in selected_ids %} style="background-color: yellowgreen;"{% endif %}{% if sample.sample_id in cached %} style="background-color: rgb(240, 240, 240);"{% endif %}class="parent">
+        {# already in the comparison wins over already computed, as it did while these
+           were two style attributes on one tag and the parser kept the first #}
+        <tr class="parent{% if sample.sample_id in selected_ids %} row-selected{% elif sample.sample_id in cached %} row-pending{% endif %}">
           <th align="right" valign="middle" scope="row" class="id">{{ "%d"|format(sample.sample_id) }}</th>
           <td align="right" valign="middle" class="font-monospace">{{ sample.getShortSha256() }}</td>
           <td valign="middle">{{ sample.family }}</td>
@@ -221,7 +227,7 @@ function handleSliderChange(val) {
       {% endif %}
   </center>
   {% else %}
-  <center><a href='{{ url_for("data.submit") }}' style="color: #0d6efd; text-decoration: underline;" >No samples available. Click here to upload your first sample</a></center>
+  <center><a href='{{ url_for("data.submit") }}' style="color: var(--link-color); text-decoration: underline;" >No samples available. Click here to upload your first sample</a></center>
 {% endif %}
 </div>
 {% endblock %}
