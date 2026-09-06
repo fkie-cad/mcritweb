@@ -76,9 +76,17 @@ def test_a_job_id_nobody_knows_is_reported_not_crashed(client, as_role):
     assert b"was not found in the system" in response.data
 
 
-def test_job_page_renders_for_a_finished_job(client, as_role):
+@pytest.mark.parametrize(
+    "report",
+    ["matches_for_sample", "matches_for_sample_vs", "matches_for_query", "cross_compare", "unique_blocks"],
+)
+def test_job_page_renders_for_a_finished_job(client, as_role, report):
+    """This used to cover only matches_for_sample, which is the one report in the corpus
+    with no sub-jobs. The cross compare has five, none of them captured - the same shape
+    as a dependency deleted through the UI - and the page 500d on it. See
+    tests/testJobOverview.py."""
     as_role("visitor")
-    response = client.get(f"/data/jobs/{job_id_of('matches_for_sample')}")
+    response = client.get(f"/data/jobs/{job_id_of(report)}")
     assert response.status_code == 200
 
 
