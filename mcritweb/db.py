@@ -8,6 +8,46 @@ import click
 from flask import current_app, g
 from flask.cli import with_appcontext
 
+#: How the two `user` timestamps are written into their VARCHAR columns. Used on the
+#: way in and on the way out, because the two have to agree: this is what sqlite3's
+#: implicit datetime adapter used to produce, and it is what existing databases hold.
+TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+
+#: What that adapter produced when the microsecond happened to be exactly 0 -
+#: `datetime.isoformat(" ")` drops the fractional part. A row written on that
+#: microsecond cannot be read back with TIMESTAMP_FORMAT, so accept it too.
+TIMESTAMP_FORMAT_WITHOUT_MICROSECONDS = "%Y-%m-%d %H:%M:%S"
+
+
+def utc_now():
+    """The current time as a timezone-aware UTC datetime.
+
+    `datetime.utcnow()` is deprecated since 3.12 (and returned a *naive* datetime that
+    merely happened to hold UTC, which is what made it a trap). See issue #98.
+    """
+    return datetime.datetime.now(datetime.UTC)
+
+
+def format_timestamp(value):
+    """A datetime as it is stored. Explicit, so sqlite3 never has to adapt one."""
+    return value.strftime(TIMESTAMP_FORMAT)
+
+
+def parse_timestamp(value):
+    """A stored timestamp back as a timezone-aware UTC datetime.
+
+    Everything ever written here has been UTC, so the offset is knowledge we have and
+    the column does not carry - attach it rather than handing back a naive datetime
+    that the next caller has to guess about.
+    """
+    for timestamp_format in (TIMESTAMP_FORMAT, TIMESTAMP_FORMAT_WITHOUT_MICROSECONDS):
+        try:
+            parsed = datetime.datetime.strptime(value, timestamp_format)
+        except ValueError:
+            continue
+        return parsed.replace(tzinfo=datetime.UTC)
+    raise ValueError(f"Not a stored timestamp: {value!r}")
+
 
 class UserInfo:
 
@@ -36,10 +76,10 @@ class UserInfo:
             user_info.username = record["username"]
             user_info.password = record["password"]
             user_info.role = record["role"]
-            user_info.registered = datetime.datetime.strptime(record["registered"], "%Y-%m-%d %H:%M:%S.%f")
+            user_info.registered = parse_timestamp(record["registered"])
             user_info.last_login = "no login"
             if record["last_login"] != "no login":
-                user_info.last_login = datetime.datetime.strptime(record["last_login"], "%Y-%m-%d %H:%M:%S.%f")
+                user_info.last_login = parse_timestamp(record["last_login"])
             user_info.apitoken = record["apitoken"]
         else:
             user_info = None
@@ -55,14 +95,17 @@ class UserInfo:
                 database.execute("UPDATE user SET password = ? WHERE id = ?;",(self.password, self.user_id,))
             database.execute("UPDATE user SET role = ? WHERE id = ?;",(self.role, self.user_id,))
             if isinstance(self.registered, datetime.datetime):
-                database.execute("UPDATE user SET registered = ? WHERE id = ?;",(self.registered.strftime("%Y-%m-%d %H:%M:%S.%f"), self.user_id,))
+                database.execute("UPDATE user SET registered = ? WHERE id = ?;",(format_timestamp(self.registered), self.user_id,))
             if isinstance(self.last_login, datetime.datetime):
-                database.execute("UPDATE user SET last_login = ? WHERE id = ?;",(self.last_login.strftime("%Y-%m-%d %H:%M:%S.%f"), self.user_id,))
+                database.execute("UPDATE user SET last_login = ? WHERE id = ?;",(format_timestamp(self.last_login), self.user_id,))
             database.execute("UPDATE user SET apitoken = ? WHERE id = ?;",(self.apitoken, self.user_id,))
         else:
             database.execute(
                 "INSERT INTO user (username, password, role, registered, last_login, apitoken) VALUES (?,?,?,?,?,?)",
-                (self.username, self.password, self.role, datetime.datetime.utcnow(), 'no login', self.apitoken),
+                # formatted here rather than handed over as a datetime: sqlite3's
+                # implicit adapter is deprecated as of 3.12, and it wrote a value
+                # fromDb could not always read back. See issue #98.
+                (self.username, self.password, self.role, format_timestamp(utc_now()), 'no login', self.apitoken),
             )
         database.commit()
     
