@@ -47,6 +47,20 @@ def load_cached_result(app, job_id):
     return matching_result
 
 
+def find_cached_result_filename(app, job_id):
+    """Name of the newest cached report for a job, or None if none is cached.
+
+    Matches the whole `<timestamp>-<job_id>.json` name that cache_result writes,
+    rather than a substring of it as load_cached_result does: this file is handed to
+    the caller as-is, so a short or crafted job_id must not be able to select a
+    report that merely contains it. The timestamp prefix sorts chronologically, so
+    the newest capture wins for a job that has been fetched more than once.
+    """
+    cache_path = os.sep.join([app.instance_path, "cache", "results"])
+    candidates = [filename for filename in os.listdir(cache_path) if filename.endswith(f"-{job_id}.json")]
+    return max(candidates) if candidates else None
+
+
 def cache_result(app, job_info, matching_result):
     # TODO potentially implement a cache control that manages maximum allowed cache size?
     if job_info.result is not None:
@@ -215,6 +229,60 @@ def match_functions(function_id_a, function_id_b):
 ################################################################
 # Result presentation
 ################################################################
+
+# job ids are hex object ids - the same shape views/api.py accepts. Constraining
+# job_id once, at the door, is what keeps it harmless in all three places the
+# download puts it: a cache filename match, a path handed to send_from_directory,
+# and a filename in the Content-Disposition header. Matched with fullmatch rather
+# than `$`, which would also accept a trailing newline - and a newline is exactly
+# what splits a response header in two.
+JOB_ID_PATTERN = re.compile(r"[0-9a-fA-F]+")
+
+
+@bp.route('/result/<job_id>/download')
+@visitor_required
+@mcrit_server_required
+def download_result(job_id):
+    """Serve the report a job produced as a JSON file, exactly as it came from the
+    backend - i.e. what MatchingResult.fromDict consumes. See issue #75."""
+    client = get_client()
+    job_info = None
+    if JOB_ID_PATTERN.fullmatch(job_id):
+        job_info = client.getJobData(job_id)
+    if job_info is None:
+        return render_template("result_invalid.html", job_id=job_id)
+    cached_filename = find_cached_result_filename(current_app, job_id)
+    if cached_filename is not None:
+        # prefer the cache and stream the file untouched: it is byte-for-byte what
+        # the backend answered, so this costs no parse and re-encode of a report that
+        # can run to tens of megabytes, and the download cannot disagree with the
+        # page that was rendered from the same file. Nothing goes stale by preferring
+        # it - a finished job's result never changes, which is also why the cache is
+        # never invalidated.
+        cache_path = os.sep.join([current_app.instance_path, "cache", "results"])
+        return send_from_directory(
+            cache_path,
+            cached_filename,
+            mimetype='application/json',
+            as_attachment=True,
+            download_name=f"mcrit_result_{job_id}.json")
+    result_json = client.getResultForJob(job_id)
+    if not result_json:
+        # unfinished, failed, or a job type that produces nothing - the report page
+        # already knows how to tell those apart, so let it do the talking
+        flash('This job has no result to download.', category='error')
+        return redirect(url_for('data.result', job_id=job_id))
+    cache_result(current_app, job_info, result_json)
+    # the fetch above already holds the whole report as a dict, so serialising it
+    # once more is the cheap half of a cache miss; it is the cached path that keeps
+    # every later download off the heap. indent=1 as cache_result writes it, so both
+    # paths answer with the same bytes.
+    return Response(
+        json.dumps(result_json, indent=1),
+        mimetype='application/json',
+        headers={"Content-disposition":
+                f"attachment; filename=mcrit_result_{job_id}.json"})
+
 
 @bp.route('/result/<job_id>')
 @visitor_required
