@@ -14,6 +14,7 @@ answered by the suite rather than by hand.
 import io
 import json
 import logging
+import re
 
 import pytest
 
@@ -264,3 +265,72 @@ def test_a_client_that_sends_no_metadata_window_still_works(client, as_role):
     assert result["bitness"] == 64
     assert result["base_addr"] == "0x400000"
     assert result["family"] is None
+
+
+# --- what the import page says while the import runs - issue #66 -------------------
+#
+# The import page used to go silent the moment a file was dropped. Dropzone draws its
+# own upload bar, but that bar is finished once the last byte has left the browser -
+# and the *import* has not even started then. MCRIT's `/import` is a single blocking
+# POST (`McritClient.addImportData` -> `StatusResource.on_post_import`): it is not
+# queued, it hands back no job_id, and so there is no job for `job_in_progress.html`
+# to render a real percentage from. What the page can honestly do is say which phase
+# the request is in and keep saying it until the request comes back, which is what
+# these tests hold in place.
+#
+# They assert on the rendered wiring, because the behaviour itself only exists in a
+# browser; it was checked by hand against a backend stub with a slow addImportData.
+
+#: The extension emits `Dropzone.options.myDropzone = {...}` in its own script block.
+#: Scoping the assertions to it keeps them from passing on some unrelated script in
+#: base.html.
+DROPZONE_OPTIONS = re.compile(r"Dropzone\.options\.myDropzone\s*=\s*\{.*?\n\s*\};", re.DOTALL)
+
+
+def dropzone_options(page):
+    match = DROPZONE_OPTIONS.search(page)
+    assert match, "the import page no longer configures a dropzone"
+    return match.group(0)
+
+
+def test_the_import_page_says_the_upload_is_being_processed(client, as_role):
+    """Issue #66: after the drop, the page showed the file tile and nothing else for
+    however long the server took. The upload phase and the far longer server phase
+    that follows it both have to be announced, or the user cannot tell a running
+    import from a page that ignored the drop."""
+    as_role("contributor")
+    page = client.get("/data/import").get_data(as_text=True)
+    options = dropzone_options(page)
+
+    assert 'id="import-status-text"' in page, "there is nowhere to put a status message"
+    assert '.on("sending"' in options, "nothing is said when the upload starts"
+    assert '.on("uploadprogress"' in options, "the upload's own progress is not reported"
+    assert "importing the data" in options, "the wait on the server is not announced"
+
+
+def test_a_failed_import_is_not_replaced_by_the_completion_page(client, as_role):
+    """A failing import used to end up on `import_complete` being told 'This doesn't
+    seem to be valid MCRIT data in JSON format' - which is a lie when the data was
+    fine and the backend fell over. Flask-Dropzone's built-in redirect fires on
+    `queuecomplete` whatever happened, so the page has to own the redirect and take
+    the failure branch instead."""
+    as_role("contributor")
+    options = dropzone_options(client.get("/data/import").get_data(as_text=True))
+
+    assert '.on("error"' in options, "an upload error is never shown"
+    assert options.count("/data/import_complete") == 1, (
+        "more than one navigation to import_complete - the extension's unconditional "
+        "redirect is still armed alongside the page's own"
+    )
+    assert "Dropzone.ERROR" in options, "the redirect is not guarded by the error state"
+
+
+def test_the_status_line_cannot_be_built_out_of_a_filename(client, as_role):
+    """The name of a dropped file is chosen by whoever produced the file, which in a
+    malware analysis UI means it is attacker-controlled. The status line quotes it
+    back, so it has to be written as text and never as markup."""
+    as_role("contributor")
+    options = dropzone_options(client.get("/data/import").get_data(as_text=True))
+
+    assert "textContent" in options, "the status line is not written as text"
+    assert "innerHTML" not in options, "a filename reaches the page as markup"

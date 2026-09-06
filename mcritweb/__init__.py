@@ -98,7 +98,6 @@ def create_app(test_config=None, instance_path=None):
     app.register_blueprint(api.bp)
     app.config['MCRITWEB_VERSION'] = get_mcritweb_version_from_setup()
     app.config['DROPZONE_DEFAULT_MESSAGE'] = "Drop file or click here to import"
-    app.config['DROPZONE_REDIRECT_VIEW'] = 'data.import_complete'
     app.config['DROPZONE_ALLOWED_FILE_CUSTOM'] = True
     app.config['DROPZONE_ALLOWED_FILE_TYPE'] = ""
     # sends the token as an X-CSRF-Token header on every upload; it reads the token
