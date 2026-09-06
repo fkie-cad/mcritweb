@@ -17,6 +17,7 @@ def create_app(test_config=None, instance_path=None):
     from .secret_key import INSECURE_DEFAULT, load_or_create_secret_key
     from .views import administration, analyze, api, authentication, data, explore
     from .views.client import get_client
+    from .views.params import get_minhash_matching_label
     from .views.utility import ensure_local_data_paths, get_mcritweb_version_from_setup
 
     # create and configure the app
@@ -137,6 +138,12 @@ def create_app(test_config=None, instance_path=None):
     @app.template_global()
     def join_hint_strings(list_of_strings):
         return "\n".join(sorted(list_of_strings))
+
+    # a global rather than a template variable: the job table macro is reached from a
+    # dozen templates, all of which would otherwise have to pass this through
+    @app.template_global()
+    def minhash_matching_label(job_info):
+        return get_minhash_matching_label(job_info)
 
     # the user manual. Public, and deliberately not under /admin: it was the only
     # route in that blueprint without an admin gate, which made the prefix a lie.
