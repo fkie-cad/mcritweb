@@ -192,8 +192,13 @@ def functions():
         flash(f"Ups, search for {query} in MCRIT's functions failed!", category="error")
     else:
         for function_dict in results['search_results'].values():
-            #functions.append(FunctionEntry.fromDict(function_dict))
-            functions.append(function_dict)
+            # deserialized, as explore.search already does with the same values. Both
+            # feed the same function_table macro, and until now this one handed it raw
+            # dicts off the wire: invisible today only because Jinja falls back from
+            # attribute to item lookup and the keys happen to equal the attribute names.
+            # A renamed key, or any derived property, would break this page while
+            # leaving the search page working. See issue #64.
+            functions.append(FunctionEntry.fromDict(function_dict))
     user_column_setup = get_user_column_setup("functions_table")
     return render_template("functions.html", functions=functions, pagination=pagination, query=query, user_column_setup=user_column_setup)
 

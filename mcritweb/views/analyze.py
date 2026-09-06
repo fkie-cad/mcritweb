@@ -25,8 +25,14 @@ def get_unique_samples_from_search_result(search_result):
             samples.append(sample_entry)
             sample_ids.add(sample_entry.sample_id)
     id_match = search_result['id_match']
-    if id_match is not None and id_match["sample_id"] not in sample_ids:
-        samples.append(SampleEntry.fromDict(id_match))
+    if id_match is not None:
+        # deserialize before reading the id, as the loop above does and as
+        # explore.search does with the same value. `id_match` is a wire dict, and its
+        # keys equalling the entry's attribute names is a coincidence this repository
+        # does not control. See issue #64.
+        id_match_entry = SampleEntry.fromDict(id_match)
+        if id_match_entry.sample_id not in sample_ids:
+            samples.append(id_match_entry)
     return samples
 
 

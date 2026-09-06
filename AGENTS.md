@@ -37,8 +37,12 @@ This repository owns **no analysis data of its own**. Families, samples, functio
 The README states Python 3.8+; the reference deployment (`docker-mcrit`) runs **Python 3.12**. Target 3.11/3.12 for anything new.
 
 ```bash
-pip install -r requirements.txt
+make init   # requirements.txt, plus pytest/pytest-cov/ruff at the versions CI pins
 ```
+
+`pytest`, `pytest-cov` and `ruff` are not runtime dependencies, so they are not in
+`requirements.txt`; `mcrit` declares the first two under its `dev` extra, so they do
+not arrive with it either.
 
 A running MCRIT backend (server + worker + MongoDB) is required for essentially every page beyond login/register. Without it, `mcrit_server_required` flashes an error and redirects to the index.
 
@@ -120,7 +124,7 @@ Adding a **table column setting** additionally means updating `UserColumnSetting
 
 Three backends are available to tests, all offline. `fake_mcrit` is strict — an unknown method raises `NotImplementedError` naming itself, so gaps surface as actionable failures. `recording_mcrit` never raises, for asking "did this request write anything". `corpus_mcrit` serves real captured reports from `tests/fixtures/` and is what makes result pages renderable; see the README there.
 
-`corpus_mcrit` also implements the **search/cursor protocol** (`_page` in `fixtureData.py`), so `explore.*` can be tested with rows rather than against an empty result set. It models the contract the views depend on — an opaque token, a forward cursor only while results remain, a backward one only off the first page — not mcrit's cursor encoding or its `field:value` query parser; a test needing those needs a real backend. Note that `search_results` values are **dicts**, as they arrive off the wire, and the views must call `.fromDict` on them.
+`corpus_mcrit` also implements the **search/cursor protocol** (`_page` in `fixtureData.py`), so `explore.*` can be tested with rows rather than against an empty result set. It models the contract the views depend on — an opaque token, a forward cursor only while results remain, a backward one only off the first page — not mcrit's cursor encoding or its `field:value` query parser; a test needing those needs a real backend. Note that `search_results` values are **dicts**, as they arrive off the wire, and the views must call `.fromDict` on them — as must `id_match` and `sha_match`. That is the client's inconsistency, not a choice of the fake's; see [ADR-0003](docs/adr/0010-search-results-arrive-as-dicts.md) for what `mcrit` would have to change to remove the requirement.
 
 **Adding a route means adding a row to `tests/routePolicy.py`** — who may call it, and whether it writes. `testRoutePolicy.py` fails on any endpoint in the url_map without one. That table is the record of the current access policy; change a value only together with the code, so it keeps describing reality. Two sets in it, `IN_VIEW_GUARD` and `KNOWN_INERT_DECORATORS`, are ratchets: both are empty today, and both may only shrink. An entry appearing in either is a regression, not a note.
 
