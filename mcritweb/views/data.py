@@ -71,7 +71,9 @@ def create_match_diagram(app, job_id, matching_result, filtered_family_id=None, 
         renderer.processReport(matching_result)
         image = renderer.renderStackedDiagram(filtered_family_id=filtered_family_id, filtered_sample_id=filtered_sample_id, filtered_function_id=filtered_function_id)
         image.save(output_path)
-        print("stored new MCRIT diagram:", output_path)
+        # `app`, not `current_app`: this function takes an app precisely so it does
+        # not depend on a request context, and uses app.instance_path fifteen lines up.
+        app.logger.debug("stored new MCRIT diagram: %s", output_path)
 
 # https://stackoverflow.com/a/39842765
 # https://stackoverflow.com/a/26972238
@@ -187,7 +189,6 @@ def match_functions(function_id_a, function_id_b):
     client = get_client()
     if client.isFunctionId(function_id_a) and client.isFunctionId(function_id_b):
         match_info = client.getMatchFunctionVs(function_id_a, function_id_b)
-        print(match_info)
         function_entry = FunctionEntry.fromDict(match_info["function_entry_a"])
         pichash_matches_a = client.getMatchesForPicHash(function_entry.pichash, summary=True)
         sample_entry_a = SampleEntry.fromDict(match_info["sample_entry_a"])
@@ -833,9 +834,13 @@ def job_by_id(job_id):
 @mcrit_server_required
 def delete_job_by_id(job_id):
     client = get_client()
-    print("job to be deleted:", job_id)
-    job_info = client.getJobData(job_id)
-    print("job info:", job_info)
+    # deleting a job is destructive and irreversible, so it is worth a line in the
+    # log - but at info, and naming the job rather than dumping the descriptor it
+    # used to print in full on every delete.
+    current_app.logger.info("deleting job %s", job_id)
+    # the getJobData call that stood here fed nothing but the removed print - its
+    # result was never read, so every deletion paid for a backend round-trip to
+    # produce a line of stdout.
     if job_id.startswith("state_"):
         state = job_id.replace("state_", "")
         jobs = client.getQueueData(state=state)
