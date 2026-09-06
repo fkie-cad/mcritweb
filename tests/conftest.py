@@ -11,6 +11,15 @@ from werkzeug.security import generate_password_hash
 from mcritweb import create_app
 from mcritweb.db import ServerInfo, UserInfo, init_db
 
+#: The MinHash-relevant configuration this fake instance claims. `MinHashIndex.addImportData`
+#: compares an export's `config.shingler` / `config.minhash` against the receiving instance's
+#: own hashes and bare-`return`s when either differs (or when `config.version <= "0.0.0"`), so
+#: the server answers `{"status": "successful", "data": null}` and the client hands the view a
+#: `None` report. Modelling that refusal here is what lets a test drive it - from the view's
+#: side it is otherwise indistinguishable from an upload that was never MCRIT data.
+FAKE_SHINGLER_HASH = "shingler-config-hash-of-this-instance"
+FAKE_MINHASH_HASH = "minhash-config-hash-of-this-instance"
+
 
 class FakeMcritClient:
     """Stand-in for McritClient.
@@ -21,6 +30,12 @@ class FakeMcritClient:
     NotImplementedError for anything a test has not taught it yet, so gaps surface
     as actionable failures rather than silent success.
     """
+
+    #: Set on an instance to make every call answer the way a backend that rejected the
+    #: apitoken does. A class attribute rather than an instance one because `__getattr__`
+    #: below answers anything it cannot find with a callable, so a missing flag would read
+    #: as truthy. Only `addImportData` honours it so far.
+    refuses_authentication = False
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
@@ -115,19 +130,54 @@ class FakeMcritClient:
 
         The real client raises on anything that is not a dict before it reaches the
         wire, so this one does too - otherwise a view that uploads the wrong shape
-        would look like it worked. The return value is the import report the server
-        builds (MinHashIndex.addImportData), which `import_complete.html` renders as
-        a table of counters."""
+        would look like it worked. What comes back is either the import report the
+        server builds (MinHashIndex.addImportData), which `import_complete.html`
+        renders as a table of counters, or `None` - and `None` is the interesting
+        half, because it is what *four* different things look like from the view:
+
+        * the index refusing an incompatible export - `config.version <= "0.0.0"`, or
+          either config hash differing from this instance's - where it bare-`return`s
+          and the server still answers `{"status": "successful", "data": null}`;
+        * the index raising on something that is not an export: it reads `config`,
+          `content`, `family_mapping` and `sample_entries` unguarded, so a missing key
+          is a KeyError, a non-dict `config` a TypeError, and both are a 500 - which
+          `handle_response` reports as `None` as well;
+        * a rejected or missing apitoken, which falcon's AuthMiddleware answers with a
+          401 that `handle_response` has no branch for at all;
+        * any other backend failure, down to the database being unreachable.
+
+        All four are modelled here, the last two through `refuses_authentication`, so
+        that a test can hold the view to not claiming a cause it cannot tell apart.
+        """
         self._record("addImportData", import_data)
         if not isinstance(import_data, dict):
             raise ValueError("Can only forward dictionaries with export data.")
+        if self.refuses_authentication:
+            return None
+        try:
+            config = import_data["config"]
+            if config["version"] <= "0.0.0":
+                return None
+            if config["shingler"] != FAKE_SHINGLER_HASH:
+                return None
+            if config["minhash"] != FAKE_MINHASH_HASH:
+                return None
+            # everything the index goes on to read before it can count anything
+            import_data["content"]["is_compressed"]
+            family_mapping = import_data["family_mapping"]
+            sample_entries = import_data["sample_entries"]
+            function_entries = import_data["function_entries"]
+        except (KeyError, TypeError):
+            # not an export, whatever else it is: over there this is a 500
+            return None
         return {
-            "num_samples_imported": len(import_data.get("samples", {})),
+            "num_samples_imported": len(sample_entries),
             "num_samples_skipped": 0,
-            "num_functions_imported": len(import_data.get("functions", {})),
+            "num_functions_imported": len(function_entries),
             "num_functions_skipped": 0,
-            "num_families_imported": len(import_data.get("families", {})),
+            "num_families_imported": len(family_mapping),
             "num_families_skipped": 0,
+            "escaper_mismatch": False,
         }
 
     def getVersion(self, *args, **kwargs):
