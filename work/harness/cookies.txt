@@ -1,0 +1,2 @@
+# Netscape HTTP Cookie File
+127.0.0.1	FALSE	/	FALSE	0	session	eyJ1c2VyX2lkIjoxfQ.apM33Q.Of8_eJ_BtAA1q6J6ESuEjt1a2CE

@@ -34,10 +34,11 @@ This repository owns **no analysis data of its own**. Families, samples, functio
 
 ## Development setup
 
-The README states Python 3.8+; the reference deployment (`docker-mcrit`) runs **Python 3.12**. Target 3.11/3.12 for anything new.
+The README states Python 3.11+ - inherited from mcrit, which has declared it since v1.5.0; the reference deployment (`docker-mcrit`) runs **Python 3.12**. Target 3.11/3.12 for anything new.
 
 ```bash
 pip install -r requirements.txt
+pip install pytest pytest-cov   # not runtime dependencies, so not in requirements.txt
 ```
 
 A running MCRIT backend (server + worker + MongoDB) is required for essentially every page beyond login/register. Without it, `mcrit_server_required` flashes an error and redirects to the index.
