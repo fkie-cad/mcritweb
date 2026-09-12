@@ -1,9 +1,7 @@
 init:
-	pip install -r requirements.txt
-# ruff is not in requirements.txt - CI installs it pinned, see .github/workflows/test.yml
+	pip install -e ".[dev]"
 lint:
 	python3 -m ruff check .
-# pytest and pytest-cov arrive with mcrit, so requirements.txt covers both
 test:
 	python3 -m pytest
 test-coverage:

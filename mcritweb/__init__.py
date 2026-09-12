@@ -17,7 +17,7 @@ def create_app(test_config=None, instance_path=None):
     from .secret_key import INSECURE_DEFAULT, load_or_create_secret_key
     from .views import administration, analyze, api, authentication, data, explore
     from .views.client import get_client
-    from .views.utility import ensure_local_data_paths, get_mcritweb_version_from_setup
+    from .views.utility import ensure_local_data_paths, get_mcritweb_version
 
     # create and configure the app
     # instance_path is overridable so tests get their own cache/temp/uploads tree
@@ -96,7 +96,7 @@ def create_app(test_config=None, instance_path=None):
     app.register_blueprint(administration.bp)
     app.register_blueprint(data.bp)
     app.register_blueprint(api.bp)
-    app.config['MCRITWEB_VERSION'] = get_mcritweb_version_from_setup()
+    app.config['MCRITWEB_VERSION'] = get_mcritweb_version()
     app.config['DROPZONE_DEFAULT_MESSAGE'] = "Drop file or click here to import"
     app.config['DROPZONE_REDIRECT_VIEW'] = 'data.import_complete'
     app.config['DROPZONE_ALLOWED_FILE_CUSTOM'] = True

@@ -5,9 +5,11 @@ lives in functiondiff.py. See issue #88.
 """
 
 import functools
+import importlib.metadata
 import os
-import re
+import pathlib
 import shutil
+import tomllib
 
 import requests
 from flask import current_app, flash, g, redirect, session, url_for
@@ -123,15 +125,11 @@ def ensure_local_data_paths(app, clear_data=False):
             pass
 
 
-def get_mcritweb_version_from_setup():
-    this_file_path = str(os.path.abspath(__file__))
-    project_root = str(os.path.abspath(os.sep.join([this_file_path, "..", "..", ".."])))
-    setup_path = os.path.abspath(os.sep.join([project_root, "setup.py"]))
-    mcritweb_version = None
-    with open(setup_path) as fin:
-        for line in fin.readlines():
-            line = line.strip()
-            match = re.search(r'version="(?P<version_str>\d+\.\d+\.\d+)",', line)
-            if match:
-                mcritweb_version = match.group("version_str")
-    return mcritweb_version
+def get_mcritweb_version():
+    # deployed from a checkout, so pyproject.toml is the source; the installed metadata is the
+    # fallback for a wheel, where the file is not shipped
+    pyproject = pathlib.Path(__file__).resolve().parents[2] / "pyproject.toml"
+    if pyproject.is_file():
+        with pyproject.open("rb") as fin:
+            return tomllib.load(fin)["project"]["version"]
+    return importlib.metadata.version("mcritweb")
