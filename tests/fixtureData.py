@@ -157,13 +157,19 @@ class CorpusMcritClient:
 
     # --- server ------------------------------------------------------------------
 
+    # Both of these answer with the wrapped dict, because that is what the real client
+    # answers with: MinHashIndex.getStatus returns {"status": {...}} and getVersion
+    # returns {"version": "..."}, StatusResource puts each under "data", and
+    # handle_response hands "data" back untouched. Unwrapping here once more used to
+    # make /explore/statistics render an empty table under test while working in
+    # production - and hid that the admin page renders getVersion()'s dict verbatim.
     def getStatus(self, *args, **kwargs):
         self._record("getStatus", *args, **kwargs)
-        return load("status")["status"]
+        return load("status")
 
     def getVersion(self, *args, **kwargs):
         self._record("getVersion", *args, **kwargs)
-        return load("version")["version"]
+        return load("version")
 
     # --- families ----------------------------------------------------------------
 
