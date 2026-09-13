@@ -17,7 +17,7 @@ from mcritweb.views.analyze import query as analyze_query
 from mcritweb.views.authentication import contributor_required, visitor_required
 from mcritweb.views.client import get_client
 from mcritweb.views.cross_compare import get_sample_to_job_id, score_to_color
-from mcritweb.views.functiondiff import get_matches_node_colors
+from mcritweb.views.functiondiff import get_function_diff
 from mcritweb.views.MatchReportRenderer import MatchReportRenderer
 from mcritweb.views.pagination import Pagination
 from mcritweb.views.params import (
@@ -187,7 +187,6 @@ def match_functions(function_id_a, function_id_b):
     client = get_client()
     if client.isFunctionId(function_id_a) and client.isFunctionId(function_id_b):
         match_info = client.getMatchFunctionVs(function_id_a, function_id_b)
-        print(match_info)
         function_entry = FunctionEntry.fromDict(match_info["function_entry_a"])
         pichash_matches_a = client.getMatchesForPicHash(function_entry.pichash, summary=True)
         sample_entry_a = SampleEntry.fromDict(match_info["sample_entry_a"])
@@ -195,7 +194,8 @@ def match_functions(function_id_a, function_id_b):
         sample_entry_b = SampleEntry.fromDict(match_info["sample_entry_b"])
         pichash_matches_b = client.getMatchesForPicHash(other_function_entry.pichash, summary=True)
         matched_function_entry = MatchedFunctionEntry(match_info["match_entry"]["fid"], match_info["match_entry"]["num_bytes"], match_info["match_entry"]["offset"], match_info["match_entry"]["matches"])
-        node_colors = get_matches_node_colors(function_id_a, function_id_b)
+        # the entries in match_info carry their xcfg, so the diff need not fetch them again
+        function_diff = get_function_diff(function_id_a, function_id_b, function_entry, other_function_entry)
         return render_template(
             "result_compare_function_vs.html",
             entry_a=function_entry,
@@ -205,9 +205,10 @@ def match_functions(function_id_a, function_id_b):
             pichash_matches_a=pichash_matches_a,
             pichash_matches_b=pichash_matches_b,
             match_result=matched_function_entry,
-            # the template serialises this with |tojson, which escapes for a script
+            # the template serialises these with |tojson, which escapes for a script
             # context - pre-serialising here would hand it a string to re-encode
-            node_colors=node_colors
+            node_colors=function_diff["node_colors"],
+            node_matches=function_diff["node_matches"],
         )
     flash("One of the function_ids is not valid.", category='error')
     return render_template("index.html")

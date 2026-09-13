@@ -63,6 +63,7 @@ MUTATING_CLIENT_CALLS = {
     "deleteJob",
     "deleteSample",
     "modifyFamily",
+    "modifyFunction",
     "modifySample",
     "rebuildIndex",
     "recalculateMinHashes",
@@ -129,6 +130,7 @@ ROUTE_POLICY = {
     "explore.functions": (VISITOR, READ_ONLY),
     "explore.function_by_id": (VISITOR, READ_ONLY),
     "explore.fetchDotGraph": (VISITOR, READ_ONLY),
+    "explore.fetchCombinedDotGraph": (VISITOR, READ_ONLY),
     "explore.findLoops": (VISITOR, READ_ONLY),
     "explore.getPicBlockMatches": (VISITOR, READ_ONLY),
     "explore.search": (VISITOR, READ_ONLY),
@@ -168,6 +170,7 @@ ROUTE_POLICY = {
     "data.request_filename_info": (CONTRIBUTOR, READ_ONLY),   # classifies a posted filename
     "data.delete_job_by_id": (CONTRIBUTOR, WRITES_ON_POST),
     "explore.modifyFamily": (CONTRIBUTOR, WRITES_ON_POST),
+    "explore.modifyFunction": (CONTRIBUTOR, WRITES_ON_POST),
     "explore.modifySample": (CONTRIBUTOR, WRITES_ON_POST),
 
     # --- admin only --------------------------------------------------------------
