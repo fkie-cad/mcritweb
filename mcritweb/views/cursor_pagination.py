@@ -2,6 +2,8 @@ from typing import Dict, Optional
 
 from flask import Request, session, url_for
 
+from mcritweb.views.pagination import request_args_for_link_building
+
 # Sort fields each listing type offers, i.e. exactly the columns the header macros in
 # templates/table/ render a sort link for. All of them are also accepted by the
 # backend (MinHashIndex.get*SearchResults raises ValueError on anything else).
@@ -58,8 +60,6 @@ def _remember_sort(memory_key, sort_by, is_ascending):
     # every unchanged listing request free of a Set-Cookie header.
     if known != memory:
         session[SORT_MEMORY_SESSION_KEY] = known
-
-from mcritweb.views.pagination import request_args_for_link_building
 
 
 class CursorPagination:
