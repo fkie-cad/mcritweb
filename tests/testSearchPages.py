@@ -282,6 +282,71 @@ def test_paging_past_the_last_page_of_a_search_still_explains_itself(client, as_
 
     assert "Nothing matched" in page
 
+def _one_hit_that_is_also_the_id_match(entry):
+    """What mcrit answers when the search term is an entry's id *and* matches its
+    name: the same entry in `id_match` and in `search_results`, which are separate
+    fields the view reads separately."""
+    as_dict = entry.toDict()
+    return {
+        "search_results": {0: as_dict},
+        "cursor": {"forward": None, "backward": None},
+        "id_match": as_dict,
+        "sha_match": None,
+    }
+
+
+def test_a_family_that_is_both_the_id_match_and_a_hit_is_listed_once(client, as_role, fake_mcrit, monkeypatch):
+    """A family named after a number - `win.h1n1` searched for as `1`, say - comes
+    back in both fields, and the view appended both. Issue #78, which reported it for
+    samples; the sample path was deduplicated at some point and these two were not."""
+    as_role("visitor")
+    family = next(iter(fake_mcrit._families.values()))
+    monkeypatch.setattr(fake_mcrit, "search_families",
+                        lambda *args, **kwargs: _one_hit_that_is_also_the_id_match(family))
+
+    response = client.get(f"/explore/search?query={family.family_id}&type=family")
+
+    assert response.status_code == 200
+    assert response.get_data(as_text=True).count('class="family-row') == 1
+
+
+def test_a_function_that_is_both_the_id_match_and_a_hit_is_listed_once(client, as_role, fake_mcrit, monkeypatch):
+    """Function names carry offsets - `sub_401000` - so a numeric term matching both
+    an id and a name is the ordinary case here rather than a contrived one."""
+    as_role("visitor")
+    function = next(iter(fake_mcrit._functions.values()))
+    monkeypatch.setattr(fake_mcrit, "search_functions",
+                        lambda *args, **kwargs: _one_hit_that_is_also_the_id_match(function))
+
+    response = client.get(f"/explore/search?query={function.function_id}&type=function")
+
+    assert response.status_code == 200
+    assert response.get_data(as_text=True).count('class="function-row') == 1
+
+
+def test_a_sample_that_is_both_the_id_match_and_a_hit_is_still_listed_once(client, as_role, fake_mcrit, monkeypatch):
+    """The path that was already deduplicated - here so a later tidy-up cannot undo
+    it without something failing."""
+    as_role("visitor")
+    sample = next(iter(fake_mcrit._samples.values()))
+    monkeypatch.setattr(fake_mcrit, "search_samples",
+                        lambda *args, **kwargs: _one_hit_that_is_also_the_id_match(sample))
+
+    response = client.get(f"/explore/search?query={sample.sample_id}&type=sample")
+
+    assert response.status_code == 200
+    assert response.get_data(as_text=True).count('class="sample-row') == 1
+
+
+def test_distinct_families_are_all_listed(client, as_role, fake_mcrit):
+    """Deduplication that also drops distinct rows would pass every test above."""
+    as_role("visitor")
+    response = client.get("/explore/search?query=win&type=family")
+
+    expected = [f for f in fake_mcrit._families.values() if "win" in f.family_name.lower()]
+    assert len(expected) > 1, "the corpus has to hold more than one for this to mean anything"
+    assert response.get_data(as_text=True).count('class="family-row') == len(expected)
+
 
 # --- the fake's own contract -----------------------------------------------------
 
