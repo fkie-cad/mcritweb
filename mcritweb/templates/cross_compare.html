@@ -23,7 +23,7 @@ Compare
         }
         else{
           this.style.backgroundColor = "white";
-          pos = selected.indexOf($(this).children("th.id").text());
+          const pos = selected.indexOf($(this).children("th.id").text());
           console.log(pos);
           if(pos == 0){
             selected.shift();
@@ -39,12 +39,12 @@ Compare
     $('#cross_search_form').submit(function(eventObj) {
       eventObj.preventDefault();
       eventObj.stopPropagation();
-      base_url = window.location.href;
-      args = fetchState();
+      const base_url = window.location.href;
+      const args = fetchState();
       args.cache = null;
       args["query"] = $("#Search").val();
       args["_anchor"] = "Search"
-      null_keys = {{ pagination.params_list|tojson }};
+      const null_keys = {{ pagination.params_list|tojson }};
       for(var i = 0, size = null_keys.length; i < size ; i++){
         args[null_keys[i]] = null;
       }

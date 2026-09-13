@@ -40,8 +40,8 @@
     else if(button_clicked) {
       e.stopPropagation();
       button_clicked = false;
-      own_menu = $(this).find('#dropdown-menu');
-      was_visible = own_menu.is(":visible");
+      const own_menu = $(this).find('#dropdown-menu');
+      const was_visible = own_menu.is(":visible");
       $("tr.sample-row").find('#dropdown-menu').hide();
       if (!was_visible){
         $(this).find('#dropdown-menu').toggle();

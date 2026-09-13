@@ -4,7 +4,7 @@
     // name is chosen by whoever submits or renames a family, and one containing a quote
     // used to escape the string literal entirely.
     var families = {{ family_names|tojson }};
-    families_ac = [];
+    var families_ac = [];
     for (let i in families) {
         families_ac.push({label:families[i], value:families[i]})
     }

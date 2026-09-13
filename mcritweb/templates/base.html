@@ -29,7 +29,7 @@
         $("#submitFileModal").modal("show");
       }
       function clearDropzone(e) {
-        myDropzone = Dropzone.forElement("#myDropzone");
+        const myDropzone = Dropzone.forElement("#myDropzone");
         myDropzone.removeAllFiles();
       }
 

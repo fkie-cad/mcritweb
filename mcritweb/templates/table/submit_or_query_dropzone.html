@@ -72,7 +72,7 @@
 
 
   $(document).ready(function(){
-    myDropzone = Dropzone.forElement("#myDropzone");
+    const myDropzone = Dropzone.forElement("#myDropzone");
 
     myDropzone.on("removedfile", function(file) {
       if (this.files.length == 0) {
@@ -90,7 +90,7 @@
       $("#submit-dropzone").prop("disabled", false);
 
       // fill form with data derived from file name
-      filename = file.name
+      const filename = file.name
 
       let xhr = new XMLHttpRequest();
       xhr.open("POST", "{{ url_for('data.request_filename_info') }}" );
@@ -231,7 +231,7 @@ function handleSliderChange_dropzone(val) {
     // name is chosen by whoever submits or renames a family, and one containing a quote
     // used to escape the string literal entirely.
     var families = {{ families|tojson }};
-    families_ac = [];
+    var families_ac = [];
     for (let i in families) {
         families_ac.push({label:families[i], value:families[i]})
     }
