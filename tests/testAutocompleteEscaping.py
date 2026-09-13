@@ -94,6 +94,14 @@ TYPE_AHEAD_PAGES = (
     "/data/submit",
 )
 
+#: Of those, the ones that still put the names *in the page*. #146 moved
+#: `js/ac_family_names.html` onto a fetch of `explore.family_names`, so the four
+#: explore pages carry no names to inspect in their markup - the escaping for them
+#: happens in that endpoint, and testScriptEscaping.py pins it there. The markup
+#: assertion below would otherwise pass by finding nothing, which is why it fails
+#: loudly when a page it names carries no payload at all.
+EMBEDDED_NAME_PAGES = ("/data/submit",)
+
 #: The pages the browser test can drive. `/explore/families/<id>` is missing on
 #: purpose: it includes the same `js/ac_family_names.html` partial, but its sample
 #: table comes back empty under the offline corpus - `fixtureData._page` does not
@@ -143,7 +151,7 @@ def autocomplete_scripts(markup):
     return [block for block in SCRIPT_BLOCK.findall(markup) if "new Autocomplete(" in block]
 
 
-@pytest.mark.parametrize("path", TYPE_AHEAD_PAGES)
+@pytest.mark.parametrize("path", EMBEDDED_NAME_PAGES)
 def test_the_type_ahead_data_is_html_escaped(client, as_role, poisoned_backend, path):
     """No string handed to the widget may still contain raw markup.
 
@@ -202,6 +210,26 @@ FILTERED_BINDING = re.compile(
 #: The expression itself being a filtered Jinja expression, passed inline.
 FILTERED_EXPRESSION = re.compile(r"\{\{[^{}]*\|\s*autocomplete_items\b")
 
+#: `data: []` - a widget built empty and filled by a later setData, which is checked
+#: on its own merits. An empty literal carries no names, so it cannot carry markup.
+EMPTY_LITERAL = re.compile(r"\[\s*\]")
+
+#: Files whose data reaches the widget already escaped because a *server-side* caller
+#: built it, not the template filter. The filter stopped being the only way in when
+#: #146 moved the family type-ahead onto a fetch, and the ratchet cannot follow data
+#: across that boundary - it says so in its own docstring. Each entry therefore names
+#: where the escaping happens and the test that pins it, and the entries are checked
+#: for staleness below so this cannot quietly become the exception list AGENTS.md
+#: warns grows back.
+ESCAPED_AT_THE_SOURCE = {
+    "templates/js/ac_family_names.html": (
+        "fetched from explore.family_names, which answers {label, value} items built by "
+        "mcritweb.autocomplete.autocomplete_items - the same function behind the filter. "
+        "Pinned by testScriptEscaping.py::"
+        "test_a_family_name_stays_a_string_in_the_type_ahead_response."
+    ),
+}
+
 
 def strip_comments(source):
     return LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", JINJA_COMMENT.sub("", source)))
@@ -216,6 +244,10 @@ def unfiltered_data_expressions(source):
         for match in pattern.finditer(stripped):
             expression = match.group(1).strip()
             if FILTERED_EXPRESSION.search(expression) or expression in safe_names:
+                continue
+            if EMPTY_LITERAL.fullmatch(expression):
+                # a widget constructed with no data at all. Whatever fills it later is
+                # a setData call, which this same walk checks on its own merits.
                 continue
             yield stripped.count("\n", 0, match.start()) + 1, expression
 
@@ -260,11 +292,22 @@ def test_every_type_ahead_builds_its_data_through_the_escaping_filter():
     does that today.
     """
     offenders = []
+    exempt_and_still_needed = set()
     for path, source in front_end_sources():
         relative = os.path.relpath(path, PACKAGE_ROOT).replace(os.sep, "/")
         for line, expression in unfiltered_data_expressions(source):
+            if relative in ESCAPED_AT_THE_SOURCE:
+                exempt_and_still_needed.add(relative)
+                continue
             offenders.append(f"{relative}:{line} ({expression})")
     offenders.sort()
+
+    stale = set(ESCAPED_AT_THE_SOURCE) - exempt_and_still_needed
+    assert stale == set(), (
+        "ESCAPED_AT_THE_SOURCE names a file that now builds its data through the "
+        f"filter, or no longer feeds a widget at all: {sorted(stale)}. Drop the entry - "
+        "an exemption nothing needs is how the list stops being read."
+    )
 
     assert not offenders, (
         "a type-ahead is built from data the escaping filter did not produce, at: "

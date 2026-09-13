@@ -1,26 +1,57 @@
 <script>
-    // Escaped by |autocomplete_items (see mcritweb/__init__.py) before |tojson turns it
-    // into a JS literal. autocomplete.js renders each suggestion through innerHTML and
-    // into a data-label attribute, so a family name is markup there, not text - and a
-    // family name is chosen by whoever submits or renames a family. |tojson only gets
-    // the value safely into the script; the escaping is what keeps it from executing
-    // once the widget renders it. Known cost, since it is not free: the widget slices
-    // the escaped label, so a lookup landing inside an entity renders it literally.
-    var families_ac = {{ family_names|autocomplete_items|tojson }};
-    const sample_field = document.getElementById('sample_family_name');
-    if(sample_field) {
-        const ac_sample = new Autocomplete(sample_field, {
-            data: families_ac,
-            maximumItems: 5,
-            threshold: 1,
-        });
-    }
-    const family_field = document.getElementById('family_new_name');
-    if(family_field) {
-        const ac_family = new Autocomplete(family_field, {
-            data: families_ac,
-            maximumItems: 5,
-            threshold: 1,
-        });
-    }
+    // The names are fetched as they are typed rather than shipped with the page: mcrit
+    // answers "all families" with one storage lookup per family, so every listing that
+    // carries an edit modal used to pay for the whole family table whether or not
+    // anyone opened one. See issue #77.
+    (function () {
+        const familyNamesUrl = {{ url_for('explore.family_names')|tojson }};
+
+        function attachFamilyAutocomplete(field) {
+            if (!field) {
+                return;
+            }
+            let pending = null;
+            let debounce = null;
+            const completer = new Autocomplete(field, {
+                data: [],
+                maximumItems: 5,
+                threshold: 1,
+                onInput: function (typed) {
+                    window.clearTimeout(debounce);
+                    if (typed.length < 1) {
+                        // the widget's own threshold - it renders nothing below it, so
+                        // clearing the field must not cost a round trip
+                        return;
+                    }
+                    debounce = window.setTimeout(function () {
+                        if (pending) {
+                            // a keystroke has overtaken the answer to the last one
+                            pending.abort();
+                        }
+                        const request = new AbortController();
+                        pending = request;
+                        fetch(familyNamesUrl + '?q=' + encodeURIComponent(typed), {signal: request.signal})
+                            .then(function (response) { return response.ok ? response.json() : {}; })
+                            .then(function (data) {
+                                if (request !== pending) {
+                                    return;
+                                }
+                                // already {label, value}, and already escaped: the
+                                // endpoint builds them with the same function behind
+                                // |autocomplete_items, because this widget renders a
+                                // suggestion through innerHTML. See #168.
+                                completer.setData(data.suggestions || []);
+                            })
+                            // an aborted request, an expired session answering with the
+                            // login page, an unreachable backend: no suggestions, and the
+                            // field stays a plain text input
+                            .catch(function () {});
+                    }, 150);
+                },
+            });
+        }
+
+        attachFamilyAutocomplete(document.getElementById('sample_family_name'));
+        attachFamilyAutocomplete(document.getElementById('family_new_name'));
+    })();
 </script>

@@ -2,7 +2,8 @@ import datetime
 import os
 
 from flask import Flask, g, redirect, render_template, request, send_from_directory, url_for
-from markupsafe import escape
+
+from mcritweb.autocomplete import autocomplete_items
 
 #: Ceiling on TRUSTED_PROXY_COUNT. A CDN in front of a load balancer in front of NGINX
 #: is three hops; nothing real is anywhere near this. The point is that a fat-fingered
@@ -205,38 +206,13 @@ def create_app(test_config=None, instance_path=None):
     app.config['DROPZONE_ENABLE_CSRF'] = True
     Dropzone(app)
 
-    # The family type-ahead (static/autocomplete.js) builds every suggestion as an HTML
-    # string and hands it to innerHTML, so a name that *is* markup becomes script in the
-    # reader's browser as soon as they type a matching character. That file is vendored
-    # upstream code and is not ours to patch (see AGENTS.md), so the escaping happens on
-    # the way in and the widget only ever sees escaped names.
-    #
-    # |tojson is not a substitute and never was: it makes the name a correct JS *string*,
-    # and the sink is one innerHTML further on. Both fields matter and both are escaped
-    # here - the label is written into the button's text, and the same value is also
-    # interpolated into data-label="..." / data-value="...", where a bare quote is an
-    # event handler and needs no angle bracket at all.
-    #
-    # Round-tripping is unaffected: the browser decodes the entities when it parses the
-    # attribute, so the name the widget writes into the field on select, and the form
-    # then posts, is the original. *Display* is not unaffected, and saying otherwise
-    # would be wrong. The widget slices the escaped label at offsets it measured in that
-    # same escaped string (autocomplete.js:70-77), so a lookup ending inside an entity
-    # cuts it in half and the suggestion reads "R&amp;D" for a family named "R&D".
-    # Matching degrades the same way - a lookup containing one of the five escaped
-    # characters no longer substring-matches. Neither can be fixed from here:
-    # `item.label` (:110) is the one value the matcher (:114), the highlighter (:70-77)
-    # and the attribute (:90) all read, so there is no field to point at raw text for
-    # matching and escaped text for rendering. tests/testAutocompleteEscaping.py pins
-    # the behaviour rather than leaving it to this comment.
-    #
-    # `escape` stringifies, so a non-string name would arrive as e.g. "None" where the
-    # loop this replaced passed it through. Family names are always strings off the
-    # backend, and the old code handed `null` to removeDiacritics(), which threw and took
-    # the whole type-ahead with it - so this is not a regression, but it is a change.
+    # Escapes the names a type-ahead will render, because autocomplete.js is vendored
+    # and renders them through innerHTML. The reasoning, and the known display cost,
+    # are in mcritweb/autocomplete.py - which explore.family_names shares, so the two
+    # ways into the widget cannot drift apart. See #168.
     @app.template_filter('autocomplete_items')
-    def autocomplete_items(names):
-        return [{'label': str(escape(name)), 'value': str(escape(name))} for name in names]
+    def autocomplete_items_filter(names):
+        return autocomplete_items(names)
 
     @app.template_filter('silent')
     def silent(input):
