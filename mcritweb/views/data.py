@@ -348,16 +348,82 @@ def result(job_id):
         # if we can't find job or result, we have to assume the job_id was invalid
         return render_template("result_invalid.html", job_id=job_id)
 
-def build_yara_rule(job_info, blocks_result, blocks_statistics):
+#: `UniqueBlocksResult.generateYaraRule`'s own defaults, restated so the page can offer
+#: them as a form. These are not job parameters - the backend stores blocks and
+#: statistics, and the rule is composed here from that cached result on every render -
+#: so changing one reapplies to a job that already ran. See issue #93.
+YARA_RULE_DEFAULTS = {
+    "min_ins": None,
+    "max_ins": None,
+    "min_bytes": None,
+    "max_bytes": None,
+    "required_per_sample": 10,
+    "condition_required": 7,
+}
+
+#: The rule is YARA source, offered for copying straight into a scanner: "0 of them"
+#: matches nothing and a negative count does not compile. The bounds above have no such
+#: floor - generateBlockCover reads 0 as "no bound".
+#:
+#: This only floors the number the caller asks for. `renderRule` emits
+#: `min(len(block_hashes), condition_required)`, so a bound that filters every block
+#: reaches "0 of them" from underneath the clamp - see `build_yara_rule`.
+YARA_CONDITION_MINIMUM = 1
+
+#: `required_per_sample` is the one knob that costs time rather than only changing the
+#: answer: generateBlockCover picks one block per pass and rescans the rest, so asking
+#: for k blocks per sample is O(k*n). Measured against a 6124-block report, the default
+#: 10 costs 0.08s, 100 costs 0.9s and 1000 costs 24s - so an unbounded query parameter
+#: would let any visitor turn this page into a long-running request. A rule wanting more
+#: than this many strings out of one sample is not a usable YARA rule either.
+YARA_REQUIRED_PER_SAMPLE_MAXIMUM = 100
+
+
+def parse_yara_rule_params(request):
+    """The rule generation knobs as query parameters, clamped to values YARA accepts."""
+    yara_params = dict(YARA_RULE_DEFAULTS)
+    for name in YARA_RULE_DEFAULTS:
+        value = parse_integer_query_param(request, name)
+        if value is not None:
+            # a negative bound is not something the form can produce and not something a
+            # user can mean: as a minimum it filters nothing, as a maximum everything
+            yara_params[name] = max(0, value)
+    yara_params["condition_required"] = max(YARA_CONDITION_MINIMUM, yara_params["condition_required"])
+    yara_params["required_per_sample"] = min(YARA_REQUIRED_PER_SAMPLE_MAXIMUM, yara_params["required_per_sample"])
+    return yara_params
+
+
+def build_yara_rule(blocks_result, yara_params):
+    """The rule, plus the block cover it was built from - or None for no rule.
+
+    `generateYaraRule` throws the cover away, but the page reports what the rule covers,
+    and those numbers move with the parameters - so they cannot be read off the
+    statistics the backend stored under its own defaults.
+
+    A cover with no blocks in it has no rule to render. `renderRule` would still produce
+    one, but it is not YARA: an empty `strings:` section is a syntax error on its own,
+    and `min(len(block_hashes), condition_required)` writes "0 of them" underneath
+    YARA_CONDITION_MINIMUM. No condition rescues that, so nothing is offered to copy.
+    """
     ubr = UniqueBlocksResult.fromDict(blocks_result)
-    yara_rule = ubr.generateYaraRule(wrap_at=40)
-    return yara_rule
+    block_cover = ubr.generateBlockCover(
+        min_ins=yara_params["min_ins"],
+        max_ins=yara_params["max_ins"],
+        min_bytes=yara_params["min_bytes"],
+        max_bytes=yara_params["max_bytes"],
+        required_per_sample=yara_params["required_per_sample"],
+    )
+    if not block_cover["block_hashes"]:
+        return None, block_cover
+    return ubr.renderRule(block_cover, yara_params["condition_required"], wrap_at=40), block_cover
 
 def result_unique_blocks(job_info, blocks_result: dict):
     client = get_client()
     payload_params = json.loads(job_info.payload["params"])
     sample_ids = payload_params["0"]
-    sample_id = sample_ids[0]
+    # a sample set is what analyze.unique_blocks submits; the one-click buttons send a
+    # list of one, and a family job names its samples this way too
+    sample_id = sample_ids[0] if sample_ids else None
     family_id = None
     family_entry = None
     if "family_id" in payload_params:
@@ -369,7 +435,11 @@ def result_unique_blocks(job_info, blocks_result: dict):
         else:
             flash(f"No results for unique blocks in family with id {sample_id}", category="error")
     blocks_statistics = blocks_result["statistics"]
-    yara_rule = build_yara_rule(job_info, blocks_result, blocks_statistics)
+    yara_params = parse_yara_rule_params(request)
+    yara_rule, yara_cover = build_yara_rule(blocks_result, yara_params)
+    # only what the caller actually changed, so the forms can carry the rule parameters
+    # across the block filter and back without pinning the defaults into every link
+    yara_query = {name: value for name, value in yara_params.items() if value != YARA_RULE_DEFAULTS[name]}
     unique_blocks = blocks_result["unique_blocks"]
 
     paginated_blocks = []
@@ -408,7 +478,7 @@ def result_unique_blocks(job_info, blocks_result: dict):
                 paginated_blocks.append(paginated_block)
             index += 1
     # TODO pass the new result objects as single arguments and then render them in page tabs on the template
-    return render_template("result_unique_blocks.html", job_info=job_info, family_entry=family_entry, sample_id=sample_id, yara_rule=yara_rule, statistics=blocks_statistics, results=paginated_blocks, blkp=block_pagination, active_tab=active_tab)
+    return render_template("result_unique_blocks.html", job_info=job_info, family_entry=family_entry, sample_id=sample_id, sample_ids=sample_ids, yara_rule=yara_rule, yara_cover=yara_cover, yara_params=yara_params, yara_query=yara_query, statistics=blocks_statistics, results=paginated_blocks, blkp=block_pagination, active_tab=active_tab)
 
 #: Shown when a stored result names something the backend can no longer resolve. The
 #: cross-compare path has said this about samples for a long time; issue #96 is the

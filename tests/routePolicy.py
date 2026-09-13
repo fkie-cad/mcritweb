@@ -75,7 +75,9 @@ MUTATING_CLIENT_CALLS = {
     "requestMatchesForSmdaReport",
     "requestMatchesForUnmappedBinary",
     "requestUniqueBlocksForFamily",
-    "requestUniqueBlocksForSample",
+    # the method is plural - the singular spelling matched nothing on McritClient, so
+    # the detector was blind to every unique-blocks submission
+    "requestUniqueBlocksForSamples",
     "respawn",
     "updateFamily",
     "updateSample",
@@ -138,6 +140,9 @@ ROUTE_POLICY = {
     "analyze.compare_submit_query": (VISITOR, READ_ONLY),
     "analyze.cross_compare": (VISITOR, READ_ONLY),
     "analyze.cross_compare_from_hash_list": (VISITOR, READ_ONLY),
+    # the configuration page for unique blocks - it selects samples and looks them up,
+    # the submission is the separate route below. See issue #93.
+    "analyze.unique_blocks": (VISITOR, READ_ONLY),
     # Job submission by GET, deliberately: the URL names a comparison, so it is worth
     # bookmarking and sharing. Not destructive, and idempotent since issue #97 - the
     # backend returns the existing job for identical parameters unless the caller asks
@@ -146,6 +151,11 @@ ROUTE_POLICY = {
     "analyze.compare_vs": (VISITOR, WRITES_ON_GET),
     "analyze.blocks_family": (VISITOR, WRITES_ON_GET),
     "analyze.blocks_sample": (VISITOR, WRITES_ON_GET),
+    # the same shape as the two above and as start_cross_compare, and unconditionally
+    # idempotent rather than idempotent-unless-asked: neither unique-blocks method takes
+    # a force_recalculation, so mcrit answers a repeat from its descriptor cache. The
+    # route sorts and deduplicates the selection so that a repeat hashes the same.
+    "analyze.start_unique_blocks": (VISITOR, WRITES_ON_GET),
     "analyze.start_cross_compare": (VISITOR, WRITES_ON_GET),
     "analyze.query": (VISITOR, WRITES_ON_POST),
     "data.jobs": (VISITOR, READ_ONLY),

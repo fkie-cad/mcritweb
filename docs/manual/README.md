@@ -168,7 +168,11 @@ This allows you to upload a single sample, have it disassembled, and performed a
 Unique Block Isolation generates a code-based YARA rule for a family or a chosen set of samples.
 It is essentially the approach of [YARA-Signator](https://github.com/fxb-cocacoding/yara-signator), applied to basic blocks instead of instruction n-grams: find the code that occurs inside the target set and in no other family, then build a rule from it.
 
-You start it from the cubes button on a family row or on a sample row, which queues the job immediately and takes you to its job page.
+There are two ways in.
+The cubes button on a family row or a sample row queues the job immediately for that one family or sample and takes you to its job page.
+**Analyze → Unique Blocks** opens a selection page instead, where you search the corpus and build up a set of samples before submitting: the backend has always accepted a list, and this is the way to give it one.
+The selection is held in the URL, so it survives a reload and can be shared or bookmarked, and it is capped at 250 samples.
+A sample the backend will not confirm stays in the selection and is shown as unresolved rather than being dropped — a failure to look it up is not evidence that it is gone, and silently editing the set would mean the next submit analysed something other than what you chose.
 
 The job works in two steps.
 First, elimination: MCRIT takes every basic block in the selected samples and discards any block that also occurs in a sample outside the selection.
@@ -190,12 +194,20 @@ The table below breaks the same numbers down per sample, which is where you see 
 **Unique Blocks** lists the surviving blocks themselves, each with its score, picblockhash, the number of input samples it appears in, its length in instructions, the function it came from, and its disassembly alongside the byte sequence a rule would use.
 Three filters narrow the list — a minimum score, and a minimum and maximum block length — which together are the lever for trading coverage against confidence.
 
-**YARA Rule** holds the generated rule, ready to copy.
+**YARA Rule** holds the generated rule, ready to copy — when there is one.
 Blocks are chosen greedily from the scored candidates: MCRIT repeatedly takes the block covering the most samples not yet covered, until either every sample is covered or no remaining block adds anything.
 That keeps the rule as short as it can be while still reaching every sample.
 The rule is named `mcrit_` plus a short hash of the blocks it selected, so the same selection always produces the same rule name.
 Each string is the block's byte sequence with position-dependent operands wildcarded (i.e. the same normalisation PicHash uses) with the corresponding disassembly kept above it as a comment.
 The condition requires 7 of the strings to match by default, or fewer if the rule has fewer strings.
+
+That default, and the block lengths the rule is built from, can be changed on this tab.
+The bounds — a minimum and maximum length in instructions, and the same in bytes — narrow the candidates *before* the greedy selection runs, so they change which blocks the rule is made of rather than merely hiding rows.
+Tightening them trades coverage for confidence: a longer minimum gives strings that are less likely to appear by chance, and a smaller set of samples covered.
+These are applied to the cached result when the page is rendered, so changing them costs nothing and does not re-run the job — which is also why they are here and not on the submit page.
+
+A bound tight enough to exclude every block leaves a rule with no strings.
+The page says so rather than offering an empty rule to copy.
 
 
 #### Result View

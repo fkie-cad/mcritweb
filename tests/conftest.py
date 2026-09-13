@@ -161,8 +161,23 @@ class RecordingMcritClient(FakeMcritClient):
     and then look innocent. This variant lets the view run on and records what it
     reached for, at the cost of telling you nothing about response shapes.
 
-    The one shape it does commit to is the job id, because "returns None" is not a
-    thing the real client ever does for a queueing call.
+    Two shapes it does commit to, both for the same reason - "returns None" is not a
+    thing the real client ever does for them, so answering None would make this fake
+    say something false rather than say nothing:
+
+      * a queueing call answers a job id;
+      * `isSampleId` answers a bool, and answers True, because a fake that denies
+        every sample id makes every view validating one take its not-found branch,
+        which is the opposite of letting the view run on. A test that cares about a
+        *missing* id overrides the method for that id.
+
+    Deliberately only `isSampleId`, not every `is*Id`. Extending it to `isFunctionId`
+    lets `data.match_functions` past its guard and into `match_info["function_entry_a"]`
+    on the None this fake answers `getMatchFunctionVs` with - a TypeError, and a real
+    defect in that view (a backend that cannot answer takes the page down rather than
+    reporting it) that is nothing to do with the route this commitment exists for.
+    Widening this is the right thing to do together with guarding that view, not
+    before it.
     """
 
     def __getattr__(self, name):
@@ -170,6 +185,8 @@ class RecordingMcritClient(FakeMcritClient):
             self._record(name, *args, **kwargs)
             if name.startswith(QUEUEING_METHODS):
                 return FAKE_JOB_ID
+            if name == "isSampleId":
+                return True
             return None
         return _permissive
 

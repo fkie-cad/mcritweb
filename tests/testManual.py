@@ -127,5 +127,49 @@ def test_a_missing_manual_explains_itself_instead_of_raising(monkeypatch):
     assert render("/help/images/") is MISSING_MANUAL
 
 
+
+
+# --- the manual against the code it describes ------------------------------------
+#
+# The unique blocks section went stale silently: this branch added a whole selection
+# page and five rule parameters, and the manual went on describing the single-sample
+# cubes button as the only way in. Prose cannot be kept honest by review alone, so the
+# few facts in it that are also constants somewhere get pinned to their source.
+
+
+def test_the_manual_states_the_selection_cap_that_the_view_enforces():
+    """A number in prose is the first thing to rot. This one is enforced in one place,
+    so the manual can be held to it."""
+    from mcritweb.views.analyze import MAX_SELECTED_SAMPLES
+
+    assert f"{MAX_SELECTED_SAMPLES} samples" in MANUAL_PATH.read_text(encoding="utf8"), \
+        f"the manual does not state the real selection cap of {MAX_SELECTED_SAMPLES}"
+
+
+def test_the_manual_documents_every_yara_parameter_the_page_offers():
+    """Each of these is an input the reader can type into. One that nothing explains is
+    the reason the section needed rewriting in the first place."""
+    manual = MANUAL_PATH.read_text(encoding="utf8")
+    template = (REPOSITORY / "mcritweb" / "templates" / "result_unique_blocks.html").read_text(encoding="utf8")
+
+    offered = {name for name in ("min_ins", "max_ins", "min_bytes", "max_bytes",
+                                 "condition_required")
+               if f"name='{name}'" in template or f'name="{name}"' in template}
+    assert offered, "the YARA rule form no longer names its inputs the way this test reads them"
+
+    described = "instructions" in manual and "bytes" in manual and "condition" in manual
+    assert described, f"the manual does not describe the rule parameters: {sorted(offered)}"
+
+
+def test_the_manual_names_the_menu_entry_that_reaches_the_selection_page():
+    """`base.html` is what a reader clicks; the manual has to name the same thing."""
+    manual = MANUAL_PATH.read_text(encoding="utf8")
+    base_template = (REPOSITORY / "mcritweb" / "templates" / "base.html").read_text(encoding="utf8")
+
+    assert "analyze.unique_blocks" in base_template, \
+        "the Analyze menu no longer links the unique blocks selection page"
+    assert "Unique Blocks" in manual
+
+
 if __name__ == "__main__":
     unittest.main()

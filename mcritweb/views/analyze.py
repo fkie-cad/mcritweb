@@ -15,6 +15,14 @@ from mcritweb.views.utility import mcrit_server_required
 
 bp = Blueprint('analyze', __name__, url_prefix='/analyze')
 
+#: How many samples one unique blocks request may name. `requestUniqueBlocksForSamples`
+#: puts the whole list in the request *path* it builds (`/uniqueblocks/samples/1,2,3`),
+#: so an unbounded selection is a request line the mcrit server refuses rather than a
+#: slow query. It also bounds the per-sample lookups the selection page performs.
+#: Isolating the blocks unique to hundreds of samples is a family question anyway, and
+#: `blocks_family` already asks that one by id.
+MAX_SELECTED_SAMPLES = 250
+
 
 #: An SMDA report carries its own `sha256` field, and this route used to use it as the
 #: name of the file it writes into `instance/temp/uploads/`. Nothing in `SmdaReport`
@@ -59,6 +67,116 @@ def blocks_family(family_id):
 def blocks_sample(sample_id):
     client = get_client()
     job_id = client.requestUniqueBlocksForSamples([sample_id])
+    return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
+
+
+@bp.route('/unique_blocks')
+@visitor_required
+@mcrit_server_required
+def unique_blocks():
+    """Pick the sample set to isolate unique blocks for. See issue #93.
+
+    The backend has always accepted a list - only the cubes button on a sample row,
+    which passes exactly one id, reached it. The YARA rule parameters are deliberately
+    not here: they are not job parameters, `data.result` applies them to the cached
+    result at render time, so they belong on the page that shows the rule.
+    """
+    client = get_client()
+
+    selected_list = parse_integer_list_query_param(request, 'samples') or []
+    if request.args.get('samples') and not selected_list:
+        flash('The selected samples were not a list of sample ids.', category='error')
+    # order and repetition carry no meaning for a set of samples, and normalizing here
+    # keeps the selection stable across page loads and the submit link deduplicated
+    selected_list = sorted(set(selected_list))
+    if len(selected_list) > MAX_SELECTED_SAMPLES:
+        flash(f'A unique blocks request can name at most {MAX_SELECTED_SAMPLES} samples, the rest of the selection was dropped.', category='warning')
+        selected_list = selected_list[:MAX_SELECTED_SAMPLES]
+
+    pagination_selected = Pagination(request, len(selected_list), limit=10, query_param="ps", limit_param="psl")
+    # id -> entry, or None for one the backend would not resolve. Only the page being
+    # rendered is looked up: McritClient has no batched sample lookup, so resolving the
+    # whole selection here would cost one round trip per selected sample on every page
+    # view. start_unique_blocks checks the rest, once, on a deliberate submit.
+    selected_dict = {x: client.getSampleById(x) for x in selected_list[pagination_selected.start_index:pagination_selected.start_index + pagination_selected.limit]}
+    unresolved_ids = [sample_id for sample_id, sample in selected_dict.items() if sample is None]
+    if unresolved_ids:
+        # kept in the selection, not dropped. `handle_response` answers None for a 500 as
+        # readily as for a 404, so this is not evidence that the sample is gone - and
+        # editing someone's sample set on it means the next submit quietly analyses a
+        # different set. The row renders unresolved, with the same remove button as the
+        # others, so it is the reader who decides.
+        #
+        # Dropping them also meant redirecting to a cleaned selection, and the page only
+        # ever checks the ten ids it is rendering: a selection of 250 stale ids unwound
+        # ten at a time, which is 25 redirect hops. Browsers stop following around 20, so
+        # the selection that most needed cleaning was the one that could not load at all.
+        flash(f"MCRIT did not confirm sample id {', '.join(str(sample_id) for sample_id in unresolved_ids)} - they may have been deleted, or the backend may be unavailable.", category="warning")
+
+    query = request.args.get('query', "")
+    samples = []
+    pagination = CursorPagination(request, default_sort="sample_id")
+    results = client.search_samples(query, **pagination.getSearchParams(), limit=pagination.limit)
+    pagination.read_cursor_from_result(results)
+    if results is None:
+        flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
+    else:
+        samples = get_unique_samples_from_search_result(results)
+
+    return render_template(
+        "unique_blocks.html",
+        samples=samples,
+        pagination=pagination,
+        selected_ids=selected_list,
+        selected_samples=selected_dict,
+        pagination_selected=pagination_selected,
+        max_selected=MAX_SELECTED_SAMPLES,
+        query=query,
+    )
+
+
+@bp.route('/start_unique_blocks')
+@visitor_required
+@mcrit_server_required
+def start_unique_blocks():
+    client = get_client()
+    selected_list = parse_integer_list_query_param(request, 'samples')
+    if not selected_list:
+        # a list that was sent but is unparseable is a different problem from no
+        # selection at all, and telling someone to select a sample on a page where
+        # several are selected is how #94 stayed hidden in cross_compare
+        if request.args.get('samples'):
+            flash('The samples to isolate unique blocks for were not a list of sample ids.', category='error')
+        else:
+            flash('Please select at least one sample to isolate unique blocks for.', category='error')
+        return redirect(url_for('analyze.unique_blocks'))
+    # neither unique blocks method takes force_recalculation, so mcrit answers a repeat
+    # out of its descriptor cache with the job it already has - but only for a request
+    # that hashes the same. The list is part of that hash, so [2, 1] and [1, 2] would
+    # otherwise run the same analysis twice.
+    sample_ids = sorted(set(selected_list))
+    if len(sample_ids) > MAX_SELECTED_SAMPLES:
+        flash(f'A unique blocks request can name at most {MAX_SELECTED_SAMPLES} samples.', category='error')
+        return redirect(url_for('analyze.unique_blocks', samples=request.args.get('samples')))
+    # every id, not just the ten the selection page happened to render. The page checks
+    # the slice it is showing, so an id that scrolled off it, a stale one whose sample
+    # was deleted since, or a hand-written query string all reached the backend and
+    # queued a job that could only fail. Bounded by MAX_SELECTED_SAMPLES above, and
+    # paid once on a deliberate submit rather than on every page view.
+    unknown_ids = [sample_id for sample_id in sample_ids if not client.isSampleId(sample_id)]
+    if unknown_ids:
+        # the selection comes back whole. isSampleId is False for a 500 as well as for a
+        # 404, so removing these would rewrite the sample set on a backend hiccup and the
+        # retry would silently analyse a different one. Refusing to submit is the part
+        # that is certainly right; the selection page is where the set gets edited.
+        flash(f"MCRIT did not confirm sample id {', '.join(str(sample_id) for sample_id in unknown_ids)} - they may have been deleted, or the backend may be unavailable. Nothing was submitted.", category='error')
+        return redirect(url_for('analyze.unique_blocks', samples=",".join(str(sample_id) for sample_id in sample_ids)))
+    job_id = client.requestUniqueBlocksForSamples(sample_ids)
+    if job_id is None:
+        # the client answers None for anything that was not a 200, and url_for cannot
+        # build the job link from that
+        flash('MCRIT did not accept the unique blocks request.', category='error')
+        return redirect(url_for('analyze.unique_blocks', samples=",".join([str(id) for id in sample_ids])))
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
 
