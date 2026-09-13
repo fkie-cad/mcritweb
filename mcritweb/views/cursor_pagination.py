@@ -131,8 +131,10 @@ class CursorPagination:
         return result
     
     def read_cursor_from_result(self, result):
+        # a SearchPage (mcritweb.views.search) or the wire dict of a search endpoint
         if result is not None:
-            self.cursor.update(result["cursor"])
+            cursor = result.cursor if hasattr(result, "cursor") else result["cursor"]
+            self.cursor.update(cursor)
             self._repairPage()
 
     def get_link(self, direction, **kwargs_overwrites):

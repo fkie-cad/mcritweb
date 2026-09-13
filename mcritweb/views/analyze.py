@@ -3,7 +3,6 @@ import os
 import re
 
 from flask import Blueprint, current_app, flash, g, json, redirect, render_template, request, url_for
-from mcrit.storage.SampleEntry import SampleEntry
 from smda.common.SmdaReport import SmdaReport
 
 from mcritweb.views.authentication import visitor_required
@@ -11,23 +10,18 @@ from mcritweb.views.client import get_client
 from mcritweb.views.cursor_pagination import CursorPagination
 from mcritweb.views.pagination import Pagination
 from mcritweb.views.params import parse_band_range, parse_checkbox_query_param, parse_integer_list_query_param
+from mcritweb.views.search import search_page
 from mcritweb.views.utility import mcrit_server_required
 
 bp = Blueprint('analyze', __name__, url_prefix='/analyze')
 
 
 def get_unique_samples_from_search_result(search_result):
-    samples = []
-    sample_ids = set()
-    for sample_dict in search_result['search_results'].values():
-        sample_entry = SampleEntry.fromDict(sample_dict)
-        if sample_entry.sample_id not in sample_ids:
-            samples.append(sample_entry)
-            sample_ids.add(sample_entry.sample_id)
-    id_match = search_result['id_match']
-    if id_match is not None and id_match["sample_id"] not in sample_ids:
-        samples.append(SampleEntry.fromDict(id_match))
-    return samples
+    """the page's samples, then the id / sha256 direct matches not already among them"""
+    unique = {sample_entry.sample_id: sample_entry for sample_entry in search_result.entries}
+    for direct_match in search_result.direct_matches:
+        unique.setdefault(direct_match.sample_id, direct_match)
+    return list(unique.values())
 
 
 @bp.route('/blocks/family/<int:family_id>')
@@ -101,7 +95,7 @@ def cross_compare_from_hash_list():
 
         # fill up search part with all samples
         pagination = CursorPagination(request, default_sort="sample_id")
-        results = client.search_samples("", **pagination.getSearchParams(), limit=pagination.limit)
+        results = search_page(client, "samples", "", **pagination.getSearchParams(), limit=pagination.limit)
         pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
@@ -154,7 +148,7 @@ def cross_compare():
     query = request.args.get('query', "")
     samples = []
     pagination = CursorPagination(request, default_sort="sample_id")
-    results = client.search_samples(query, **pagination.getSearchParams(), limit=pagination.limit)
+    results = search_page(client, "samples", query, **pagination.getSearchParams(), limit=pagination.limit)
     pagination.read_cursor_from_result(results)
     if results is None:
         flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
@@ -214,7 +208,7 @@ def compare():
     query = request.args.get('query', "")
     samples = []
     pagination = CursorPagination(request, default_sort="sample_id")
-    results = client.search_samples(query, **pagination.getSearchParams(), limit=pagination.limit)
+    results = search_page(client, "samples", query, **pagination.getSearchParams(), limit=pagination.limit)
     pagination.read_cursor_from_result(results)
     if results is None:
         flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
@@ -241,9 +235,9 @@ def compare_versus():
     parameters = {}
     for a_or_b in "ab":
         query = request.args.get(f'query_{a_or_b}', "")
-        samples = {}
+        samples = []
         pagination = CursorPagination(request, default_sort="sample_id", query_param_prefix=a_or_b)
-        results = client.search_samples(query, **pagination.getSearchParams(), limit=pagination.limit)
+        results = search_page(client, "samples", query, **pagination.getSearchParams(), limit=pagination.limit)
         pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")

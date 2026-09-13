@@ -2,14 +2,12 @@ import time
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from mcrit.queue.JobCollection import JobCollection
-from mcrit.storage.FamilyEntry import FamilyEntry
-from mcrit.storage.FunctionEntry import FunctionEntry
-from mcrit.storage.SampleEntry import SampleEntry
 
 import mcritweb.views.cfg_explorer_detector as cfg_explorer_detector
 from mcritweb.views.authentication import contributor_required, visitor_required
 from mcritweb.views.client import get_client
 from mcritweb.views.cursor_pagination import CursorPagination
+from mcritweb.views.search import search_page
 from mcritweb.views.utility import get_user_column_setup, mcrit_server_required
 
 bp = Blueprint('explore', __name__, url_prefix='/explore')
@@ -77,13 +75,12 @@ def families():
     client = get_client()
     families = []
     pagination = CursorPagination(request, default_sort="family_id", limit=25)
-    results = client.search_families(query, **pagination.getSearchParams(), limit=pagination.limit)
+    results = search_page(client, "families", query, **pagination.getSearchParams(), limit=pagination.limit)
     pagination.read_cursor_from_result(results)
     if results is None:
         flash(f"Ups, search for {query} in MCRIT's families failed!", category="error")
     else:
-        for family_dict in results['search_results'].values():
-            families.append(FamilyEntry.fromDict(family_dict))
+        families = results.entries
     all_families = client.getFamilies()
     family_names = [family_entry.family_name for family_entry in all_families.values()]
     user_column_setup = get_user_column_setup("family_table")
@@ -157,13 +154,12 @@ def samples():
     client = get_client()
     samples = []
     pagination = CursorPagination(request, default_sort="sample_id", limit=25)
-    results = client.search_samples(query, **pagination.getSearchParams(), limit=pagination.limit)
+    results = search_page(client, "samples", query, **pagination.getSearchParams(), limit=pagination.limit)
     pagination.read_cursor_from_result(results)
     if results is None:
         flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
     else:
-        for sample_dict in results['search_results'].values():
-            samples.append(SampleEntry.fromDict(sample_dict))
+        samples = results.entries
 
     jobs = client.getQueueData()
     job_collection = JobCollection(jobs)
@@ -186,14 +182,12 @@ def functions():
     client = get_client()
     functions = []
     pagination = CursorPagination(request, default_sort="function_id", limit=25)
-    results = client.search_functions(query, **pagination.getSearchParams(), limit=pagination.limit)
+    results = search_page(client, "functions", query, **pagination.getSearchParams(), limit=pagination.limit)
     pagination.read_cursor_from_result(results)
     if results is None:
         flash(f"Ups, search for {query} in MCRIT's functions failed!", category="error")
     else:
-        for function_dict in results['search_results'].values():
-            #functions.append(FunctionEntry.fromDict(function_dict))
-            functions.append(function_dict)
+        functions = results.entries
     user_column_setup = get_user_column_setup("functions_table")
     return render_template("functions.html", functions=functions, pagination=pagination, query=query, user_column_setup=user_column_setup)
 
@@ -213,13 +207,12 @@ def family_by_id(family_id):
         client = get_client()
         samples = []
         pagination = CursorPagination(request, default_sort="sample_id", limit=25)
-        results = client.search_samples(query, **pagination.getSearchParams(), limit=pagination.limit)
+        results = search_page(client, "samples", query, **pagination.getSearchParams(), limit=pagination.limit)
         pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
         else:
-            for sample_dict in results['search_results'].values():
-                samples.append(SampleEntry.fromDict(sample_dict))
+            samples = results.entries
         all_families = client.getFamilies()
         family_names = [family_entry.family_name for family_entry in all_families.values()]
 
@@ -246,7 +239,7 @@ def sample_by_id(sample_id):
         query = f"sample_id:{sample_id} {original_query}"
         functions = []
         pagination = CursorPagination(request, default_sort="function_id", limit=100)
-        results = client.search_functions(query, **pagination.getSearchParams(), limit=pagination.limit)
+        results = search_page(client, "functions", query, **pagination.getSearchParams(), limit=pagination.limit)
         pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's functions failed!", category="error")
@@ -254,8 +247,7 @@ def sample_by_id(sample_id):
             jobs = client.getQueueData(filter=sample_id)
             job_collection = JobCollection(jobs)
             job_collection.filterToSampleIds([sample_id])
-            for function_dict in results['search_results'].values():
-                functions.append(FunctionEntry.fromDict(function_dict))
+            functions = results.entries
         all_families = client.getFamilies()
         family_names = [family_entry.family_name for family_entry in all_families.values()]
         samples_by_id = {}
@@ -362,58 +354,35 @@ def search():
     family_pagination = None
     if 'family' in types:
         family_pagination = CursorPagination(request, query_param_prefix="family", default_sort="family_id", limit=25)
-        results = client.search_families(query, **family_pagination.getSearchParams(), limit=family_pagination.limit)
+        results = search_page(client, "families", query, **family_pagination.getSearchParams(), limit=family_pagination.limit)
         family_pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's families failed!", category="error")
         else:
-            id_match = results['id_match']
-            if id_match is not None:
-                family = FamilyEntry.fromDict(id_match)
-                families.append(family)
-            for family_entry in results['search_results'].values():
-                family = FamilyEntry.fromDict(family_entry)
-                families.append(family) 
+            families = results.direct_matches + results.entries
 
-    samples = {}
+    samples = []
     sample_pagination = None
     if 'sample' in types:
         sample_pagination = CursorPagination(request, query_param_prefix="sample", default_sort="sample_id", limit=25)
-        results = client.search_samples(query, **sample_pagination.getSearchParams(), limit=sample_pagination.limit)
+        results = search_page(client, "samples", query, **sample_pagination.getSearchParams(), limit=sample_pagination.limit)
         sample_pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
         else:
-            sha_match = results['sha_match']
-            if sha_match is not None:
-                sample_entry = SampleEntry.fromDict(sha_match)
-                samples[sample_entry.sample_id] = sample_entry
-            id_match = results['id_match']
-            if id_match is not None:
-                # both of these arrive as dicts off the wire, like sha_match above -
-                # which is the one branch here that deserialises before reading a field
-                sample_entry = SampleEntry.fromDict(id_match)
-                samples[sample_entry.sample_id] = sample_entry
-            for sample_dict in results['search_results'].values():
-                sample_entry = SampleEntry.fromDict(sample_dict)
-                samples[sample_entry.sample_id] = sample_entry
-    # deduplicate in case we have cases such as filename == sha256
-    samples = list(samples.values())
+            # deduplicated, in case we have cases such as filename == sha256
+            samples = results.unique_entries("sample_id")
 
     functions = []
     function_pagination = None
     if 'function' in types:
         function_pagination = CursorPagination(request, query_param_prefix="function", default_sort="function_id", limit=25)
-        results = client.search_functions(query, **function_pagination.getSearchParams(), limit=function_pagination.limit)
+        results = search_page(client, "functions", query, **function_pagination.getSearchParams(), limit=function_pagination.limit)
         function_pagination.read_cursor_from_result(results)
         if results is None:
             flash(f"Ups, search for {query} in MCRIT's functions failed!", category="error")
         else:
-            id_match = results['id_match']
-            if id_match is not None:
-                functions.append(FunctionEntry.fromDict(id_match))
-            for function_dict in results['search_results'].values():
-                functions.append(FunctionEntry.fromDict(function_dict))
+            functions = results.direct_matches + results.entries
 
     family_column_setup = get_user_column_setup("family_table")
     sample_column_setup = get_user_column_setup("samples_table")
