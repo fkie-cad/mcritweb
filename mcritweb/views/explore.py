@@ -10,6 +10,7 @@ import mcritweb.views.cfg_explorer_detector as cfg_explorer_detector
 from mcritweb.views.authentication import contributor_required, visitor_required
 from mcritweb.views.client import get_client
 from mcritweb.views.cursor_pagination import CursorPagination
+from mcritweb.views.functiondiff import get_combined_dot_graph
 from mcritweb.views.utility import get_user_column_setup, mcrit_server_required
 
 bp = Blueprint('explore', __name__, url_prefix='/explore')
@@ -303,6 +304,18 @@ def fetchDotGraph(function_id):
                 replacement = f',comment="0x{pbh_by_offset[smda_block.offset]["hash"]:x}"{needle}'
             dot_graph = dot_graph.replace(needle, replacement)
         return dot_graph
+    return ""
+
+# helper for @bp.route('/matches/function/<function_id_a>/<function_id_b>') in data.py:
+# the bindiff-style "combined" view of issue #74, both functions merged into one graph
+@bp.route('/fetchCombinedDotGraph/<int(signed=True):function_id_a>/<int(signed=True):function_id_b>', methods=['GET'])
+@visitor_required
+@mcrit_server_required
+def fetchCombinedDotGraph(function_id_a, function_id_b):
+    client = get_client()
+    if client.isFunctionId(function_id_a) and client.isFunctionId(function_id_b):
+        # a function without disassembly yields an empty graph
+        return get_combined_dot_graph(function_id_a, function_id_b)
     return ""
 
 # helper for @bp.route('/functions/<int:function_id>')

@@ -160,6 +160,21 @@
           </td>
         {% endfor %}
       </tr>
+      <tr>
+        <td valign="middle">MinHash: </td>
+        {% for name_fe_se_ph in varargs %}
+          <td valign="middle">
+            {% if name_fe_se_ph[1].minhash|length > 0 %}
+              <i style="color:green;" class="fa-solid fa-square-check" title="MinHash available"></i>
+              <span class="font-monospace">{{ name_fe_se_ph[1].minhash.hex()[:16] }}&hellip;</span> {{ clipboard_btn(name_fe_se_ph[1].minhash.hex()) }}
+              ({{ name_fe_se_ph[1].minhash|length // 4 }} x 32 bit)
+            {% else %}
+              <i style="color:darkred;" class="fa-solid fa-times-circle" title="No MinHash"></i> not calculated
+              <span style="font-size: 0.8em; color: grey;">(too small to be minhashed, or the MinHash job has not run yet)</span>
+            {% endif %}
+          </td>
+        {% endfor %}
+      </tr>
     </tbody>
   </table>
 {% endmacro %}

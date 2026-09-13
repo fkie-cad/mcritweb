@@ -18,6 +18,7 @@ import json
 import pathlib
 import re
 
+from mcrit.matchers.MatcherInterface import MatcherFlags
 from mcrit.queue.LocalQueue import Job
 from mcrit.storage.FamilyEntry import FamilyEntry
 from mcrit.storage.FunctionEntry import FunctionEntry
@@ -43,6 +44,11 @@ def load(name):
 def job_id_of(report):
     """The job id a report fixture was captured under."""
     return load(f"{report}.job")["_id"]["$oid"]
+
+
+#: The sample the captured 1-vs-N report (`matches_for_sample`) was produced for, and
+#: the sample the reference functions belong to.
+MATCHED_SAMPLE_ID = 0
 
 
 # --- the search/cursor protocol ------------------------------------------------
@@ -219,6 +225,72 @@ class CorpusMcritClient:
     def isFunctionId(self, function_id, *args, **kwargs):
         self._record("isFunctionId", function_id, *args, **kwargs)
         return int(function_id) in self._functions
+
+    # --- direct function matching --------------------------------------------------
+    #
+    # What MinHashIndex.getMatchesFunctionVs builds, minus the MinHash score, which
+    # needs the backend's minhash configuration: the score is None, as it is for a
+    # backend whose functions carry no MinHash, and the flags follow from the data.
+
+    def getMatchFunctionVs(self, function_id_a, function_id_b, *args, **kwargs):
+        self._record("getMatchFunctionVs", function_id_a, function_id_b, *args, **kwargs)
+        function_a = self._functions.get(int(function_id_a))
+        function_b = self._functions.get(int(function_id_b))
+        if function_a is None or function_b is None:
+            return None
+        sample_a = self._samples[function_a.sample_id]
+        sample_b = self._samples[function_b.sample_id]
+        match_flags = 0
+        match_flags += MatcherFlags.IS_PICHASH_FLAG if function_a.pichash == function_b.pichash else 0
+        match_flags += MatcherFlags.IS_LIBRARY_FLAG if sample_b.is_library else 0
+        return {
+            "function_entry_a": function_a.toDict(),
+            "function_entry_b": function_b.toDict(),
+            "sample_entry_a": sample_a.toDict(),
+            "sample_entry_b": sample_b.toDict(),
+            "match_entry": {
+                "fid": function_a.function_id,
+                "num_bytes": function_a.binweight,
+                "offset": function_a.offset,
+                "matches": [function_b.family_id, function_b.sample_id, function_b.function_id, None, match_flags],
+            },
+        }
+
+    def getMatchesForPicHash(self, pichash, summary=False, *args, **kwargs):
+        """Counts over the corpus, as the backend's /query/pichash/<hash>/summary answers."""
+        self._record("getMatchesForPicHash", pichash, summary=summary, *args, **kwargs)
+        hits = [entry for entry in self._functions.values() if entry.pichash == pichash]
+        return {
+            "families": len({entry.family_id for entry in hits}),
+            "samples": len({entry.sample_id for entry in hits}),
+            "functions": len(hits),
+        }
+
+    def getMatchesForPicBlockHash(self, picblockhash, summary=False, *args, **kwargs):
+        self._record("getMatchesForPicBlockHash", picblockhash, summary=summary, *args, **kwargs)
+        hits = [entry for entry in self._functions.values() if any(block["hash"] == picblockhash for block in entry.picblockhashes)]
+        return {
+            "families": len({entry.family_id for entry in hits}),
+            "samples": len({entry.sample_id for entry in hits}),
+            "functions": len(hits),
+        }
+
+    # --- job submission ----------------------------------------------------------
+
+    def requestMatchesForSample(self, sample_id, *args, **kwargs):
+        """mcrit deduplicates by descriptor and answers the job it already has.
+
+        The corpus holds exactly one captured 1-vs-N job, for the sample its reference
+        functions belong to, so that is the only submission this can answer. Anything
+        else is a gap in the fixtures rather than a job, and says so.
+        """
+        self._record("requestMatchesForSample", sample_id, *args, **kwargs)
+        if int(sample_id) != MATCHED_SAMPLE_ID:
+            raise NotImplementedError(
+                f"The corpus has no captured 1-vs-N job for sample {sample_id}, only for "
+                f"sample {MATCHED_SAMPLE_ID}. Capture one with tests/fixtures/regenerate.py."
+            )
+        return job_id_of("matches_for_sample")
 
     # --- jobs and results --------------------------------------------------------
 

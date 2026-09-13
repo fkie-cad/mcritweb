@@ -56,6 +56,10 @@
   g = null;  // The main graph 
   var graph_to_display_a = null;
   var graph_to_display_b = null;
+  // mcritweb, issue #74: the zoom behaviour of each graph, keyed "a" / "b", so that
+  // function_compare.js can synchronise and re-centre them. `zoom` below is a
+  // single global that showGraph() overwrites per graph and cannot serve for that.
+  var graph_zooms = {};
 
   var traceText; // The trace file
   var codes = []; // The array of blocks forming the text on the right side
@@ -2147,6 +2151,12 @@ function highlightUERs(UERtype){
       // .translate([0 , 20])
       .scale(initialScale)
       .event(svg);
+
+    // mcritweb, issue #74: hand the rendered graph to function_compare.js
+    graph_zooms[graph_id] = {zoom: zoom, svg: svg, inner: inner, initialScale: initialScale};
+    if (typeof onGraphShown === "function") {
+      onGraphShown(graph_id);
+    }
   
   var nodes = svg.selectAll("g.node.enter");
   var brush = svg.append("g")
@@ -2689,10 +2699,12 @@ function highlightUERs(UERtype){
           if(nodeId in nodeToTextGroups){
             textToHighlight = nodeToTextGroups[nodeId];
           } else {
+            // mcritweb: this page has no #text_code panel, and a d3 selection is not
+            // the array of selections the loop below expects - it threw on every hover
             textToHighlight = d3.selectAll("#text_code p")
               .filter(function(d) {
                 return nodeId === d;
-              });
+              })[0].map(function(node) { return d3.select(node); });
           }
 
         }

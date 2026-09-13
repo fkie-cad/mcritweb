@@ -272,6 +272,53 @@ def compare_all(sample_id_a):
     job_id = client.requestMatchesForSample(sample_id_a, force_recalculation=rematch, band_matches_required=minhash_band_range)
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
+@bp.route('/compare_function/<int:function_id>')
+@visitor_required
+@mcrit_server_required
+def compare_function(function_id):
+    """1 vs N for a single function, which the backend only knows how to do per sample.
+
+    So this is the parent sample's match job, read through the function filter that
+    `data.result` already implements as `?funid=`. Before issue #35 the Analyze button
+    on a function row pointed at the sample picker instead, which lost the function.
+
+    An existing job is reused - `force_recalculation` defaults to False, as on
+    `compare_all` since issue #97 - because a table of function rows is a table of
+    clicks and each one would otherwise queue a full sample match. `?rematch=true`
+    still forces a fresh job for a result that has gone stale.
+
+    The route only accepts a non-negative id: a query sample's functions are numbered
+    negatively and have no sample in the database to match against.
+    """
+    client = get_client()
+    function_entry = client.getFunctionById(function_id)
+    if function_entry is None:
+        flash(f"There is no function with id {function_id}.", category='error')
+        return redirect(url_for('explore.functions'))
+    rematch = parse_checkbox_query_param(request, 'rematch')
+    minhash_band_range = parse_band_range(request)
+    job_id = client.requestMatchesForSample(function_entry.sample_id, force_recalculation=rematch, band_matches_required=minhash_band_range)
+    if job_id is None:
+        # `handle_response` answers None for every non-200 - 400, 404, 410, 500, 501 and
+        # the fall-through alike - so a backend that refused the job is indistinguishable
+        # here from one that is down. Either way there is no id, and `url_for` is then
+        # handed job_id=None: werkzeug drops a None value rather than rendering it, then
+        # cannot build the rule without it and raises BuildError. That is a 500 with a
+        # traceback where a sentence was owed.
+        #
+        # Every sibling route in this module needs the same guard and gets it from
+        # issue #43's `require_result`. This route is the one that fix could not cover,
+        # because it does not exist on that branch - it arrives with this one.
+        #
+        # The fallback is the listing rather than this function's own page, so a backend
+        # that is genuinely down does not answer with a second, wrong message ("There is
+        # no function with id N") stacked on top of this one.
+        flash('Ups, MCRIT would not start the job.', category='error')
+        return redirect(url_for('explore.functions'))
+    # forward=1 so a job that is already finished goes straight to the report; while it
+    # is still running the job page auto-refreshes and carries funid along until it is
+    return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3, forward=1, funid=function_id))
+
 @bp.route('/compare/<sample_id_a>/<sample_id_b>')
 @visitor_required
 @mcrit_server_required
