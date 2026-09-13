@@ -728,7 +728,13 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         create_match_diagram(current_app, job_info.job_id, matching_result, filtered_family_id=filtered_family_id)
         sample_pagination = Pagination(request, matching_result.num_sample_matches, limit=10, query_param="samp", limit_param="sampl")
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), limit=100, query_param="funp", limit_param="funl")
-        return render_template("result_compare_family.html", famid=filtered_family_id, job_info=job_info, samp=sample_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider, ucs_famlib=user_column_setup_family_library, ucs_functions=user_column_setup_function_all) 
+        # result_compare_family.html and result_compare_all.html draw one row per matched
+        # function of the reference sample, aggregated over the samples it matched, and print
+        # "filtered" as the rest of the report beside it. That subtraction only means anything
+        # if both sides count the same thing, so the total goes in aggregated too - taken off
+        # the raw match count, it read as a four-figure "filtered" with no filter applied.
+        num_original_aggregated_functions = len(matching_result.getAggregatedFunctionMatches(unfiltered=True))
+        return render_template("result_compare_family.html", famid=filtered_family_id, job_info=job_info, samp=sample_pagination, funp=function_pagination, num_original_aggregated_functions=num_original_aggregated_functions, matching_result=matching_result, scp=score_color_provider, ucs_famlib=user_column_setup_family_library, ucs_functions=user_column_setup_function_all) 
     # filtered for sample
     elif filtered_sample_id is not None and client.isSampleId(filtered_sample_id):
         matching_result.filterToSampleId(filtered_sample_id)
@@ -739,7 +745,12 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         if not assign_matched_offsets(client, matching_result.filtered_function_matches):
             return render_template("result_corrupted.html", reason=MISSING_ENTRIES_REASON, job_info=job_info)
         sample_pagination = Pagination(request, 1, limit=10, query_param="samp", limit_param="sampl")
-        function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), limit=100, query_param="funp", limit_param="funl")
+        # result_compare_sample.html draws one row per function match (it has an Offset B and a
+        # Function B column, which only an individual match has), so it slices getFunctionsSlice
+        # and this has to count the same list. Aggregating collapses the several functions of
+        # this sample that one query function can match, and paginating over that count left the
+        # tail of the table on no page at all.
+        function_pagination = Pagination(request, matching_result.num_function_matches, limit=100, query_param="funp", limit_param="funl")
         return render_template("result_compare_sample.html", samid=filtered_sample_id, job_info=job_info, samp=sample_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider, ucs_famlib=user_column_setup_family_library, ucs_functions=user_column_setup_function_sample) 
     # filter for function - treat family/sample part as if there was no filter
     elif filtered_function_id is not None and filtered_function_id in matching_result.function_id_to_family_ids_matched:
@@ -768,7 +779,9 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
         family_pagination = Pagination(request, matching_result.num_family_matches, limit=10, query_param="famp", limit_param="fampl")
         library_pagination = Pagination(request, matching_result.num_library_matches, limit=10, query_param="libp", limit_param="libl")
         function_pagination = Pagination(request, len(matching_result.getAggregatedFunctionMatches()), limit=100, query_param="funp", limit_param="funl")
-        return render_template("result_compare_all.html", job_info=job_info, famp=family_pagination, libp=library_pagination, funp=function_pagination, matching_result=matching_result, scp=score_color_provider, ucs_famlib=user_column_setup_family_library, ucs_functions=user_column_setup_function_all)
+        # the total behind the "filtered" figure, aggregated to match the rows - see above
+        num_original_aggregated_functions = len(matching_result.getAggregatedFunctionMatches(unfiltered=True))
+        return render_template("result_compare_all.html", job_info=job_info, famp=family_pagination, libp=library_pagination, funp=function_pagination, num_original_aggregated_functions=num_original_aggregated_functions, matching_result=matching_result, scp=score_color_provider, ucs_famlib=user_column_setup_family_library, ucs_functions=user_column_setup_function_all)
 
 
 def result_matches_for_cross(job_info, result_json):
