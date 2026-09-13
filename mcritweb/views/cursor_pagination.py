@@ -1,16 +1,76 @@
 from typing import Dict, Optional
 
-from flask import Request, url_for
+from flask import Request, session, url_for
+
+# Sort fields each listing type offers, i.e. exactly the columns the header macros in
+# templates/table/ render a sort link for. All of them are also accepted by the
+# backend (MinHashIndex.get*SearchResults raises ValueError on anything else).
+SORTABLE_FIELDS = {
+    "family": ("family_id", "family_name", "num_samples", "num_functions", "num_library_samples"),
+    "sample": ("sample_id", "sha256", "family", "version", "filename", "statistics.num_functions"),
+    "function": ("function_id", "family_id", "sample_id", "offset", "function_name", "num_instructions", "num_blocks"),
+}
+
+# Where the last sort order a user chose is kept (issue #58).
+#
+# In the session, i.e. per browser, not in the per-user tables next to UserFilters
+# and UserColumnSettings: sorting is a plain GET, so persisting it there would turn
+# every listing route into one that writes to the database on GET - the shape
+# routePolicy.py records as WRITES_ON_GET and issue #84 is about, reachable from any
+# page that can make a browser fetch a URL. Those tables hold preferences a user
+# submits through a form (a POST); this is incidental view state, closer to a scroll
+# position, and it costs a signed cookie rather than a write per page view. The
+# trade-off is that it does not follow a user to another browser and does not survive
+# clearing cookies, which for a table order is a much smaller loss than a GET writer.
+SORT_MEMORY_SESSION_KEY = "sort_memory"
+
+
+def _recall_sort(memory_key):
+    """The remembered (sort_by, is_ascending) for a listing type, or None.
+
+    Everything here is validated on the way *out* of the session, not only on the way
+    in: a stored value outlives the release that wrote it, and it ends up both in the
+    query sent to the backend and in every link the pagination renders.
+    """
+    if memory_key not in SORTABLE_FIELDS:
+        return None
+    memory = session.get(SORT_MEMORY_SESSION_KEY)
+    if not isinstance(memory, dict):
+        return None
+    remembered = memory.get(memory_key)
+    if not isinstance(remembered, (list, tuple)) or len(remembered) != 2:
+        return None
+    sort_by, is_ascending = remembered
+    if sort_by not in SORTABLE_FIELDS[memory_key]:
+        return None
+    return sort_by, bool(is_ascending)
+
+
+def _remember_sort(memory_key, sort_by, is_ascending):
+    """Store the sort a request asked for, if it is one the table actually offers."""
+    if memory_key not in SORTABLE_FIELDS or sort_by not in SORTABLE_FIELDS[memory_key]:
+        return
+    memory = session.get(SORT_MEMORY_SESSION_KEY)
+    known = {key: value for key, value in memory.items() if key in SORTABLE_FIELDS} if isinstance(memory, dict) else {}
+    known[memory_key] = [sort_by, bool(is_ascending)]
+    # assign the whole key rather than mutating in place: flask only re-sends the
+    # cookie when the session mapping itself is written to. Comparing first keeps
+    # every unchanged listing request free of a Set-Cookie header.
+    if known != memory:
+        session[SORT_MEMORY_SESSION_KEY] = known
 
 from mcritweb.views.pagination import request_args_for_link_building
 
 
 class CursorPagination:
-    def __init__(self, request: Request, limit=10, query_param_prefix="", default_sort=None) -> None:
+    def __init__(self, request: Request, limit=10, query_param_prefix="", default_sort=None, sort_memory=None) -> None:
         self.default_limit = 10
         self.limit = limit
         self.query_param_prefix = query_param_prefix
         self.default_sort = default_sort
+        # a key of SORTABLE_FIELDS to remember this table's sort order under, or None
+        # to leave the session alone
+        self.sort_memory = sort_memory
 
         self.cursor: Dict[str, Optional[str]] = {
             "first": None, # this will always stay None
@@ -79,8 +139,25 @@ class CursorPagination:
 
     def _readArgs(self, args):
         self.cursor["current"] = args.get(self.cursor_param, None)
-        self.is_ascending = args.get(self.is_ascending_param, "true").lower() != "false"
-        self.sort_by = args.get(self.sort_by_param, self.default_sort)
+        # a sort in the URL always wins over the remembered one, so that a shared link
+        # renders what its sender saw. Either parameter counts as an explicit choice:
+        # the header of the default column links with 'ascending' and no 'sort'.
+        request_sorted = self.sort_by_param in args or self.is_ascending_param in args
+        # a cursor encodes the sort it was issued for, so a request carrying one is
+        # continuing a paging run rather than opening the listing: leave it alone.
+        # Every link this class builds carries both, so this only guards hand-edited
+        # or truncated URLs.
+        if request_sorted or self.cursor["current"] is not None:
+            remembered = None
+        else:
+            remembered = _recall_sort(self.sort_memory)
+        if remembered is None:
+            self.is_ascending = args.get(self.is_ascending_param, "true").lower() != "false"
+            self.sort_by = args.get(self.sort_by_param, self.default_sort)
+            if request_sorted:
+                _remember_sort(self.sort_memory, self.sort_by, self.is_ascending)
+        else:
+            self.sort_by, self.is_ascending = remembered
         self.limit = self.default_limit if self.limit is None else self.limit
         self.page = 1
         try:
