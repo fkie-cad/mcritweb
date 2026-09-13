@@ -207,6 +207,11 @@ When not filtered, it is usually divided into these sections:
 
 Some meta data describing the matching job and reference sample
 
+Once a job has finished, this table also offers "Download as JSON", which hands you the
+raw result report exactly as the MCRIT server produced it - the same data the page above
+is rendered from, unfiltered. This works for every job type, including from the job
+overview page, and is meant for further processing outside of MCRITweb.
+
 ##### Best Family Matches
 
 In the table, the best match per family is shown.

@@ -151,6 +151,9 @@ ROUTE_POLICY = {
     "data.jobs": (VISITOR, READ_ONLY),
     "data.job_by_id": (VISITOR, READ_ONLY),
     "data.result": (VISITOR, READ_ONLY),
+    # writes the report to instance/cache/results on a cache miss, exactly as
+    # data.result does, which is local caching rather than a state change
+    "data.download_result": (VISITOR, READ_ONLY),
     "data.linkhunt": (VISITOR, READ_ONLY),
     "data.match_functions": (VISITOR, READ_ONLY),
     # serves instance/cache/diagrams; the <img> tags on the result pages carry the

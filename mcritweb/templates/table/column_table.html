@@ -246,6 +246,14 @@
           </td>
         </tr>
       {% endif %}
+      {% if job_info.finished_at %}
+        <tr>
+          <td valign="middle">Raw Result: </td>
+          <td valign="middle">
+            <a href="{{ url_for('data.download_result', job_id=job_info.job_id) }}">Download as JSON</a>
+          </td>
+        </tr>
+      {% endif %}
       {% if job_info.is_failed and job_info.last_error %}
         <tr>
           <td valign="middle">Error Message: </td>
