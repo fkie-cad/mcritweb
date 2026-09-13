@@ -37,8 +37,12 @@ This repository owns **no analysis data of its own**. Families, samples, functio
 The README states Python 3.8+; the reference deployment (`docker-mcrit`) runs **Python 3.12**. Target 3.11/3.12 for anything new.
 
 ```bash
-pip install -r requirements.txt
+make init   # requirements.txt, plus pytest/pytest-cov/ruff at the versions CI pins
 ```
+
+`pytest`, `pytest-cov` and `ruff` are not runtime dependencies, so they are not in
+`requirements.txt`; `mcrit` declares the first two under its `dev` extra, so they do
+not arrive with it either.
 
 A running MCRIT backend (server + worker + MongoDB) is required for essentially every page beyond login/register. Without it, `mcrit_server_required` flashes an error and redirects to the index.
 
@@ -144,7 +148,8 @@ CI (`.github/workflows/test.yml`) runs `ruff check .` plus the suite on Python 3
 - **Never** run `git commit`, `git push`, or open a PR unless explicitly instructed.
 - **Never** commit anything from `instance/` (SQLite DB, uploads, cached results/diagrams) or an `instance/config.py`.
 - **Do not** modify vendored assets under `static/` (Bootstrap, jQuery, DataTables, Dropzone, Font Awesome, SortableJS, `trace_CFG/`); they carry their own licenses.
-  - **`static/dropzone.js` is the one exception, and it is load-bearing.** It carries our own patch (marked `START OF PATCH FOR EARLY CONTENT DELIVERY`) that reads the head of the dropped file and exposes it as `file.upload.header` / `header_metadata`, which is what pre-fills the submit form. Stock Dropzone has no such field. Replacing this file from upstream silently disables the pre-fill — `request_filename_info` catches bare `Exception` and returns `{}`, so nothing errors. Note also that `static/dropzone.min.js` is **unpatched**, and flask-dropzone's own `dropzone.load()` macro serves exactly that file: never call `dropzone.load()`, both templates load `dropzone.js` by hand for this reason.
+  - **`static/trace_CFG/main_duo.js` is not stock either, it is a project fork.** It is 3,549 lines against `main.js`'s 3,533 and `diff` between the two is 513 lines: it already carried our own patches (`// MCRIT resize to minimum of width and height...`, the CSRF headers marked `// mcritweb: issue #83`) before issue #74 added the one hook the comparison page needs, marked `// mcritweb, issue #74`: `showGraph()` records each pane's zoom behaviour in `graph_zooms` and calls `onGraphShown(graph_id)`, which `static/function_compare.js` (project code) implements. Everything else for the synchronised and combined views lives in `function_compare.js`. Refreshing `main_duo.js` from upstream would silently drop the hook and re-break the CSRF headers; `tests/testFunctionPages.py::test_main_duo_keeps_the_hook_function_compare_needs` fails when it is gone. `loopCollapser.js`, `loopify_dagre.js`, `fnManip.js` and `main.js` itself are untouched and should stay that way.
+  - **`static/dropzone.js` is the other exception, and it is load-bearing.** It carries our own patch (marked `START OF PATCH FOR EARLY CONTENT DELIVERY`) that reads the head of the dropped file and exposes it as `file.upload.header` / `header_metadata`, which is what pre-fills the submit form. Stock Dropzone has no such field. Replacing this file from upstream silently disables the pre-fill — `request_filename_info` catches bare `Exception` and returns `{}`, so nothing errors. Note also that `static/dropzone.min.js` is **unpatched**, and flask-dropzone's own `dropzone.load()` macro serves exactly that file: never call `dropzone.load()`, both templates load `dropzone.js` by hand for this reason.
 - **Do not** change matching or scoring semantics here — MCRITweb only presents what the backend computes. Score→color mappings (`ScoreColorProvider`, `cross_compare.score_to_color`) are presentation and may change; scores themselves may not.
 - When work depends on backend behavior, read `../mcrit` rather than guessing at `McritClient`'s surface.
 - Clear `instance/cache/` when validating changes to result rendering or diagram generation — otherwise you will be looking at stale output.

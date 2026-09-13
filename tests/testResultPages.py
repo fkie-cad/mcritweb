@@ -11,6 +11,7 @@ The reports come from a live instance - see tests/fixtures/regenerate.py.
 """
 
 import logging
+import re
 import unittest
 
 import pytest
@@ -80,6 +81,41 @@ def test_job_page_renders_for_a_finished_job(client, as_role):
     as_role("visitor")
     response = client.get(f"/data/jobs/{job_id_of('matches_for_sample')}")
     assert response.status_code == 200
+
+
+#: One function from each reference sample - the only pool that keeps a control flow
+#: graph, so the only one the comparison page can build its two panels from.
+FUNCTION_VS_A = 84
+FUNCTION_VS_B = 943
+
+
+@pytest.fixture
+def function_vs_page(client, as_role):
+    as_role("visitor")
+    response = client.get(f"/data/matches/function/{FUNCTION_VS_A}/{FUNCTION_VS_B}")
+    assert response.status_code == 200
+    return response.data.decode()
+
+
+def test_the_function_comparison_page_shows_the_overall_match_score(function_vs_page, fake_mcrit):
+    """Issue #69's second box. The score is the one number that says how close the
+    two functions are, and it is the backend's - so the assertion is that the page
+    shows *that* number, not merely that it shows one."""
+    expected = fake_mcrit.getMatchFunctionVs(FUNCTION_VS_A, FUNCTION_VS_B)["match_entry"]["matches"][3]
+
+    shown = re.search(r"Match Score:(?:\s|<[^>]*>)*(\d+)", function_vs_page)
+    assert shown, "the comparison page shows no match score"
+    assert int(shown.group(1)) == int(expected)
+
+
+def test_the_loop_boundary_control_is_live(function_vs_page):
+    """Issue #69's first box, as far as markup can see it. The control shipped
+    `disabled`, with a title saying the side-by-side view had nothing to toggle;
+    testFunctionVsBrowser.py drives what it now toggles."""
+    checkbox = re.search(r'<input[^>]*id="loopBgFill"[^>]*>', function_vs_page)
+    assert checkbox, "the loop boundary control is gone"
+    assert "disabled" not in checkbox.group(0)
+    assert "checked" in checkbox.group(0), "boundaries are meant to start visible"
 
 
 if __name__ == "__main__":

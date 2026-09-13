@@ -59,6 +59,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
           python -m pip install -e . --no-deps
+          # pytest is not a runtime dependency, so it is deliberately not in
+          # requirements.txt. It used to arrive with mcrit; mcrit declares it under its
+          # `dev` extra now, so it has to be installed here - pinned, like ruff above.
+          python -m pip install "pytest==9.1.1" "pytest-cov==7.1.0"
 
       - name: Run unit tests
         run: python -m pytest

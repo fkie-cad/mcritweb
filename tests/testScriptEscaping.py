@@ -105,3 +105,68 @@ def test_a_family_name_cannot_break_out_of_a_script_string(client, as_role, fake
     assert b"<script>alert(1)</script>" not in response.data, (
         f"a crafted family name broke out of the JS string literal on {path}"
     )
+
+
+# --- the CFG page's own script ---------------------------------------------------
+
+#: `static/trace_CFG/main_duo.js` is a project fork we maintain (see AGENTS.md), and it
+#: assigns into `innerHTML` in four places. Three of them build a `<span>` around a line
+#: of block text taken out of the dot graph - which carries the api names smda read out
+#: of the analysed binary - so the value being wrapped is attacker-influenced even
+#: though the wrapper is not. `main.js` is stock and is deliberately not scanned: it is
+#: not ours to change, and it has the same construct.
+MAIN_DUO = os.path.join(PACKAGE_ROOT, "static", "trace_CFG", "main_duo.js")
+
+#: The shape all three sinks share: something dropped straight after the `>` that closes
+#: a tag opener and straight before the matching `</span>`.
+SPAN_INTERPOLATION = re.compile(r">\"\s*\+\s*(?P<value>.+?)\s*\+\s*\"</span>")
+
+#: Whole-line comments. Commented-out code cannot run, and this file has a lot of it -
+#: including earlier drafts of the very lines being linted.
+JS_LINE_COMMENT = re.compile(r"^\s*//")
+
+
+def main_duo_lines():
+    with open(MAIN_DUO, encoding="utf-8") as script:
+        for number, line in enumerate(script, start=1):
+            if not JS_LINE_COMMENT.match(line):
+                yield number, line
+
+
+def span_interpolations():
+    """Every value interpolated into a `<span>` in main_duo.js, as (line, expression)."""
+    for number, line in main_duo_lines():
+        for hit in SPAN_INTERPOLATION.finditer(line):
+            yield number, hit.group("value").strip()
+
+
+def test_the_main_duo_scan_still_sees_something():
+    """A guard on the guard, as above: the file could be refreshed from upstream, or the
+    construct rewritten, and this lint would then pass by finding nothing."""
+    found = list(span_interpolations())
+    assert len(found) >= 3, (
+        f"only {len(found)} span interpolations found in main_duo.js - the scan has "
+        "stopped watching the taint highlighters"
+    )
+
+
+def test_block_text_is_escaped_before_it_is_built_into_markup():
+    """The tooltip's `innerHTML` sink was closed by switching it to `.text()`. These three
+    cannot be: the markup is the point - they wrap a line of code in a coloured span and
+    that is what the highlight *is*. So the untrusted half is escaped instead, and this
+    lint is what keeps it that way.
+
+    All three are unreachable today: `updateTaint` and `highlightUERs` are driven by
+    `#doTaint`, `#myTaintSlider` and `#analysisSelector`, none of which this template
+    renders, and they read `nodeToTextGroups`, which only `setupTrace()` fills and which
+    nothing calls. That is precisely the argument this change refused to accept for the
+    tooltip, so it is not accepted here either: `usePanel`'s comment invites someone to
+    wire `setupTrace` up, and the sink must already be shut when they do.
+    """
+    unescaped = [f"main_duo.js:{number} interpolates {value}"
+                 for number, value in span_interpolations()
+                 if not value.startswith("escapeHtml(")]
+    assert not unescaped, (
+        "text is built into markup without escaping at: " + "; ".join(unescaped)
+        + ". Wrap the value in escapeHtml() - these strings are assigned into innerHTML."
+    )
