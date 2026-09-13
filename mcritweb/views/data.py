@@ -750,6 +750,14 @@ def jobs():
     # sort order
     ascending = request.args.get('ascending', 'false').lower() == "true"
     statistics = client.getQueueStatistics()
+    if statistics is None:
+        # `handle_response` answers None for every non-200 - a backend that is down, one
+        # that is a version behind and has no such endpoint, a 500 mid-query. Read as a
+        # dict below it is a TypeError and this page is a stack trace, so the one call
+        # this whole view is built on has to be allowed to fail. An empty mapping renders
+        # the page it would render for an empty queue, plus a message saying which it is.
+        flash("Ups, reading MCRIT's job queue failed - the queue could not be summarized.", category="error")
+        statistics = {}
     job_template = Job(None, None)
     # dynamically create the job page with nested menu based on groups from statistics and Job.method_types
     active_category = request.args.get('active', None)
