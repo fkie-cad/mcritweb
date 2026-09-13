@@ -163,6 +163,126 @@ def test_the_search_page_renders_for_every_type_selection(client, as_role, fake_
     assert client.get(f"/explore/search?query={sample.filename}&type={types}").status_code == 200
 
 
+def test_a_search_that_matches_nothing_says_so(client, as_role):
+    """The page used to render the heading, the form, and then stop - no table, no
+    message, no flash. Nothing on it distinguished "no matches" from "still loading"
+    or "the search silently failed". Issue #54."""
+    as_role("visitor")
+    response = client.get("/explore/search?query=zzzznomatchzzzz")
+
+    assert response.status_code == 200
+    page = response.get_data(as_text=True)
+    assert 'Results for "zzzznomatchzzzz"' in page, "the heading is still there"
+    assert "Nothing matched" in page
+
+
+def test_a_search_that_matches_something_does_not_say_nothing_matched(client, as_role, fake_mcrit):
+    """The other half of the contract - a page with rows on it must not carry the
+    message. It is one flag over three independent sections, so it can be wrong
+    in either direction."""
+    as_role("visitor")
+    sample = next(iter(fake_mcrit._samples.values()))
+    response = client.get(f"/explore/search?query={sample.sha256}")
+
+    assert response.status_code == 200
+    assert "Nothing matched" not in response.get_data(as_text=True)
+
+
+def test_the_empty_search_page_carries_no_message(client, as_role):
+    """No query means nothing has been asked yet, which is not the same as a term
+    that found nothing."""
+    as_role("visitor")
+    response = client.get("/explore/search")
+
+    assert response.status_code == 200
+    assert "Nothing matched" not in response.get_data(as_text=True)
+
+
+def test_a_search_the_backend_could_not_answer_does_not_claim_nothing_matched(client, as_role, fake_mcrit, monkeypatch):
+    """`search()` reads a failed call as `results is None` and flashes "search ...
+    failed!". The page then has no rows either, so the empty-result message would
+    fire on top of it and tell the reader their term matched nothing - which is a
+    different, and wrong, thing to say."""
+    as_role("visitor")
+    monkeypatch.setattr(fake_mcrit, "search_families", lambda *args, **kwargs: None)
+    monkeypatch.setattr(fake_mcrit, "search_samples", lambda *args, **kwargs: None)
+    monkeypatch.setattr(fake_mcrit, "search_functions", lambda *args, **kwargs: None)
+
+    response = client.get("/explore/search?query=anything")
+
+    assert response.status_code == 200
+    page = response.get_data(as_text=True)
+    assert "failed!" in page, "the flashed error is what tells the reader what happened"
+    assert "Nothing matched" not in page
+
+
+def test_the_message_escapes_the_search_term(client, as_role):
+    """The term is rendered back into the message, and a search term is whatever a
+    caller typed. Autoescaping covers it - this is the test that says so out loud.
+
+    Asserting the escaped term is somewhere on the page proves nothing: the <h1> and
+    the form's value= attribute both echo it already, on master too. This looks inside
+    the alert block, which is the markup this change added.
+    """
+    as_role("visitor")
+    response = client.get("/explore/search?query=%3Cimg+src%3Dx+onerror%3Dalert(1)%3E")
+
+    assert response.status_code == 200
+    page = response.get_data(as_text=True)
+    assert "<img src=x onerror=alert(1)>" not in page
+
+    alert = re.search(r'<div class="alert alert-info mt-3" role="alert">(.*?)</div>', page, re.S)
+    assert alert, "the nothing-matched alert did not render"
+    assert "&lt;img src=x onerror=alert(1)&gt;" in alert.group(1)
+
+
+def test_one_category_failing_does_not_silence_the_answer_for_the_others(client, as_role, fake_mcrit, monkeypatch):
+    """Three independent searches behind one flag: families failing used to suppress
+    "nothing matched" for samples and functions, which had answered perfectly well and
+    found nothing. The reader got one flash about families and then the same blank void
+    issue #54 is about, for the two categories that did answer."""
+    as_role("visitor")
+    monkeypatch.setattr(fake_mcrit, "search_families", lambda *args, **kwargs: None)
+
+    page = client.get("/explore/search?query=zzzznomatchzzzz").get_data(as_text=True)
+
+    assert "failed!" in page, "the failure still has to be reported"
+    assert "Nothing matched" in page, "and so does the answer for the categories that worked"
+    assert "sample, function" in page, "which should name the ones it is talking about"
+
+
+def test_every_category_failing_still_says_nothing_about_matches(client, as_role, fake_mcrit, monkeypatch):
+    """The other side: with nothing answering, "nothing matched" would be a claim about
+    searches that never happened."""
+    as_role("visitor")
+    for method in ("search_families", "search_samples", "search_functions"):
+        monkeypatch.setattr(fake_mcrit, method, lambda *args, **kwargs: None)
+
+    page = client.get("/explore/search?query=zzzznomatchzzzz").get_data(as_text=True)
+
+    assert "Nothing matched" not in page
+
+
+def test_paging_past_the_last_page_of_a_search_still_explains_itself(client, as_role, fake_mcrit, monkeypatch):
+    """`hasCurrent` is true whenever the request carried a cursor - which every
+    pagination link supplies - and says nothing about whether that page has rows. It was
+    what set the "we rendered something" flag, so following "next" off the end produced
+    headings over empty tables and no explanation."""
+    as_role("visitor")
+    empty_with_cursor = {
+        "search_results": {}, "cursor": {"current": "c", "forward": None, "backward": "b"},
+        "id_match": None, "sha_match": None,
+    }
+    for method in ("search_families", "search_samples", "search_functions"):
+        monkeypatch.setattr(fake_mcrit, method, lambda *a, **k: empty_with_cursor)
+
+    page = client.get(
+        "/explore/search?query=citadel&family_cursor=c&sample_cursor=c&function_cursor=c"
+    ).get_data(as_text=True)
+
+    assert "Nothing matched" in page
+
+
 # --- the fake's own contract -----------------------------------------------------
 
 def test_the_forward_cursor_is_absent_on_the_last_page(corpus_mcrit):
@@ -207,3 +327,32 @@ def test_descending_order_reverses_the_page(corpus_mcrit):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_an_empty_type_parameter_does_not_claim_nothing_matched(client, as_role):
+    """`?type=` splits to [""], which is truthy - so the page said "Nothing matched" for
+    a request in which no category was searched at all. Only reachable by hand-writing
+    the URL: unticking every box in the form sends no `type` at all, which correctly
+    falls back to all three."""
+    as_role("visitor")
+
+    page = client.get("/explore/search?query=foo&type=").get_data(as_text=True)
+
+    assert "Nothing matched" not in page
+
+
+def test_an_unknown_type_is_ignored_rather_than_counted(client, as_role):
+    as_role("visitor")
+
+    page = client.get("/explore/search?query=foo&type=notacategory").get_data(as_text=True)
+
+    assert "Nothing matched" not in page
+
+
+def test_the_form_default_still_searches_all_three(client, as_role):
+    """The guard must not break the ordinary case: no `type` at all means all three."""
+    as_role("visitor")
+
+    page = client.get("/explore/search?query=zzzznomatchzzzz").get_data(as_text=True)
+
+    assert "Nothing matched" in page

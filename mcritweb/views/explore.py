@@ -14,6 +14,11 @@ from mcritweb.views.utility import get_user_column_setup, mcrit_server_required
 
 bp = Blueprint('explore', __name__, url_prefix='/explore')
 
+#: what `?type=` may name on the search page. The page defaults to all three when the
+#: parameter is absent, and anything else in it is a hand-written URL rather than
+#: something the form can produce.
+SEARCHABLE_TYPES = ("family", "sample", "function")
+
 
 # Row decorations for the two exact hits mcrit reports alongside a search (#53, #56). See
 # templates/table/row_decoration.html for the shape; the variant names a Bootstrap
@@ -456,6 +461,13 @@ def search():
         return render_template("search.html", search_types=types)
     client = get_client()
 
+    # a backend that answered None is a failed search, not an empty one, and the two
+    # have to look different on the page - see issue #54
+    # per category, not one flag for all three: they are independent searches, and a
+    # single flag suppressed the "nothing matched" message for the categories that had
+    # answered perfectly well just because a different one failed
+    search_failed = set()
+
     #TODO: show id/sha matches in extra place
     families = []
     family_decorations = {}
@@ -465,6 +477,7 @@ def search():
         results = client.search_families(query, **family_pagination.getSearchParams(), limit=family_pagination.limit)
         family_pagination.read_cursor_from_result(results)
         if results is None:
+            search_failed.add("family")
             flash(f"Ups, search for {query} in MCRIT's families failed!", category="error")
         else:
             # the exact hit belongs to the first page and is folded in by id, as on
@@ -489,6 +502,7 @@ def search():
         results = client.search_samples(query, **sample_pagination.getSearchParams(), limit=sample_pagination.limit)
         sample_pagination.read_cursor_from_result(results)
         if results is None:
+            search_failed.add("sample")
             flash(f"Ups, search for {query} in MCRIT's samples failed!", category="error")
         else:
             # sha256 first, then id, and only on the first page - see
@@ -512,6 +526,7 @@ def search():
         results = client.search_functions(query, **function_pagination.getSearchParams(), limit=function_pagination.limit)
         function_pagination.read_cursor_from_result(results)
         if results is None:
+            search_failed.add("function")
             flash(f"Ups, search for {query} in MCRIT's functions failed!", category="error")
         else:
             # as in the families branch above: first page only, and keyed by id so
@@ -539,6 +554,12 @@ def search():
         function_pagination=function_pagination,
         query=query,
         search_types=types,
+        search_failed=search_failed,
+        # the categories that were asked and did answer; "nothing matched" is only a
+        # true statement about those
+        # filtered to categories that exist: `?type=` (empty) splits to [""], which is
+        # truthy, and would let the page say nothing matched when nothing was searched
+        answered_types=[t for t in types if t in SEARCHABLE_TYPES and t not in search_failed],
         family_column_setup=family_column_setup,
         sample_column_setup=sample_column_setup,
         function_column_setup=function_column_setup,
