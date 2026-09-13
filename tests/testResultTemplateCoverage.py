@@ -61,7 +61,11 @@ RENDERED_BY = [
     ("/data/result/{matches_for_sample}?samid=3", "result_corrupted.html"),
     ("/data/result/{cross_compare}?custom=999", "result_corrupted.html"),
     ("/data/result/ffffffffffffffffffffffff", "result_invalid.html"),
-    ("/data/linkhunt/ffffffffffffffffffffffff", "result_incompatible.html"),
+    # #106 split what linkhunt answers: an id no job was ever stored under is
+    # invalid, and "incompatible" is reserved for a job that exists and simply
+    # holds no link report - cross_compare is not in LINKHUNTABLE_METHODS.
+    ("/data/linkhunt/ffffffffffffffffffffffff", "result_invalid.html"),
+    ("/data/linkhunt/{cross_compare}", "result_incompatible.html"),
     ("/data/result/{maintenance_rebuild_index}", "result_maintenance.html"),
     ("/data/result/{maintenance_recalculate_pichashes}", "result_maintenance.html"),
     ("/data/result/{maintenance_recalculate_minhashes}", "result_maintenance.html"),
@@ -84,6 +88,9 @@ UNCOVERED = {
     "job_corrupted.html": "no view renders it; reachable only through data.job_by_id's "
                           "corrupted branch, which the corpus cannot stage.",
     "job_deleted.html": "no view renders it at all - see the grep in the test below.",
+    "job_failed.html":
+        "needs a failed or terminated job (#106 gave linkhunt a branch for one). Every\n"
+        "corpus fixture was captured from a job that finished, so no URL reaches it.",
 }
 
 
