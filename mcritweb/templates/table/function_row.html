@@ -84,7 +84,7 @@
         <td align="right" valign="middle" class="font-monospace">{{ "%d"|format(function.num_blocks) }}</td>
       {% endif %}
     {% endfor %}
-    <td align="center">
+    <td align="center" class="buttons">
       <a class="btn btn-outline-dark btn-sm" href="{{ url_for('analyze.compare', query='sample_id:' + '%d' % function.sample_id) }}" role="button"><i class="fa-solid fa-flask" title="New: 1 vs N"></i></a>
     </td>
   </tr>
