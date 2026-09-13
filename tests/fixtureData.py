@@ -136,11 +136,34 @@ def _page(entries, search_term, fields, default_sort, sort_by, is_ascending, cur
     }
 
 
+class RawResponse:
+    """Enough of a requests.Response for a caller reading a raw-mode answer.
+
+    `McritClient(raw_responses=True)` returns the response untouched instead of running
+    it through `handle_response`, which is the only way a caller can tell "404, not in
+    the collection" from "the call failed" - handle_response maps both to None. Only the
+    methods that a view actually asks for in raw mode model this; see the note on
+    CorpusMcritClient.raw.
+    """
+
+    def __init__(self, status_code, payload=None):
+        self.status_code = status_code
+        self._payload = payload
+
+    def json(self):
+        return {"status": "successful", "data": self._payload}
+
+
 class CorpusMcritClient:
     """Serves the captured corpus in the types the real client returns."""
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
+        #: raw_responses is modelled for getSampleBySha256 only, because that is the one
+        #: place a view needs the status code rather than the parsed value. Every other
+        #: method ignores it and answers parsed, so a new raw-mode caller has to teach
+        #: this fake about its method rather than getting a wrong shape quietly.
+        self.raw = bool(kwargs.get("raw_responses"))
         self.calls = []
         self._samples = {int(k): SampleEntry.fromDict(v) for k, v in load("samples").items()}
         self._families = {int(k): FamilyEntry.fromDict(v) for k, v in load("families").items()}
@@ -155,6 +178,13 @@ class CorpusMcritClient:
         self._functions.update({int(k): FunctionEntry.fromDict(v) for k, v in load("functions_matched").items()})
         self._jobs = {job_id_of(report): (load(f"{report}.job"), load(f"{report}.result")) for report in REPORTS}
         self._queue = load("queue")
+
+    def raw_variant(self):
+        """The same backend answering in raw mode - see FakeMcritClient.raw_variant."""
+        clone = object.__new__(type(self))
+        clone.__dict__.update(self.__dict__)
+        clone.raw = True
+        return clone
 
     def _record(self, name, *args, **kwargs):
         self.calls.append((name, args, kwargs))
@@ -207,8 +237,8 @@ class CorpusMcritClient:
         self._record("getSampleBySha256", sha256, *args, **kwargs)
         for sample in self._samples.values():
             if sample.sha256 == sha256:
-                return sample
-        return None
+                return RawResponse(200, sample.toDict()) if self.raw else sample
+        return RawResponse(404) if self.raw else None
 
     # --- functions ---------------------------------------------------------------
 

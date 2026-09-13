@@ -39,7 +39,22 @@ class FakeMcritClient:
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
+        #: see CorpusMcritClient.raw - modelled for getSampleBySha256 only
+        self.raw = bool(kwargs.get("raw_responses"))
         self.calls = []
+
+    def raw_variant(self):
+        """The same backend answering in raw mode, as get_client(raw_responses=True)
+        hands back. Shares state - `calls` included - with the original, so a test can
+        still assert on what was asked.
+
+        Built by hand rather than with copy.copy: the catch-all __getattr__ below
+        answers copy's __setstate__ lookup with NotImplementedError.
+        """
+        clone = object.__new__(type(self))
+        clone.__dict__.update(self.__dict__)
+        clone.raw = True
+        return clone
 
     def _record(self, name, *args, **kwargs):
         self.calls.append((name, args, kwargs))
@@ -101,8 +116,15 @@ class FakeMcritClient:
 
     def getSampleBySha256(self, *args, **kwargs):
         """Nothing is in the corpus by default. That is the branch that lets an upload
-        carry on to the backend, rather than short-circuiting as a known sample."""
+        carry on to the backend, rather than short-circuiting as a known sample.
+
+        Raw mode answers 404 rather than None: a caller in raw mode is asking for the
+        status precisely because None cannot tell "absent" from "the call failed".
+        """
         self._record("getSampleBySha256", *args, **kwargs)
+        if getattr(self, "raw", False):
+            from fixtureData import RawResponse
+            return RawResponse(404)
         return None
 
     def addBinarySample(self, binary, **kwargs):
@@ -279,7 +301,11 @@ def app(tmp_path, fake_mcrit):
             "TESTING": True,
             "SECRET_KEY": "test-secret",
             "WTF_CSRF_ENABLED": False,
-            "MCRIT_CLIENT_FACTORY": lambda **kwargs: fake_mcrit,
+            # raw_responses has to be honoured, not swallowed: a view asks for it
+            # precisely when a parsed None cannot tell "absent" from "the call failed"
+            "MCRIT_CLIENT_FACTORY": (
+                lambda **kwargs: fake_mcrit.raw_variant() if kwargs.get("raw_responses") else fake_mcrit
+            ),
             # mcrit_server_required otherwise makes a real HTTP call to the backend
             "MCRIT_SERVER_PROBE": lambda: True,
         },

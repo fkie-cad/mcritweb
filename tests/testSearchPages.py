@@ -212,7 +212,9 @@ def test_a_search_the_backend_could_not_answer_does_not_claim_nothing_matched(cl
 
     assert response.status_code == 200
     page = response.get_data(as_text=True)
-    assert "failed!" in page, "the flashed error is what tells the reader what happened"
+    # #113 replaced "Ups, search ... failed!" with wording that says the backend did
+    # not answer. The assertion tracks the intent, not that PR's exact sentence.
+    assert "the backend did not answer" in page, "the flashed error is what tells the reader what happened"
     assert "Nothing matched" not in page
 
 
@@ -246,7 +248,7 @@ def test_one_category_failing_does_not_silence_the_answer_for_the_others(client,
 
     page = client.get("/explore/search?query=zzzznomatchzzzz").get_data(as_text=True)
 
-    assert "failed!" in page, "the failure still has to be reported"
+    assert "the backend did not answer" in page, "the failure still has to be reported"
     assert "Nothing matched" in page, "and so does the answer for the categories that worked"
     assert "sample, function" in page, "which should name the ones it is talking about"
 
