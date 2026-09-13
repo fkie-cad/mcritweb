@@ -129,6 +129,7 @@ ROUTE_POLICY = {
     "explore.functions": (VISITOR, READ_ONLY),
     "explore.function_by_id": (VISITOR, READ_ONLY),
     "explore.fetchDotGraph": (VISITOR, READ_ONLY),
+    "explore.fetchCombinedDotGraph": (VISITOR, READ_ONLY),
     "explore.findLoops": (VISITOR, READ_ONLY),
     "explore.getPicBlockMatches": (VISITOR, READ_ONLY),
     "explore.search": (VISITOR, READ_ONLY),
