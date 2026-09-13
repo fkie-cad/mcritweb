@@ -34,7 +34,7 @@ This repository owns **no analysis data of its own**. Families, samples, functio
 
 ## Development setup
 
-The README states Python 3.8+; the reference deployment (`docker-mcrit`) runs **Python 3.12**. Target 3.11/3.12 for anything new.
+The README states Python 3.11+ - inherited from mcrit, which has declared it since v1.5.0; the reference deployment (`docker-mcrit`) runs **Python 3.12**. Target 3.11/3.12 for anything new.
 
 ```bash
 make init   # requirements.txt, plus pytest/pytest-cov/ruff at the versions CI pins
