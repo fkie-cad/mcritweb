@@ -578,6 +578,17 @@ def result_matches_for_cross(job_info, result_json):
 # Link Hunting
 ################################################################
 
+#: The job methods whose result is a MatchingResult, which is the only shape link
+#: hunting can read. Prefix matching, so getMatchesForSample also covers
+#: getMatchesForSampleVs - a 1v1 report is a MatchingResult too.
+LINKHUNTABLE_METHODS = (
+    "getMatchesForSample",
+    "getMatchesForSmdaReport",
+    "getMatchesForMappedBinary",
+    "getMatchesForUnmappedBinary",
+)
+
+
 @bp.route('/linkhunt/<job_id>')
 @visitor_required
 @mcrit_server_required
@@ -592,29 +603,38 @@ def linkhunt(job_id):
             result_json = client.getResultForJob(job_id)
             if result_json:
                 cache_result(current_app, job_info, result_json)
+    if job_info is None:
+        # nothing in the queue under this id. A result without a job would be the same
+        # answer: there is nothing here to interpret.
+        return render_template("result_invalid.html", job_id=job_id)
+
     if result_json:
-        # TODO validation - only parse to matching_result if this data type is appropriate 
+        # TODO validation - only parse to matching_result if this data type is appropriate
         # re-format result report for visualization and choose respective template
-        if job_info is None:
-            return render_template("result_invalid.html", job_id=job_id)
-        elif job_info.parameters.startswith("getMatchesForSample"):
+        if job_info.parameters.startswith(LINKHUNTABLE_METHODS):
             matching_result = MatchingResult.fromDict(result_json)
             return linkhunt_for_sample_or_query(job_info, matching_result)
-        elif job_info.parameters.startswith("getMatchesForSmdaReport"):
-            matching_result = MatchingResult.fromDict(result_json)
-            return linkhunt_for_sample_or_query(job_info, matching_result)
-        elif job_info.parameters.startswith("getMatchesForMappedBinary"):
-            matching_result = MatchingResult.fromDict(result_json)
-            return linkhunt_for_sample_or_query(job_info, matching_result)
-        elif job_info.parameters.startswith("getMatchesForUnmappedBinary"):
-            matching_result = MatchingResult.fromDict(result_json)
-            return linkhunt_for_sample_or_query(job_info, matching_result)
-    elif job_info:
-        # if we are not done processing, list job data
-        return render_template("job_in_progress.html", job_info=job_info)
-    else:
-        # if we can't find job or result, we have to assume the job_id was invalid
+        # a report of some other kind. Link hunting reads a MatchingResult, so a cross
+        # compare or a unique-blocks report cannot answer it - and used to fall off the
+        # end of this chain, where a view returning None is a 500 rather than an answer.
         return render_template("result_incompatible.html", job_id=job_id)
+
+    # no report. That is not the same as "still working": a minhashing job or a
+    # collection change stores no result at all and is finished the moment it runs, so
+    # the old `elif job_info:` showed a progress page for a job that ended long ago -
+    # permanently, since it never changes.
+    if job_info.is_failed or job_info.is_terminated:
+        reason = ("This job was terminated before it could finish."
+                  if job_info.is_terminated else
+                  "This job ran out of attempts and failed. The backend's log will say why.")
+        return render_template("job_failed.html", job_info=job_info, reason=reason)
+    if job_info.is_finished:
+        if job_info.parameters.startswith(LINKHUNTABLE_METHODS):
+            # the right kind of job; it just produced nothing to hunt through
+            return render_template("result_empty.html", job_id=job_id)
+        return render_template("result_incompatible.html", job_id=job_id)
+    # genuinely still working
+    return render_template("job_in_progress.html", job_info=job_info)
 
 def linkhunt_for_sample_or_query(job_info, matching_result: MatchingResult):
     client = get_client()
