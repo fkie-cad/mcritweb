@@ -347,6 +347,34 @@ def test_distinct_families_are_all_listed(client, as_role, fake_mcrit):
     assert len(expected) > 1, "the corpus has to hold more than one for this to mean anything"
     assert response.get_data(as_text=True).count('class="family-row') == len(expected)
 
+# --- the analyze pages, which share one search-result reader ---------------------
+
+#: (path, the query parameter that reaches `get_unique_samples_from_search_result`)
+ANALYZE_PAGES = [
+    ("/analyze/compare", "query"),
+    ("/analyze/cross_compare", "query"),
+    ("/analyze/compare_versus", "query_a"),
+]
+
+
+@pytest.mark.parametrize("path, query_param", ANALYZE_PAGES)
+def test_the_analyze_pages_render_entries_rather_than_wire_dicts(client, as_role, fake_mcrit, path, query_param):
+    """All three read their sample list through the same helper, and nothing pinned
+    what it hands the row macro - the route matrix asserts these pages answer 200, but
+    it does not distinguish a page of rows from the "no samples available" placeholder.
+
+    The evidence is the short sha column: `getShortSha256` is a method on `SampleEntry`
+    with no key of that name in the wire dict, so a raw dict renders as an
+    `UndefinedError` rather than as a slightly wrong cell. Issue #64.
+    """
+    as_role("visitor")
+    sample = next(iter(fake_mcrit._samples.values()))
+
+    response = client.get(f"{path}?{query_param}={sample.sample_id}")
+
+    assert response.status_code == 200
+    assert sample.getShortSha256() in response.get_data(as_text=True)
+
 
 # --- the fake's own contract -----------------------------------------------------
 

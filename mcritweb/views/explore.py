@@ -288,15 +288,19 @@ def functions():
     if results is None:
         flash(f"Ups, search for {query} in MCRIT's functions failed!", category="error")
     else:
-        # as in families and samples above. Kept as raw dicts, which is this page's
-        # existing convention - function_row.html reads them by name either way, and
-        # switching the whole page to FunctionEntry is a separate change. See issue #56.
+        # as in families and samples above: keyed by id, so an exact hit that is also
+        # a text hit is one row (issue #56) - and deserialized, as explore.search
+        # already does with the same values (issue #64). Both pages feed the same
+        # function_table macro, and this one used to hand it raw dicts off the wire:
+        # invisible only because Jinja falls back from attribute to item lookup and the
+        # keys happen to equal the attribute names. A renamed key, or any derived
+        # property, would break this page while leaving the search page working.
         by_id = {}
         for exact in exact_matches_to_prepend(results, pagination):
-            by_id[exact['function_id']] = exact
+            by_id[exact['function_id']] = FunctionEntry.fromDict(exact)
         for function_dict in results['search_results'].values():
-            #functions.append(FunctionEntry.fromDict(function_dict))
-            by_id.setdefault(function_dict['function_id'], function_dict)
+            if function_dict['function_id'] not in by_id:
+                by_id[function_dict['function_id']] = FunctionEntry.fromDict(function_dict)
         functions = list(by_id.values())
         row_decorations = exact_match_decorations(results, 'function_id')
     user_column_setup = get_user_column_setup("functions_table")
