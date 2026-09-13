@@ -711,6 +711,33 @@ def linkhunt_for_sample_or_query(job_info, matching_result: MatchingResult):
 # Listing Job information
 ################################################################
 
+#: The job types this front end knows the names of. Not the authority on what a job type
+#: is - the backend is, and `known_job_category` below defers to it. This is only the
+#: fallback for a type the backend is not currently reporting, because it has no jobs of
+#: that kind. `Job.method_types["all"]` is not even the whole local list: it omits
+#: recalculatePicHashes and recalculateMinHashes, which the admin maintenance routes
+#: create and which the menu does render.
+JOB_CATEGORIES = tuple(Job(None, None).method_types["all"]) + (
+    "recalculatePicHashes",
+    "recalculateMinHashes",
+)
+
+
+def known_job_category(category, statistics):
+    """Is `category` a job type, as far as anyone here can tell?
+
+    The backend is authoritative: a method it reports in its queue statistics is a real
+    one whether or not this front end has heard of it, so an installation whose backend
+    grows a new job type keeps working without a release here. The local list covers the
+    other direction - a type with no jobs right now is absent from the statistics and
+    still has a tab.
+
+    The residue is a type that is both new to this front end and has no jobs yet; it is
+    indistinguishable from a typo, and gets the typo's answer.
+    """
+    return category in statistics or category in JOB_CATEGORIES
+
+
 @bp.route('/jobs',methods=('GET', 'POST'))
 @visitor_required
 @mcrit_server_required
@@ -726,6 +753,13 @@ def jobs():
     job_template = Job(None, None)
     # dynamically create the job page with nested menu based on groups from statistics and Job.method_types
     active_category = request.args.get('active', None)
+    # checked before "totals" is added to statistics below, so ?active=totals is not
+    # accidentally a category
+    if active_category is not None and not known_job_category(active_category, statistics):
+        # rendering an empty list would read as a fact about the queue rather than
+        # about the URL, so say which it is and fall back to the default tab
+        flash(f'"{active_category}" is not a job type.', category="error")
+        active_category = None
     summarized_groups = {"matching": 0, "query": 0, "blocks": 0, "minhashing": 0, "collection": 0}
     for group in summarized_groups.keys():
         for category in job_template.method_types[group]:
@@ -784,7 +818,10 @@ def jobs():
         max_count = statistics["totals"][state_category] if state_category in statistics["totals"] else 0
         pagination = Pagination(request, max_count, limit=25, query_param="p", limit_param="l")
     else:
-        max_count = sum(statistics[active_category].values()) if active_category else 0
+        # getQueueStatistics only reports categories that have at least one job, so a
+        # type that has never run - or whose jobs were all deleted through this page's
+        # own per-category delete - is absent, and indexing it was a 500
+        max_count = sum(statistics.get(active_category, {}).values()) if active_category else 0
         pagination = Pagination(request, max_count, limit=25, query_param="p")
     jobs = client.getQueueData(start=pagination.start_index, limit=pagination.limit, method=active_category, state=state_category, ascending=ascending)
     samples_by_id = {}
