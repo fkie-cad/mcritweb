@@ -556,7 +556,10 @@ def result_matches_for_cross(job_info, result_json):
                         break
                 else:
                     reason = "MCRIT was not able to produce the chosen custom ordering, as some sample_ids are not part of the cross compare originally specified."
-                    return render_template("result_corrupted.html", reason=reason, job_info=result_json)
+                    # job_info, not result_json: the template reads job_info.job_id for
+                    # its heading and for the delete link, and a result dict has neither.
+                    # The sibling corrupted branch above already passes the Job.
+                    return render_template("result_corrupted.html", reason=reason, job_info=job_info)
         if ordered_samples != []:
             samples_by_method[method] = ordered_samples
         else:

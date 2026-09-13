@@ -33,6 +33,10 @@ REPORTS = (
     "matches_for_query",
     "cross_compare",
     "unique_blocks",
+    # the three maintenance jobs result_maintenance.html knows, one per branch of the template
+    "maintenance_rebuild_index",
+    "maintenance_recalculate_pichashes",
+    "maintenance_recalculate_minhashes",
 )
 
 
