@@ -576,6 +576,21 @@ def function_by_id(function_id):
         flash("The given Function ID doesn't exist", category="error")
         return redirect(url_for('explore.functions'))
 
+# Served in place of a control flow graph when the backend holds no xcfg for a function
+# (see #67). It is a valid dot graph, so the existing front end renders it as a single
+# block and the user is told why the view is empty instead of being shown a blank panel.
+# The text is fixed and interpolates nothing from the analysed binary; `comment` is left
+# empty so the front end does not look up a picblockhash for it.
+NO_XCFG_DOT_GRAPH = (
+    'digraph "No CFG" {\n'
+    '  label="No control flow graph stored";\n'
+    '  NodeNoXcfg [shape=record,comment="",label="No disassembly stored for this function.'
+    '\\lThe backend discards the control flow graph when it is configured not to keep '
+    'disassembly, and there is nothing left to draw.\\l"];\n'
+    '}\n'
+)
+
+
 # helper for @bp.route('/functions/<int:function_id>')
 @bp.route('/fetchDotGraph/<int(signed=True):function_id>', methods=['GET'])
 @visitor_required
@@ -583,11 +598,17 @@ def function_by_id(function_id):
 def fetchDotGraph(function_id):
     client = get_client()
     function_entry = client.getFunctionById(function_id, with_xcfg=True)
-    if function_entry:
+    # An entry can reach us without its control flow graph: mcrit deletes the xcfg after
+    # minhashing when STORAGE_DROP_DISASSEMBLY is set, and an export copies that empty
+    # graph on to whoever imports it (see docs/adr/0003 and the NotImplemented
+    # getFunctionGraph in mcrit's MinHashIndex). toSmdaFunction() raises on that, which
+    # took the whole request down with a 500 and left the CFG panel blank without ever
+    # saying why. picblockhashes can come back empty or null for the same reason.
+    if function_entry and function_entry.xcfg:
         smda_function = function_entry.toSmdaFunction()
         dot_graph = smda_function.toDotGraph(with_api=True)
         # TODO can possibly do this fixup in a better place
-        pbh_by_offset = {pbh["offset"]: pbh for pbh in function_entry.picblockhashes}
+        pbh_by_offset = {pbh["offset"]: pbh for pbh in function_entry.picblockhashes or []}
         for smda_block in smda_function.getBlocks():
             needle = f',label="{smda_block.offset:x}'
             replacement = f',comment=""{needle}'
@@ -595,6 +616,9 @@ def fetchDotGraph(function_id):
                 replacement = f',comment="0x{pbh_by_offset[smda_block.offset]["hash"]:x}"{needle}'
             dot_graph = dot_graph.replace(needle, replacement)
         return dot_graph
+    if function_entry:
+        # the entry exists but carries no graph - say so, rather than rendering nothing
+        return NO_XCFG_DOT_GRAPH
     return ""
 
 # helper for @bp.route('/matches/function/<function_id_a>/<function_id_b>') in data.py:
