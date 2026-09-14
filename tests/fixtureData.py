@@ -18,6 +18,9 @@ import json
 import pathlib
 import re
 
+import mcrit.matchers.MatcherFlags as MatcherFlags
+from mcrit.config.MinHashConfig import MinHashConfig
+from mcrit.minhash.MinHash import MinHash
 from mcrit.queue.LocalQueue import Job
 from mcrit.storage.FamilyEntry import FamilyEntry
 from mcrit.storage.FunctionEntry import FunctionEntry
@@ -47,6 +50,11 @@ def load(name):
 def job_id_of(report):
     """The job id a report fixture was captured under."""
     return load(f"{report}.job")["_id"]["$oid"]
+
+
+#: The sample the captured 1-vs-N report (`matches_for_sample`) was produced for, and
+#: the sample the reference functions belong to.
+MATCHED_SAMPLE_ID = 0
 
 
 # --- the search/cursor protocol ------------------------------------------------
@@ -273,6 +281,95 @@ class CorpusMcritClient:
     def isFunctionId(self, function_id, *args, **kwargs):
         self._record("isFunctionId", function_id, *args, **kwargs)
         return int(function_id) in self._functions
+
+    # --- direct matching ---------------------------------------------------------
+
+    def getMatchesForPicHash(self, pichash, summary=False, *args, **kwargs):
+        """(family, sample, function) for every function sharing this pichash.
+
+        Mirrors QueryResource.on_get_query_pichash[_summary]: the summary is three
+        cardinalities, not the tuples, and it is what the function tables render.
+        """
+        self._record("getMatchesForPicHash", pichash, summary=summary)
+        matches = {
+            (entry.family_id, entry.sample_id, entry.function_id)
+            for entry in self._functions.values()
+            if entry.pichash == pichash
+        }
+        if summary:
+            return {
+                "families": len({match[0] for match in matches}),
+                "samples": len({match[1] for match in matches}),
+                "functions": len({match[2] for match in matches}),
+            }
+        return [list(match) for match in sorted(matches)]
+
+    def getMatchFunctionVs(self, function_id_a, function_id_b, *args, **kwargs):
+        """The four entries and the match tuple the function-vs page is built from.
+
+        Scored the way MinHashIndex.getMatchesFunctionVs does it - the minhashes are
+        in the captured entries, so the score is computed here rather than invented,
+        and the flags follow the same three rules.
+        """
+        self._record("getMatchFunctionVs", function_id_a, function_id_b)
+        entry_a = self._functions.get(int(function_id_a))
+        entry_b = self._functions.get(int(function_id_b))
+        if entry_a is None or entry_b is None:
+            return None
+        sample_a = self._samples[entry_a.sample_id]
+        sample_b = self._samples[entry_b.sample_id]
+        bits = MinHashConfig().MINHASH_SIGNATURE_BITS
+        minhash_a = entry_a.getMinHash(minhash_bits=bits).minhash
+        minhash_b = entry_b.getMinHash(minhash_bits=bits).minhash
+        score = None
+        if minhash_a and minhash_b:
+            score = MinHash.calculateMinHashScore(minhash_a, minhash_b, minhash_bits=bits)
+        flags = 0
+        flags += MatcherFlags.IS_MINHASH_FLAG if score is not None and score >= MinHashConfig().MINHASH_MATCHING_THRESHOLD else 0
+        flags += MatcherFlags.IS_PICHASH_FLAG if entry_a.pichash == entry_b.pichash else 0
+        flags += MatcherFlags.IS_LIBRARY_FLAG if sample_b.is_library else 0
+        match_tuple = [entry_b.family_id, entry_b.sample_id, entry_b.function_id, score, flags]
+        return {
+            "function_entry_a": entry_a.toDict(),
+            "function_entry_b": entry_b.toDict(),
+            "sample_entry_a": sample_a.toDict(),
+            "sample_entry_b": sample_b.toDict(),
+            # serialised by hand: MatchedFunctionEntry.toDict() of mcrit <= 1.8.1 re-encodes
+            # the flag booleans with their bit values (danielplohmann/mcrit#155), which
+            # turns a pichash match into a library one on the way out
+            "match_entry": {
+                "fid": int(function_id_a),
+                "num_bytes": entry_a.binweight,
+                "offset": entry_a.offset,
+                "matches": match_tuple,
+            },
+        }
+
+    def getMatchesForPicBlockHash(self, picblockhash, summary=False, *args, **kwargs):
+        self._record("getMatchesForPicBlockHash", picblockhash, summary=summary, *args, **kwargs)
+        hits = [entry for entry in self._functions.values() if any(block["hash"] == picblockhash for block in entry.picblockhashes)]
+        return {
+            "families": len({entry.family_id for entry in hits}),
+            "samples": len({entry.sample_id for entry in hits}),
+            "functions": len(hits),
+        }
+
+    # --- job submission ----------------------------------------------------------
+
+    def requestMatchesForSample(self, sample_id, *args, **kwargs):
+        """mcrit deduplicates by descriptor and answers the job it already has.
+
+        The corpus holds exactly one captured 1-vs-N job, for the sample its reference
+        functions belong to, so that is the only submission this can answer. Anything
+        else is a gap in the fixtures rather than a job, and says so.
+        """
+        self._record("requestMatchesForSample", sample_id, *args, **kwargs)
+        if int(sample_id) != MATCHED_SAMPLE_ID:
+            raise NotImplementedError(
+                f"The corpus has no captured 1-vs-N job for sample {sample_id}, only for "
+                f"sample {MATCHED_SAMPLE_ID}. Capture one with tests/fixtures/regenerate.py."
+            )
+        return job_id_of("matches_for_sample")
 
     # --- jobs and results --------------------------------------------------------
 

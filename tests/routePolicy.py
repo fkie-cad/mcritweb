@@ -135,6 +135,7 @@ ROUTE_POLICY = {
     "explore.functions": (VISITOR, READ_ONLY),
     "explore.function_by_id": (VISITOR, READ_ONLY),
     "explore.fetchDotGraph": (VISITOR, READ_ONLY),
+    "explore.fetchCombinedDotGraph": (VISITOR, READ_ONLY),
     "explore.findLoops": (VISITOR, READ_ONLY),
     "explore.getPicBlockMatches": (VISITOR, READ_ONLY),
     "explore.search": (VISITOR, READ_ONLY),
@@ -153,6 +154,18 @@ ROUTE_POLICY = {
     # for a recalculation, so a repeat, a prefetch or a double-click costs nothing.
     "analyze.compare_all": (VISITOR, WRITES_ON_GET),
     "analyze.compare_vs": (VISITOR, WRITES_ON_GET),
+    # same shape one level down: it queues the *parent sample's* 1-vs-N and lands on
+    # that report filtered to the function, because the backend has no per-function
+    # job. Reuses an existing job unless asked to rematch, so it is idempotent too.
+    #
+    # It does widen the surface, and the docstring above is why that is worth writing
+    # down: this row takes a *function* id where its siblings take a sample id, so
+    # many more URLs reach it - `<img src="/analyze/compare_function/12345">` on any
+    # page a logged-in visitor loads queues a match. The set of *jobs* reachable that
+    # way does not grow, because every function resolves to its parent sample and
+    # `analyze.compare_all` already queues those from a bare GET. So this is more
+    # spellings of an existing capability, not a new one.
+    "analyze.compare_function": (VISITOR, WRITES_ON_GET),
     "analyze.blocks_family": (VISITOR, WRITES_ON_GET),
     "analyze.blocks_sample": (VISITOR, WRITES_ON_GET),
     # the same shape as the two above and as start_cross_compare, and unconditionally
