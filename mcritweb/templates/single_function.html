@@ -85,7 +85,12 @@ Function: {{ function_id }}
           <li><a class="dropdown-item" href="{{ url_for('explore.search', query='pichash:0x' + ('%016x'|format(entry.pichash)), type='function') }}">Find functions with this PicHash</a></li>
           <li><hr class="dropdown-divider"></li>
           <li><h6 class="dropdown-header">Sample {{ entry.sample_id }}</h6></li>
-          <li><a class="dropdown-item" href="{{ url_for('analyze.compare', query='sha256:'+sample_entry.sha256) }}">New: 1 vs N</a></li>
+          {# a query sample's functions are numbered negatively and have no sample in the
+             database to match against, so analyze.compare_function does not accept them (#35) #}
+          {% if function_id >= 0 %}
+          <li><a class="dropdown-item" href="{{ url_for('analyze.compare_function', function_id=function_id) }}">New: 1 vs N for this function</a></li>
+          {% endif %}
+          <li><a class="dropdown-item" href="{{ url_for('analyze.compare', query='sha256:'+sample_entry.sha256) }}">New: 1 vs N for the sample</a></li>
           <li><a class="dropdown-item" href="{{ url_for('analyze.compare_versus', selected_a=entry.sample_id, query_a='sha256:'+sample_entry.sha256) }}">New: 1 vs 1</a></li>
           <li><a class="dropdown-item" href="{{ url_for('analyze.cross_compare', samples=entry.sample_id) }}">New: Cross Compare</a></li>
           <li><a class="dropdown-item" href="{{ url_for('explore.sample_by_id', sample_id=entry.sample_id, _anchor='jobs') }}">Previous Jobs</a></li>

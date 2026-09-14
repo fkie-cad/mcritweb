@@ -1166,6 +1166,13 @@ def job_by_id(job_id):
             if 'addBinarySample' in job_info.parameters:
                 suppress_processing_message = True
                 flash('Sample submitted successfully!', category='success')
+            # `analyze.compare_function` asks for the parent sample's job but wants the
+            # report filtered to one function, so the filter has to survive the forward
+            # - otherwise it silently becomes the sample report again. See issue #35.
+            # Parsed rather than reflected, so only an integer reaches the next URL.
+            filtered_function_id = parse_integer_query_param(request, "funid")
+            if filtered_function_id is not None:
+                return redirect(url_for('data.result', job_id=job_id, funid=filtered_function_id))
             return redirect(url_for('data.result', job_id=job_id))
     if 'addBinarySample' in job_info.parameters and not suppress_processing_message and auto_refresh:
         flash('We received your sample, currently processing!', category='info')
