@@ -2,6 +2,7 @@ import datetime
 import hashlib
 import os
 import sqlite3
+import time
 import uuid
 
 import click
@@ -70,6 +71,37 @@ class UserInfo:
     def registration_date(self):
         return self.registered.strftime("%Y-%m-%d")
     
+def get_stored_password_hash_method():
+    """The hashing method the user table's passwords were made with, or None.
+
+    check_password_hash costs whatever the *stored* hash asks for, not whatever
+    generate_password_hash would pick today, and werkzeug's default has moved
+    (pbkdf2:sha256:260000 -> 600000 -> scrypt) across the versions this app has been
+    pinned to. Werkzeug writes the method into the hash ahead of the first '$', so the
+    answer can simply be read off a row. See issue #101 and _spend_a_password_check.
+
+    The *most common* method, not the first row's. A table carrying a mix - accounts
+    from before a werkzeug upgrade alongside accounts registered after it - has no
+    single right answer, and one dummy cannot match two methods. Picking the majority
+    leaves the smallest set of accounts distinguishable; picking an arbitrary row (a
+    bare LIMIT 1) leaves whichever set that row does not belong to, which on an upgraded
+    instance is every account created since the upgrade.
+    """
+    record = get_db().execute(
+        """
+        SELECT substr(password, 1, instr(password, '$') - 1) AS method, COUNT(*) AS rows_with_it
+        FROM user
+        WHERE instr(password, '$') > 1
+        GROUP BY method
+        ORDER BY rows_with_it DESC
+        LIMIT 1;
+        """
+    ).fetchone()
+    if record is None or not record["method"]:
+        return None
+    return record["method"]
+
+
 def get_all_user_info():
     all_user_infos = []
     database = get_db() 
@@ -524,6 +556,8 @@ def init_db():
         db.executescript(f.read().decode('utf8'))
     with current_app.open_resource('sql' + os.sep + 'create_table_server.sql') as f:
         db.executescript(f.read().decode('utf8'))
+    with current_app.open_resource('sql' + os.sep + 'create_table_login_attempt.sql') as f:
+        db.executescript(f.read().decode('utf8'))
 
 @click.command('init-db')
 @with_appcontext
@@ -588,10 +622,91 @@ def migrate(app_context):
             with app_context.open_resource('sql' + os.sep + 'create_table_user_column_settings.sql') as f:
                 db.executescript(f.read().decode('utf8'))
             print("EXECUTED MIGRATION: CREATED TABLE USER_COLUMN_SETTINGS")
+        # since v1.4.9, failed logins are metered, ensure the table exists
+        attempt_table_needs_creation = False
+        try:
+            db.execute('SELECT * FROM login_attempt').fetchone()
+        except sqlite3.OperationalError:
+            attempt_table_needs_creation = True
+        if attempt_table_needs_creation:
+            with app_context.open_resource('sql' + os.sep + 'create_table_login_attempt.sql') as f:
+                db.executescript(f.read().decode('utf8'))
+            print("EXECUTED MIGRATION: CREATED TABLE LOGIN_ATTEMPT")
 
         db.commit()
     finally:
         db.close()
+
+
+#: How many failed attempts one address may make inside LOGIN_ATTEMPT_WINDOW before it
+#: is refused. Deliberately generous: a person who has forgotten which of two passwords
+#: they used should never meet this, and an attacker is not meaningfully inconvenienced
+#: by 10 versus 5 - what stops unmetered guessing is the window, not the count.
+LOGIN_ATTEMPT_LIMIT = 10
+
+#: Seconds. Also how long a blocked address stays blocked, since the count is always
+#: taken over the trailing window rather than held as a lockout flag - so a block
+#: expires on its own and there is no state to clear or unlock.
+LOGIN_ATTEMPT_WINDOW = 900
+
+
+def record_failed_login(remote_addr, username):
+    """Record one failed attempt, and drop attempts that have aged out of the window.
+
+    Pruning here rather than on a timer keeps the table bounded without a scheduler:
+    the only thing that grows it is the same call that trims it.
+    """
+    now = int(time.time())
+    db = get_db()
+    db.execute(
+        "INSERT INTO login_attempt (remote_addr, username, attempted_at) VALUES (?, ?, ?)",
+        (remote_addr or "", username or "", now),
+    )
+    db.execute("DELETE FROM login_attempt WHERE attempted_at < ?", (now - LOGIN_ATTEMPT_WINDOW,))
+    db.commit()
+
+
+def count_recent_login_failures(remote_addr, username=None):
+    """Failures from this address in the trailing window; optionally for one username."""
+    since = int(time.time()) - LOGIN_ATTEMPT_WINDOW
+    db = get_db()
+    if username is None:
+        row = db.execute(
+            "SELECT COUNT(*) AS n FROM login_attempt WHERE remote_addr = ? AND attempted_at >= ?",
+            (remote_addr or "", since),
+        ).fetchone()
+    else:
+        row = db.execute(
+            "SELECT COUNT(*) AS n FROM login_attempt "
+            "WHERE remote_addr = ? AND username = ? AND attempted_at >= ?",
+            (remote_addr or "", username or "", since),
+        ).fetchone()
+    return row["n"] if row else 0
+
+
+def login_is_throttled(remote_addr):
+    """Whether this address has spent its attempts for the current window.
+
+    Keyed on the address only, never on the username, and that is the whole design
+    decision issue #101 asks to make explicit. A per-account lockout hands an attacker
+    a denial of service against any account whose name they know: fail four times
+    against `admin` and the real admin is locked out. Metering the *source* costs an
+    attacker their own budget instead.
+
+    The username is still counted - see `count_recent_login_failures` - but only so the
+    log can say that attempts are aimed at one account, which is what an operator needs
+    to see. It never blocks.
+    """
+    return count_recent_login_failures(remote_addr) >= LOGIN_ATTEMPT_LIMIT
+
+
+def clear_login_failures(remote_addr):
+    """Forget this address's failures. Called on a successful authentication, so an
+    ordinary person who mistyped their password a few times does not carry the count
+    around for the rest of the window."""
+    db = get_db()
+    db.execute("DELETE FROM login_attempt WHERE remote_addr = ?", (remote_addr or "",))
+    db.commit()
 
 
 def is_first_user():
