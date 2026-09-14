@@ -1,5 +1,4 @@
 import functools
-import hashlib
 import os
 import re
 import secrets
@@ -10,7 +9,7 @@ from flask import Blueprint, abort, current_app, flash, g, redirect, render_temp
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from mcritweb import db
-from mcritweb.db import ServerInfo, UserColumnSettings, UserFilters, UserInfo, utc_now
+from mcritweb.db import ServerInfo, UserColumnSettings, UserFilters, UserInfo, generate_apitoken, utc_now
 from mcritweb.views.utility import get_session_user_id
 
 bp = Blueprint('authentication', __name__, url_prefix='/')
@@ -136,6 +135,12 @@ def _current_hash_method():
         _CURRENT_HASH_METHOD = generate_password_hash(secrets.token_urlsafe(8)).split("$", 1)[0]
     return _CURRENT_HASH_METHOD
 
+#: The roles whose API token is worth anything. `token_required` is the authority; the
+#: settings page reads it too, so the page cannot show a token to someone whose token
+#: does not work, or - the way it went wrong - hide one that does. `pending` gets
+#: nothing, as in the web UI.
+API_ROLES = ('visitor', 'contributor', 'admin')
+
 
 @bp.before_app_request
 def set_is_first_user():
@@ -222,7 +227,7 @@ def register():
             if error is None:
                 user_info.registered = utc_now()
                 user_info.last_login = 'no login'
-                user_info.apitoken = hashlib.md5(uuid.uuid4().bytes).hexdigest()
+                user_info.apitoken = generate_apitoken()
                 try:
                     user_info.saveToDb()
                 except sqlite3.IntegrityError:
@@ -320,7 +325,7 @@ def settings():
     if user_column_settings is None:
         user_column_settings = UserColumnSettings.fromDict(user_id, {})
         user_column_settings.saveToDb()
-    return render_template('settings.html', user_info=user_info, user_filters=user_filters, user_column_settings=user_column_settings.toUserColumnSettings())
+    return render_template('settings.html', user_info=user_info, user_filters=user_filters, user_column_settings=user_column_settings.toUserColumnSettings(), can_use_api=user_info is not None and user_info.role in API_ROLES)
 
 def admin_required(view):
     @functools.wraps(view)
@@ -372,7 +377,7 @@ def token_required(view):
         if user_id is None:
             abort(403)
         g.api_user = UserInfo.fromDb(user_id=user_id)
-        if g.api_user is None or g.api_user.role not in ('visitor', 'contributor', 'admin'):
+        if g.api_user is None or g.api_user.role not in API_ROLES:
             abort(403)
         return view(**kwargs)
     return wrapped_view
