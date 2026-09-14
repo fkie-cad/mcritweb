@@ -5,13 +5,12 @@ import re
 import secrets
 import sqlite3
 import uuid
-from datetime import datetime
 
 from flask import Blueprint, abort, current_app, flash, g, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from mcritweb import db
-from mcritweb.db import ServerInfo, UserColumnSettings, UserFilters, UserInfo
+from mcritweb.db import ServerInfo, UserColumnSettings, UserFilters, UserInfo, utc_now
 from mcritweb.views.utility import get_session_user_id
 
 bp = Blueprint('authentication', __name__, url_prefix='/')
@@ -221,7 +220,7 @@ def register():
                     current_app.logger.exception("Failed to persist server settings during first-user registration")
                     error = "Server values invalid. Please check the server settings and try again."
             if error is None:
-                user_info.registered = datetime.utcnow()
+                user_info.registered = utc_now()
                 user_info.last_login = 'no login'
                 user_info.apitoken = hashlib.md5(uuid.uuid4().bytes).hexdigest()
                 try:
@@ -276,7 +275,7 @@ def login():
         if error is None:
             session.clear()
             session['user_id'] = user_info.user_id
-            user_info.last_login = datetime.utcnow()
+            user_info.last_login = utc_now()
             rehashed = _rehash_if_stale(user_info, password)
             user_info.saveToDb(withPassword=rehashed)
             db.clear_login_failures(request.remote_addr)

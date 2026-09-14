@@ -1,7 +1,6 @@
 import hashlib
 import os
 import re
-from datetime import datetime
 from urllib.parse import quote
 
 from flask import Blueprint, Response, current_app, flash, json, redirect, render_template, request, send_from_directory, session, url_for
@@ -15,7 +14,7 @@ from mcrit.storage.SampleEntry import SampleEntry
 from mcrit.storage.UniqueBlocksResult import UniqueBlocksResult
 from smda.common.SmdaReport import SmdaReport
 
-from mcritweb.db import UserColumnSettings, UserFilters
+from mcritweb.db import UserColumnSettings, UserFilters, utc_now
 from mcritweb.views.analyze import query as analyze_query
 from mcritweb.views.authentication import contributor_required, visitor_required
 from mcritweb.views.client import get_client
@@ -87,7 +86,7 @@ def cache_result(app, job_info, matching_result):
     # TODO potentially implement a cache control that manages maximum allowed cache size?
     if job_info.result is not None:
         cache_path = os.sep.join([app.instance_path, "cache", "results"])
-        timestamped_filename = datetime.utcnow().strftime(f"%Y%m%d-%H%M%S-{job_info.job_id}.json")
+        timestamped_filename = utc_now().strftime(f"%Y%m%d-%H%M%S-{job_info.job_id}.json")
         with open(cache_path + os.sep + timestamped_filename, "w") as fout:
             json.dump(matching_result, fout, indent=1)
 
