@@ -33,6 +33,10 @@ REPORTS = (
     "matches_for_query",
     "cross_compare",
     "unique_blocks",
+    # the three maintenance jobs result_maintenance.html knows, one per branch of the template
+    "maintenance_rebuild_index",
+    "maintenance_recalculate_pichashes",
+    "maintenance_recalculate_minhashes",
 )
 
 
@@ -132,11 +136,48 @@ def _page(entries, search_term, fields, default_sort, sort_by, is_ascending, cur
     }
 
 
+class RawResponse:
+    """Enough of a requests.Response for a caller reading a raw-mode answer.
+
+    `McritClient(raw_responses=True)` returns the response untouched instead of running
+    it through `handle_response`, which is the only way a caller can tell "404, not in
+    the collection" from "the call failed" - handle_response maps both to None. Only the
+    methods that a view actually asks for in raw mode model this; see the note on
+    CorpusMcritClient.raw.
+    """
+
+    def __init__(self, status_code, payload=None):
+        self.status_code = status_code
+        self._payload = payload
+
+    def json(self):
+        return {"status": "successful", "data": self._payload}
+
+def _job_state(document):
+    """mongoqueue._identifyJobState, transcribed - `state=` is filtered on it."""
+    if document["started_at"] and document["locked_by"] and not (document["finished_at"] or document["terminated"]):
+        return "in_progress"
+    if document["attempts_left"] == 0 and not document["finished_at"] and not document["terminated"]:
+        return "failed"
+    if not document["finished_at"] and not document["locked_by"] and not document["terminated"]:
+        return "queued"
+    if document["finished_at"] and not document["terminated"]:
+        return "finished"
+    if document["terminated"]:
+        return "terminated"
+    return "unknown"
+
+
 class CorpusMcritClient:
     """Serves the captured corpus in the types the real client returns."""
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
+        #: raw_responses is modelled for getSampleBySha256 only, because that is the one
+        #: place a view needs the status code rather than the parsed value. Every other
+        #: method ignores it and answers parsed, so a new raw-mode caller has to teach
+        #: this fake about its method rather than getting a wrong shape quietly.
+        self.raw = bool(kwargs.get("raw_responses"))
         self.calls = []
         self._samples = {int(k): SampleEntry.fromDict(v) for k, v in load("samples").items()}
         self._families = {int(k): FamilyEntry.fromDict(v) for k, v in load("families").items()}
@@ -152,18 +193,31 @@ class CorpusMcritClient:
         self._jobs = {job_id_of(report): (load(f"{report}.job"), load(f"{report}.result")) for report in REPORTS}
         self._queue = load("queue")
 
+    def raw_variant(self):
+        """The same backend answering in raw mode - see FakeMcritClient.raw_variant."""
+        clone = object.__new__(type(self))
+        clone.__dict__.update(self.__dict__)
+        clone.raw = True
+        return clone
+
     def _record(self, name, *args, **kwargs):
         self.calls.append((name, args, kwargs))
 
     # --- server ------------------------------------------------------------------
 
+    # Both of these answer with the wrapped dict, because that is what the real client
+    # answers with: MinHashIndex.getStatus returns {"status": {...}} and getVersion
+    # returns {"version": "..."}, StatusResource puts each under "data", and
+    # handle_response hands "data" back untouched. Unwrapping here once more used to
+    # make /explore/statistics render an empty table under test while working in
+    # production - and hid that the admin page renders getVersion()'s dict verbatim.
     def getStatus(self, *args, **kwargs):
         self._record("getStatus", *args, **kwargs)
-        return load("status")["status"]
+        return load("status")
 
     def getVersion(self, *args, **kwargs):
         self._record("getVersion", *args, **kwargs)
-        return load("version")["version"]
+        return load("version")
 
     # --- families ----------------------------------------------------------------
 
@@ -197,8 +251,8 @@ class CorpusMcritClient:
         self._record("getSampleBySha256", sha256, *args, **kwargs)
         for sample in self._samples.values():
             if sample.sha256 == sha256:
-                return sample
-        return None
+                return RawResponse(200, sample.toDict()) if self.raw else sample
+        return RawResponse(404) if self.raw else None
 
     # --- functions ---------------------------------------------------------------
 
@@ -232,9 +286,33 @@ class CorpusMcritClient:
         entry = self._jobs.get(job_id)
         return entry[1] if entry else None
 
-    def getQueueData(self, *args, **kwargs):
-        self._record("getQueueData", *args, **kwargs)
-        return [Job(entry, None) for entry in self._queue]
+    def getQueueData(self, start=0, limit=0, method=None, filter=None, state=None, ascending=False):
+        """The queue, narrowed the way mcrit narrows it - including where it does so
+        badly, because callers have to cope with that.
+
+        `queue.json` is captured newest-first, which is what `ascending=False` means.
+        `method` is a mongo query on `payload.method` and so applies *before* start and
+        limit; `state` is filtered in python over the whole collection and then sliced,
+        which is only a performance difference. `filter` is the odd one out: mcrit
+        applies it as a substring test over `Job.parameters` *after* start and limit
+        (`QueueRemoteCalls.getQueueData`), so it drops non-matches out of an already
+        paged slice rather than paging the matches. Reproduced deliberately - a caller
+        that combines `filter` with `limit` must not look correct here."""
+        # every parameter recorded by name, as data.jobs actually passes them: a call
+        # assertion should not depend on which ones this line happened to forward
+        # positionally.
+        self._record("getQueueData", start=start, limit=limit, method=method, filter=filter, state=state, ascending=ascending)
+        documents = self._queue if not ascending else list(reversed(self._queue))
+        if method is not None:
+            documents = [entry for entry in documents if entry["payload"]["method"] == method]
+        if state is not None:
+            documents = [entry for entry in documents if _job_state(entry) == state]
+        start = start if isinstance(start, int) and start > 0 else 0
+        documents = documents[start:start + limit] if isinstance(limit, int) and limit > 0 else documents[start:]
+        jobs = [Job(entry, None) for entry in documents]
+        if isinstance(filter, str):
+            jobs = [job for job in jobs if filter in job.parameters]
+        return jobs
 
     def getQueueStatistics(self, *args, **kwargs):
         self._record("getQueueStatistics", *args, **kwargs)

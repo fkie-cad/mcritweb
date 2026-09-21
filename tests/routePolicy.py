@@ -75,7 +75,9 @@ MUTATING_CLIENT_CALLS = {
     "requestMatchesForSmdaReport",
     "requestMatchesForUnmappedBinary",
     "requestUniqueBlocksForFamily",
-    "requestUniqueBlocksForSample",
+    # the method is plural - the singular spelling matched nothing on McritClient, so
+    # the detector was blind to every unique-blocks submission
+    "requestUniqueBlocksForSamples",
     "respawn",
     "updateFamily",
     "updateSample",
@@ -123,6 +125,9 @@ ROUTE_POLICY = {
 
     # --- visitor and above -------------------------------------------------------
     "explore.families": (VISITOR, READ_ONLY),
+    # the family type-ahead behind the edit modals (#77). Visitors already read every
+    # family name off explore.families, so this exposes nothing the listing does not.
+    "explore.family_names": (VISITOR, READ_ONLY),
     "explore.family_by_id": (VISITOR, READ_ONLY),
     "explore.samples": (VISITOR, READ_ONLY),
     "explore.sample_by_id": (VISITOR, READ_ONLY),
@@ -138,6 +143,9 @@ ROUTE_POLICY = {
     "analyze.compare_submit_query": (VISITOR, READ_ONLY),
     "analyze.cross_compare": (VISITOR, READ_ONLY),
     "analyze.cross_compare_from_hash_list": (VISITOR, READ_ONLY),
+    # the configuration page for unique blocks - it selects samples and looks them up,
+    # the submission is the separate route below. See issue #93.
+    "analyze.unique_blocks": (VISITOR, READ_ONLY),
     # Job submission by GET, deliberately: the URL names a comparison, so it is worth
     # bookmarking and sharing. Not destructive, and idempotent since issue #97 - the
     # backend returns the existing job for identical parameters unless the caller asks
@@ -146,11 +154,19 @@ ROUTE_POLICY = {
     "analyze.compare_vs": (VISITOR, WRITES_ON_GET),
     "analyze.blocks_family": (VISITOR, WRITES_ON_GET),
     "analyze.blocks_sample": (VISITOR, WRITES_ON_GET),
+    # the same shape as the two above and as start_cross_compare, and unconditionally
+    # idempotent rather than idempotent-unless-asked: neither unique-blocks method takes
+    # a force_recalculation, so mcrit answers a repeat from its descriptor cache. The
+    # route sorts and deduplicates the selection so that a repeat hashes the same.
+    "analyze.start_unique_blocks": (VISITOR, WRITES_ON_GET),
     "analyze.start_cross_compare": (VISITOR, WRITES_ON_GET),
     "analyze.query": (VISITOR, WRITES_ON_POST),
     "data.jobs": (VISITOR, READ_ONLY),
     "data.job_by_id": (VISITOR, READ_ONLY),
     "data.result": (VISITOR, READ_ONLY),
+    # writes the report to instance/cache/results on a cache miss, exactly as
+    # data.result does, which is local caching rather than a state change
+    "data.download_result": (VISITOR, READ_ONLY),
     "data.linkhunt": (VISITOR, READ_ONLY),
     "data.match_functions": (VISITOR, READ_ONLY),
     # serves instance/cache/diagrams; the <img> tags on the result pages carry the
@@ -161,6 +177,9 @@ ROUTE_POLICY = {
     # --- contributor and above ---------------------------------------------------
     "data.submit": (CONTRIBUTOR, WRITES_ON_POST),
     "data.submit_or_query": (CONTRIBUTOR, WRITES_ON_POST),
+    # adds the file a query was run for to the corpus - the same write data.submit
+    # performs, from a copy already on disk instead of a fresh upload. See issue #9.
+    "data.promote_query": (CONTRIBUTOR, WRITES_ON_POST),
     "data.import_view": (CONTRIBUTOR, WRITES_ON_POST),
     "data.import_complete": (CONTRIBUTOR, READ_ONLY),
     "data.export_view": (CONTRIBUTOR, READ_ONLY),

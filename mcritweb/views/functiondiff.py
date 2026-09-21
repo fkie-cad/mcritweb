@@ -110,8 +110,14 @@ def get_levenshtein_matches(smda_function_a, smda_function_b, unmatched_nodes):
                 alphabet[escaped_ins] = chr(0x20 + num_symbols)
                 num_symbols += 1
                 if num_symbols > 0xff-0x20:
-                    print(alphabet)
-                    raise Exception("Basic Block contains too many tokens to compare.")
+                    # the alphabet was printed here before raising: on a request path,
+                    # dumping every distinct instruction in the function to stdout. The
+                    # size is the part that explains the failure, so it goes where a
+                    # reader of the traceback will actually see it.
+                    raise Exception(
+                        f"Too many distinct instructions to compare: {num_symbols} "
+                        f"across both functions, limit {0xff - 0x20}. Overflowed while "
+                        f"symbolifying function a.")
             symbolified_block += alphabet[escaped_ins]
         candidate_blocks_a[block.offset] = symbolified_block
     candidate_blocks_b = {}
@@ -125,8 +131,14 @@ def get_levenshtein_matches(smda_function_a, smda_function_b, unmatched_nodes):
                 alphabet[escaped_ins] = chr(0x20 + num_symbols)
                 num_symbols += 1
                 if num_symbols > 0xff-0x20:
-                    print(alphabet)
-                    raise Exception("Basic Block contains too many tokens to compare.")
+                    # the alphabet was printed here before raising: on a request path,
+                    # dumping every distinct instruction in the function to stdout. The
+                    # size is the part that explains the failure, so it goes where a
+                    # reader of the traceback will actually see it.
+                    raise Exception(
+                        f"Too many distinct instructions to compare: {num_symbols} "
+                        f"across both functions, limit {0xff - 0x20}. Overflowed while "
+                        f"symbolifying function b.")
             symbolified_block += alphabet[escaped_ins]
         candidate_blocks_b[block.offset] = symbolified_block
 

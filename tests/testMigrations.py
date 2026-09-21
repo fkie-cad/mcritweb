@@ -213,7 +213,8 @@ def test_the_oldest_schema_is_brought_fully_up_to_date(tmp_path):
 
     _run_migration(tmp_path, db_path)
 
-    assert {"user", "user_filters", "server", "user_column_settings"} <= _tables(db_path)
+    assert {"user", "user_filters", "server", "user_column_settings",
+            "login_attempt"} <= _tables(db_path)
     assert "apitoken" in _columns(db_path, "user")
     assert "server_token" in _columns(db_path, "server")
 
@@ -300,6 +301,45 @@ def test_a_v1_3_6_database_only_gains_column_settings(tmp_path):
     assert "user_column_settings" in _tables(db_path)
     assert _query(db_path, "SELECT apitoken FROM user") == [("preexisting-token",)]
     assert _query(db_path, "SELECT server_token FROM server") == [("srvtoken",)]
+
+
+def test_a_database_from_before_the_throttle_gains_the_attempt_table(tmp_path):
+    """The migration step added for issue #101, from the schema it starts from.
+
+    Everything up to v1.4.8 predates `login_attempt`, so an upgrading deployment has to
+    grow it on first start - the login path reads it on every POST and would otherwise
+    raise `no such table` for every attempt, locking everyone out rather than metering
+    anyone.
+    """
+    db_path = _legacy_database(tmp_path, SCHEMA_V0_10_6)
+    _insert_legacy_user(db_path, "olduser")
+    assert "login_attempt" not in _tables(db_path)
+
+    _run_migration(tmp_path, db_path)
+
+    assert "login_attempt" in _tables(db_path)
+    assert {"remote_addr", "username", "attempted_at"} <= set(_columns(db_path, "login_attempt"))
+
+
+def test_recorded_attempts_survive_a_second_migration(tmp_path):
+    """The guard is a CREATE, so a second start must not drop what the first counted."""
+    db_path = _legacy_database(tmp_path, SCHEMA_V0_10_6)
+    _insert_legacy_user(db_path, "olduser")
+    _run_migration(tmp_path, db_path)
+
+    connection = sqlite3.connect(db_path)
+    try:
+        connection.execute(
+            "INSERT INTO login_attempt (remote_addr, username, attempted_at) VALUES (?, ?, ?)",
+            ("203.0.113.7", "olduser", 1)),
+        connection.commit()
+    finally:
+        connection.close()
+
+    _run_migration(tmp_path, db_path)
+
+    assert _query(db_path, "SELECT remote_addr, username FROM login_attempt") == [
+        ("203.0.113.7", "olduser")]
 
 
 def test_the_current_schema_is_a_no_op(tmp_path):
