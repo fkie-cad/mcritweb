@@ -79,7 +79,7 @@
       {% elif column_type == "pic_hash" %}
         <td align="right" valign="middle" class="font-monospace">{{ format_pichash(function.pichash) }}</td>
       {% elif column_type == "has_minhash" %}
-        <td align="center" valign="middle"><i {% if function.minhash|length > 0 %} style="color:green;" class="fa-solid fa-square-check" {% else %} style="color:darkred;" class="fa-solid fa-times-circle"> {% endif %}</i></td>
+        <td align="center" valign="middle"><i {% if function.minhash|length > 0 %}style="color:green;" class="fa-solid fa-square-check" title="MinHash present"{% else %}style="color:darkred;" class="fa-solid fa-times-circle" title="No MinHash"{% endif %}></i></td>
       {% elif column_type == "offset" %}
         <td align="right" valign="middle" class="font-monospace">{{ format_offset(function.offset) }}</td>
       {% elif column_type == "function_name" %}
@@ -91,7 +91,13 @@
       {% endif %}
     {% endfor %}
     <td align="center" class="buttons">
-      <a class="btn btn-outline-dark btn-sm" href="{{ url_for('analyze.compare', query='sample_id:' + '%d' % function.sample_id) }}" role="button"><i class="fa-solid fa-flask" title="New: 1 vs N"></i></a>
+      {# a query sample's functions are numbered negatively and have no sample in the
+         database to match against, so analyze.compare_function does not accept them.
+         url_for still writes the negative id into the href, so without this the row
+         would offer a button that only ever answers 404 #}
+      {% if function.function_id >= 0 %}
+      <a class="btn btn-outline-dark btn-sm" href="{{ url_for('analyze.compare_function', function_id=function.function_id) }}" role="button"><i class="fa-solid fa-flask" title="New: 1 vs N for this function"></i></a>
+      {% endif %}
     </td>
   </tr>
 {% endmacro %}
