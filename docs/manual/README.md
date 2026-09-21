@@ -30,36 +30,40 @@ MCRIT provides a search interface, with which you can search various data points
 The search syntax either allows to simply use plain search terms or to prefix your search terms in order to limit the search to specific fields.
 
 For example, when only looking for samples of a certain `family_name`, you could use:
+
 * `family_name:my_malware`
 
 The currently supported fields per category are:
+
 * families:
-  * family_id
-  * family_name
+    * family_id
+    * family_name
 * samples:
-  * family_id
-  * sample_id
-  * sha256
-  * filename
-  * family
-  * version
-  * component
+    * family_id
+    * sample_id
+    * sha256
+    * filename
+    * family
+    * version
+    * component
 * functions:
-  * family_id
-  * sample_id
-  * function_id
-  * offset
-  * pichash
-  * function_name
-  * num_instructions
+    * family_id
+    * sample_id
+    * function_id
+    * offset
+    * pichash
+    * function_name
+    * num_instructions
 
 Additionally, you can also use operands to further limit the term:
+
 * `<`, `<=`, `>`, `>=` -> limit the range
 * `!=` -> not equal
 * `!` -> logical not
 * `?` -> match anywhere in the field, as a literal substring rather than a pattern
 
 Furthermore, search terms can be combined using the `AND` and `OR` directives, e.g. like so:
+
 * `family_id:1 AND offset:<=0x2399fff AND offset:>=0x2398fff`
 
 A term that is exactly a family, sample or function id - or a sample's `sha256` - also
@@ -98,6 +102,7 @@ The search bar allows using the syntax described above to filter the list.
 ![An example row of the family table](images/family_table.png "An example row of the family table")
 
 On the far right, there are four operations available to interact with the families:
+
 * Matching: create a new matching job, and preselect this family
 * Blocks: Run a Blocks analysis over the family, isolating all basic blocks unique to this family and trying to derive a YARA rule for the family
 * Export: export all samples and their functions
@@ -111,6 +116,7 @@ The search bar allows using the syntax described above to filter the list.
 ![An example row of the sample table](images/sample_table.png "An example row of the sample table")
 
 The same operations as for families are available here as well:
+
 * Matching: create a new matching job, and preselect this sample
 * Blocks: Run a Blocks analysis over this sample, isolating all basic blocks unique to this sample and trying to derive a YARA rule for it
 * Edit: allows to change the family name and version, decide whether the sample is a library or not, or delete the sample
@@ -166,12 +172,13 @@ Naturally, only one input sample can be selected and the search syntax described
 
 
 For further options, you can
+
 * choose if you want to force a new run with `Force Rematch` (e.g. in case families/samples were added/removed) or if you want to access a previous result, if existing.
 * adjust the fuzziness for MinHash matching. 
-  * Off: Only do PicHash matching, i.e. quasi-exact function matches.
-  * Fast: requires 3 matching bads, tightens the results but drops many matches in the lower range.
-  * Standard: requires 2 matching bands, which considerably filters the function candidates while not cutting off too many potential true positives.
-  * Complete: requires just 1 matching band, which yields the maximum number of function candidates but also likely incurs many false positives.
+    * Off: Only do PicHash matching, i.e. quasi-exact function matches.
+    * Fast: requires 3 matching bads, tightens the results but drops many matches in the lower range.
+    * Standard: requires 2 matching bands, which considerably filters the function candidates while not cutting off too many potential true positives.
+    * Complete: requires just 1 matching band, which yields the maximum number of function candidates but also likely incurs many false positives.
 
 #### Compare 1vs1
 
@@ -294,6 +301,7 @@ Similar to the family view but limited to families and samples that have the lib
 The MCRIT diagram visualizes the aggregated matching information for the whole sample.
 Each bar corresponds to one function (with 10 or more instructions) from the binary, sorted by virtual addresses from left to right and its size being proportional to the number of instructions.
 The three major rows show the following aspects:
+
 * frequency
 * library matches
 * best match into another family
@@ -386,6 +394,7 @@ The last menu point allows you to access settings.
 
 When using a multi-user instance of MCRIT Web, this section allows management of all user accounts.
 At this time, there are 4 user roles with different access rights implemented.
+
 * `Pending`: A user that has just registered and was not assigned a role yet
 * `Visitor`: A limited "read-only" role that can not add content to the MCRIT dataase but is allowed to create matching jobs and queries with a filesize up to 1MB
 * `Contributor`: An account with full access rights
