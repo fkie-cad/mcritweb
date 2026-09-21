@@ -237,6 +237,8 @@ table.table thead th {
 
 table.table td.buttons {
   white-space: nowrap;
+}
+
 /* function comparison page (data.match_functions), issue #74 */
 #xcfg_combined {
   position: relative;
