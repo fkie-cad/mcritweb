@@ -37,6 +37,34 @@ var FunctionCompare = (function () {
     d3.selectAll("input[name=viewMode]").on("change", function () {
       setViewMode(this.value);
     });
+
+    var resetButton = document.getElementById("resetView");
+    if (resetButton) {
+      resetButton.addEventListener("click", resetView);
+    }
+  }
+
+  // Put every graph back to the fit-to-pane it was rendered with. Needed because the
+  // two graphs are fitted independently - a 40-block function and a 90-block one get
+  // different initial scales - and the sync mirrors the *ratio* of a zoom, so that
+  // difference is preserved by design however much you zoom. Without a way back, a
+  // few wheel turns leave the two sides at scales that cannot be reconciled by hand.
+  function resetView() {
+    ["a", "b"].forEach(function (graph_id) {
+      var entry = graph_zooms[graph_id];
+      if (!entry) {
+        return;
+      }
+      var translate = [0, 0];
+      entry.zoom.scale(entry.initialScale).translate(translate);
+      entry.lastScale = entry.initialScale;
+      entry.lastTranslate = translate.slice();
+      applyTransform(entry, translate, entry.initialScale);
+    });
+    if (combined !== null && combined.initialScale !== undefined) {
+      combined.zoom.scale(combined.initialScale).translate([0, 0]);
+      combined.inner.attr("transform", "translate(0,0)scale(" + combined.initialScale + ")");
+    }
   }
 
   // --- synchronised pan and zoom ------------------------------------------------
@@ -247,7 +275,7 @@ var FunctionCompare = (function () {
     });
     svg.call(zoom).on("dblclick.zoom", null);
     zoom.scale(initialScale).event(svg);
-    combined = {graph: graph, zoom: zoom, svg: svg, inner: inner};
+    combined = {graph: graph, zoom: zoom, svg: svg, inner: inner, initialScale: initialScale};
 
     installCombinedTooltip(graph);
   }
@@ -280,6 +308,7 @@ var FunctionCompare = (function () {
     onGraphShown: onGraphShown,
     centerOn: centerOn,
     setViewMode: setViewMode,
+    resetView: resetView,
   };
 })();
 
