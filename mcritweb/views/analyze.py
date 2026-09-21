@@ -4,6 +4,7 @@ from flask import Blueprint, current_app, flash, g, json, redirect, render_templ
 from mcrit.storage.SampleEntry import SampleEntry
 from smda.common.SmdaReport import SmdaReport
 
+from mcritweb.db import remember_query_filename
 from mcritweb.views.authentication import visitor_required
 from mcritweb.views.client import get_client
 from mcritweb.views.cursor_pagination import CursorPagination
@@ -448,6 +449,9 @@ def query():
             job_id = client.requestMatchesForUnmappedBinary(binary=binary_content, disassemble_locally=False, force_recalculation=True, band_matches_required=minhash_band_range)
         
         if job_id is not None:
+            # a query is never stored, and no query endpoint takes a filename - so this is
+            # the only record of what the uploaded file was called (#40)
+            remember_query_filename(job_id, f.filename)
             # persist the upload, so the query can later be promoted to a sample (#9).
             # It is filed under the job id and not under any hash: the id is issued by
             # the backend once the job is queued, so no part of the name comes from the

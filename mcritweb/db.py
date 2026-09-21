@@ -1,13 +1,68 @@
 import datetime
-import hashlib
 import os
+import secrets
 import sqlite3
 import time
-import uuid
 
 import click
 from flask import current_app, g
 from flask.cli import with_appcontext
+
+#: How the two `user` timestamps are written into their VARCHAR columns. Used on the
+#: way in and on the way out, because the two have to agree: this is what sqlite3's
+#: implicit datetime adapter used to produce, and it is what existing databases hold.
+TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+
+#: What that adapter produced when the microsecond happened to be exactly 0 -
+#: `datetime.isoformat(" ")` drops the fractional part. A row written on that
+#: microsecond cannot be read back with TIMESTAMP_FORMAT, so accept it too.
+TIMESTAMP_FORMAT_WITHOUT_MICROSECONDS = "%Y-%m-%d %H:%M:%S"
+
+
+def utc_now():
+    """The current time as a timezone-aware UTC datetime.
+
+    `datetime.utcnow()` is deprecated since 3.12 (and returned a *naive* datetime that
+    merely happened to hold UTC, which is what made it a trap). See issue #98.
+    """
+    return datetime.datetime.now(datetime.UTC)
+
+
+def format_timestamp(value):
+    """A datetime as it is stored. Explicit, so sqlite3 never has to adapt one."""
+    return value.strftime(TIMESTAMP_FORMAT)
+
+
+def parse_timestamp(value):
+    """A stored timestamp back as a timezone-aware UTC datetime.
+
+    Everything ever written here has been UTC, so the offset is knowledge we have and
+    the column does not carry - attach it rather than handing back a naive datetime
+    that the next caller has to guess about.
+    """
+    for timestamp_format in (TIMESTAMP_FORMAT, TIMESTAMP_FORMAT_WITHOUT_MICROSECONDS):
+        try:
+            parsed = datetime.datetime.strptime(value, timestamp_format)
+        except ValueError:
+            continue
+        return parsed.replace(tzinfo=datetime.UTC)
+    raise ValueError(f"Not a stored timestamp: {value!r}")
+
+#: Bytes of entropy behind a per-user API token. 32 gives a 64-character hex string.
+APITOKEN_BYTES = 32
+
+
+def generate_apitoken():
+    """A fresh API token.
+
+    This used to be `md5(uuid4().bytes)`. The entropy was always UUID4's rather than
+    MD5's, so the tokens were never weak - but MD5 in an authentication path is a
+    finding every auditor writes up, and there is no reason to keep it. See issue #100.
+
+    Tokens already issued stay valid: nothing validates their shape, and
+    `get_user_by_apitoken` matches on equality.
+    """
+    return secrets.token_hex(APITOKEN_BYTES)
 
 
 class UserInfo:
@@ -37,10 +92,10 @@ class UserInfo:
             user_info.username = record["username"]
             user_info.password = record["password"]
             user_info.role = record["role"]
-            user_info.registered = datetime.datetime.strptime(record["registered"], "%Y-%m-%d %H:%M:%S.%f")
+            user_info.registered = parse_timestamp(record["registered"])
             user_info.last_login = "no login"
             if record["last_login"] != "no login":
-                user_info.last_login = datetime.datetime.strptime(record["last_login"], "%Y-%m-%d %H:%M:%S.%f")
+                user_info.last_login = parse_timestamp(record["last_login"])
             user_info.apitoken = record["apitoken"]
         else:
             user_info = None
@@ -56,14 +111,17 @@ class UserInfo:
                 database.execute("UPDATE user SET password = ? WHERE id = ?;",(self.password, self.user_id,))
             database.execute("UPDATE user SET role = ? WHERE id = ?;",(self.role, self.user_id,))
             if isinstance(self.registered, datetime.datetime):
-                database.execute("UPDATE user SET registered = ? WHERE id = ?;",(self.registered.strftime("%Y-%m-%d %H:%M:%S.%f"), self.user_id,))
+                database.execute("UPDATE user SET registered = ? WHERE id = ?;",(format_timestamp(self.registered), self.user_id,))
             if isinstance(self.last_login, datetime.datetime):
-                database.execute("UPDATE user SET last_login = ? WHERE id = ?;",(self.last_login.strftime("%Y-%m-%d %H:%M:%S.%f"), self.user_id,))
+                database.execute("UPDATE user SET last_login = ? WHERE id = ?;",(format_timestamp(self.last_login), self.user_id,))
             database.execute("UPDATE user SET apitoken = ? WHERE id = ?;",(self.apitoken, self.user_id,))
         else:
             database.execute(
                 "INSERT INTO user (username, password, role, registered, last_login, apitoken) VALUES (?,?,?,?,?,?)",
-                (self.username, self.password, self.role, datetime.datetime.utcnow(), 'no login', self.apitoken),
+                # formatted here rather than handed over as a datetime: sqlite3's
+                # implicit adapter is deprecated as of 3.12, and it wrote a value
+                # fromDb could not always read back. See issue #98.
+                (self.username, self.password, self.role, format_timestamp(utc_now()), 'no login', self.apitoken),
             )
         database.commit()
     
@@ -558,6 +616,8 @@ def init_db():
         db.executescript(f.read().decode('utf8'))
     with current_app.open_resource('sql' + os.sep + 'create_table_login_attempt.sql') as f:
         db.executescript(f.read().decode('utf8'))
+    with current_app.open_resource('sql' + os.sep + 'create_table_query_upload.sql') as f:
+        db.executescript(f.read().decode('utf8'))
 
 @click.command('init-db')
 @with_appcontext
@@ -606,9 +666,11 @@ def migrate(app_context):
             for record in cursor.execute("select * from user;").fetchall():
                 user_ids.append(record[0])
             for user_id in user_ids:
-                generated_apitoken = hashlib.md5(uuid.uuid4().bytes).hexdigest()
+                generated_apitoken = generate_apitoken()
                 db.execute("UPDATE user SET apitoken = ? WHERE id = ?", (generated_apitoken, user_id))
-                print(f"EXECUTED MIGRATION: ADD APITOKEN {generated_apitoken} TO USER_ID {user_id} FROM TABLE USER")
+                # the token itself is deliberately not printed: it authenticates its
+                # owner to /api, and this line goes to the container log
+                print(f"EXECUTED MIGRATION: ADD APITOKEN TO USER_ID {user_id} FROM TABLE USER")
         # since version v1.2.10, we have an additional server_token field, ensure it exists (empty)
         server_table_columns = list(map(lambda x: x[0], db.execute('SELECT * FROM server').description))
         if "server_token" not in server_table_columns:
@@ -632,6 +694,13 @@ def migrate(app_context):
             with app_context.open_resource('sql' + os.sep + 'create_table_login_attempt.sql') as f:
                 db.executescript(f.read().decode('utf8'))
             print("EXECUTED MIGRATION: CREATED TABLE LOGIN_ATTEMPT")
+        # since query results name the file they were uploaded as (#40), ensure the table exists
+        try:
+            db.execute('SELECT * FROM query_upload').fetchone()
+        except sqlite3.OperationalError:
+            with app_context.open_resource('sql' + os.sep + 'create_table_query_upload.sql') as f:
+                db.executescript(f.read().decode('utf8'))
+            print("EXECUTED MIGRATION: CREATED TABLE QUERY_UPLOAD")
 
         db.commit()
     finally:
@@ -752,3 +821,42 @@ def get_username_by_apitoken(apitoken):
     if record is not None:
         username = record["username"]
     return username
+
+#: A query filename is display metadata, never a path. Cap it so a hostile upload can
+#: neither bloat the table nor push everything else off the result page.
+MAX_QUERY_FILENAME_LENGTH = 255
+
+def _displayable_filename(filename):
+    """Reduce an uploaded filename to what may be shown to another user.
+
+    `isprintable()` drops control characters and the invisible formatting characters
+    that let one name be dressed as another. Path separators are kept - the value is
+    never used to build a path here, and mangling them would show the uploader a name
+    they do not recognize.
+    """
+    if not filename or not isinstance(filename, str):
+        return ""
+    return "".join(character for character in filename if character.isprintable()).strip()[:MAX_QUERY_FILENAME_LENGTH]
+
+def remember_query_filename(job_id, filename):
+    """Record the name a query was uploaded under, so its result page can show it.
+
+    None of the backend's query endpoints accepts a filename, so this is the only
+    place the name is ever kept. Keyed by job id: the backend deduplicates a repeated
+    query onto the job it already has, and the name kept is the first one seen for it.
+    """
+    filename = _displayable_filename(filename)
+    if not job_id or not filename:
+        return
+    db = get_db()
+    db.execute("INSERT OR IGNORE INTO query_upload (job_id, filename) VALUES (?, ?);", (str(job_id), filename))
+    db.commit()
+
+def get_query_filename(job_id):
+    """The name a query job's upload carried, or None if this instance never saw it."""
+    if not job_id:
+        return None
+    db = get_db()
+    cursor = db.cursor()
+    record = cursor.execute("SELECT filename FROM query_upload WHERE job_id = ?;", (str(job_id),)).fetchone()
+    return record["filename"] if record is not None else None
