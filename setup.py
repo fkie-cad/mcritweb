@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="mcritweb",
-    version="1.4.8",
+    version="1.5.0",
     packages=["mcritweb"],
     # inherited, not intrinsic: nothing in mcritweb's own source needs 3.11, but
     # mcrit has declared ">=3.11" since v1.5.0 and the pin below is >=1.5.3, so
