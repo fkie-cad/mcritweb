@@ -45,19 +45,18 @@ def get_sample_entries(sample_ids):
     """{sample_id: SampleEntry, or None if the backend answered none} for the distinct
     ids in `sample_ids`, asking the backend for each id at most once per request.
 
-    mcrit's client and REST API have no batched sample lookup - `getSamples(start,
-    limit)` pages through the collection by position rather than by id, and
-    `search_samples` takes a query, not a list of ids - so every id not yet known is
-    still one `getSampleById`. What this removes are the repeats: one sample named by
-    several jobs on a page, or one the page already holds for another reason, which it
-    hands over with `remember_samples`. See issue #191.
+    The ids not yet known go to the backend in one `getSamplesByIds` request, whatever
+    their number. What is known already costs nothing: one sample named by several jobs
+    on a page, or one the page holds for another reason, which it hands over with
+    `remember_samples`. See issue #191.
     """
-    return _entries_by_id("samples", sample_ids, get_client().getSampleById)
+    return _entries_by_id("samples", sample_ids, get_client().getSamplesByIds)
 
 
 def get_family_entries(family_ids):
-    """`get_sample_entries` for families: one `getFamily` per id not yet known."""
-    return _entries_by_id("families", family_ids, get_client().getFamily)
+    """`get_sample_entries` for families, through one `getFamiliesByIds` request. Those
+    entries carry no sample lists; nothing that asks for them here reads one."""
+    return _entries_by_id("families", family_ids, get_client().getFamiliesByIds)
 
 
 def remember_samples(sample_entries):
@@ -75,11 +74,14 @@ def _known_entries(kind):
     return g.known_entries[kind]
 
 
-def _entries_by_id(kind, entry_ids, fetch):
+def _entries_by_id(kind, entry_ids, fetch_many):
     known = _known_entries(kind)
-    entries = {}
-    for entry_id in entry_ids:
-        if entry_id not in known:
-            known[entry_id] = fetch(entry_id)
-        entries[entry_id] = known[entry_id]
-    return entries
+    entry_ids = list(dict.fromkeys(entry_ids))
+    missing = [entry_id for entry_id in entry_ids if entry_id not in known]
+    if missing:
+        # an id the backend has no entry for is absent from its answer, and a failed
+        # request answers {} - either way the id maps to None, as a single lookup did
+        found = fetch_many(missing) or {}
+        for entry_id in missing:
+            known[entry_id] = found.get(entry_id)
+    return {entry_id: known[entry_id] for entry_id in entry_ids}

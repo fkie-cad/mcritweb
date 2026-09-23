@@ -17,7 +17,7 @@ from smda.common.SmdaReport import SmdaReport
 from mcritweb.db import UserColumnSettings, UserFilters, get_query_filename, utc_now
 from mcritweb.views.analyze import query as analyze_query
 from mcritweb.views.authentication import contributor_required, visitor_required
-from mcritweb.views.client import get_client, get_sample_entries
+from mcritweb.views.client import get_client, get_family_entries, get_sample_entries
 from mcritweb.views.cross_compare import get_sample_to_job_id, score_to_color
 from mcritweb.views.functiondiff import get_function_diff
 from mcritweb.views.MatchReportRenderer import MatchReportRenderer
@@ -1176,21 +1176,23 @@ def job_by_id(job_id):
             return redirect(url_for('data.result', job_id=job_id))
     if 'addBinarySample' in job_info.parameters and not suppress_processing_message and auto_refresh:
         flash('We received your sample, currently processing!', category='info')
-    # a dependency can be gone by the time this page is opened - deleted through this
-    # app's own job delete, which also has a "delete every job of this method" form, or
-    # cleaned up in the backend - and getJobData answers None for it rather than raising.
-    # Sorting that None on .number used to take the whole overview down with a 500.
-    resolved_children = [client.getJobData(id) for id in job_info.all_dependencies]
-    missing_children = sum(1 for job in resolved_children if job is None)
-    child_jobs = sorted([job for job in resolved_children if job is not None], key=lambda x: x.number)
+    # all dependencies in one request. One can be gone by the time this page is opened
+    # - deleted through this app's own job delete, which also has a "delete every job of
+    # this method" form, or cleaned up in the backend - and is then simply not in the
+    # answer. A failed read counts every dependency as missing rather than failing the
+    # overview, as a None per dependency used to. The answer is kept to the ids asked
+    # for: a backend that doesn't know `job_ids` ignores it and answers the whole queue.
+    dependencies = list(dict.fromkeys(job_info.all_dependencies))
+    answered = (client.getQueueData(job_ids=dependencies) or []) if dependencies else []
+    asked = set(dependencies)
+    resolved_children = list({job.job_id: job for job in answered if job.job_id in asked}.values())
+    missing_children = len(dependencies) - len(resolved_children)
+    child_jobs = sorted(resolved_children, key=lambda x: x.number)
     samples_by_id = {}
     families_by_id = {}
     if child_jobs:
-        for job in child_jobs:
-            samples_by_id.update(get_sample_entries(job.sample_ids or []))
-        for job in child_jobs:
-            if job.family_id is not None:
-                families_by_id[job.family_id] = client.getFamily(job.family_id)
+        samples_by_id.update(get_sample_entries(sample_id for job in child_jobs for sample_id in job.sample_ids or []))
+        families_by_id.update(get_family_entries(job.family_id for job in child_jobs if job.family_id is not None))
     return render_template('job_overview.html', families=families_by_id, samples=samples_by_id, job_info=job_info, auto_refresh=auto_refresh, child_jobs=child_jobs, missing_children=missing_children)
 
 
