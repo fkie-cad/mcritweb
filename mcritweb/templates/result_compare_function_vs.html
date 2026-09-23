@@ -75,6 +75,7 @@ Function: {{ function_id_a }} vs {{ function_id_b }}
             <label style="margin:3px; padding:3px;"><input type="radio" name="viewMode" value="combined" id="viewCombined" disabled title="Available once both graphs are rendered"> Combined</label>
           </span>
           <label style="margin:3px; padding:3px;" title="Pan and zoom both graphs together"><input style="margin:3px;" type="checkbox" id="syncGraphs" checked> Sync graphs</label>
+          <input style="margin:3px;" type="button" id="resetView" value="Reset view" title="Fit each graph to its pane again, at its own scale. Both graphs are fitted independently, so panning and zooming preserves whatever offset they started with - this puts them back."/>
           <span>
             <input style="margin:3px;" type="button" id="showCycles" value="Show Cycles"/>
             <input style="margin:3px;" type="button" id="showLoops" value="Show Loops"/>

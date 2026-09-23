@@ -148,7 +148,7 @@ def _levenshtein_pairs(smda_function_a, smda_function_b, unmatched_nodes):
     alphabet = {}
     num_symbols = 0
 
-    def symbolify(smda_function, unmatched):
+    def symbolify(smda_function, unmatched, side):
         nonlocal num_symbols
         # offset -> symbolified block
         candidate_blocks = {}
@@ -162,14 +162,21 @@ def _levenshtein_pairs(smda_function_a, smda_function_b, unmatched_nodes):
                     alphabet[escaped_ins] = chr(0x20 + num_symbols)
                     num_symbols += 1
                     if num_symbols > 0xff-0x20:
-                        print(alphabet)
-                        raise Exception("Basic Block contains too many tokens to compare.")
+                        # the alphabet was printed here before raising: on a request path,
+                        # dumping every distinct instruction in the function to stdout. The
+                        # size is the part that explains the failure, so it goes where a
+                        # reader of the traceback will actually see it. See #165 - #175's
+                        # deduplication of these two loops had restored the print.
+                        raise Exception(
+                            f"Too many distinct instructions to compare: {num_symbols} "
+                            f"across both functions, limit {0xff - 0x20}. Overflowed while "
+                            f"symbolifying function {side}.")
                 symbolified_block += alphabet[escaped_ins]
             candidate_blocks[block.offset] = symbolified_block
         return candidate_blocks
 
-    candidate_blocks_a = symbolify(smda_function_a, unmatched_nodes["a"])
-    candidate_blocks_b = symbolify(smda_function_b, unmatched_nodes["b"])
+    candidate_blocks_a = symbolify(smda_function_a, unmatched_nodes["a"], "a")
+    candidate_blocks_b = symbolify(smda_function_b, unmatched_nodes["b"], "b")
 
     by_score = {0: [], 1: [], 2: [], 3: []}
     for block_a, symbols_a in candidate_blocks_a.items():
