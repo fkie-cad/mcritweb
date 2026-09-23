@@ -125,9 +125,6 @@ def test_a_numeric_term_names_its_entry_directly(search_client):
     assert isinstance(page.id_match, SampleEntry)
     assert page.id_match.sample_id == sample.sample_id
     assert page.direct_matches == [page.id_match]
-    # the direct match comes first and is not listed twice when the page holds it as well
-    assert [entry.sample_id for entry in page.unique_entries("sample_id")].count(sample.sample_id) == 1
-    assert page.unique_entries("sample_id")[0].sample_id == sample.sample_id
 
 
 def test_a_sha256_names_its_sample_directly(search_client):

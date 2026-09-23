@@ -38,13 +38,6 @@ class SearchPage:
         matches = [match for match in (self.id_match, self.sha_match) if match is not None]
         return [match for index, match in enumerate(matches) if match not in matches[:index]]
 
-    def unique_entries(self, id_field: str) -> List[Any]:
-        """direct matches first, then the page, each id once (a filename can equal a sha256)"""
-        unique: Dict[Any, Any] = {}
-        for entry in self.direct_matches + self.entries:
-            unique.setdefault(getattr(entry, id_field), entry)
-        return list(unique.values())
-
     def __iter__(self):
         return iter(self.entries)
 
