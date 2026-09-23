@@ -1,7 +1,13 @@
+#!/usr/bin/python
 """Keep references to numbered architecture decisions in sync with their files."""
 
+import logging
 import re
 from pathlib import Path
+
+LOG = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(message)s")
+logging.disable(logging.CRITICAL)
 
 ROOT = Path(__file__).resolve().parents[1]
 ADR_DIR = ROOT / "docs" / "adr"
@@ -54,3 +60,9 @@ def test_bare_adr_numbers_exist():
         if match.group("number") not in known
     ]
     assert unknown == []
+
+
+def test_each_check_finds_references_to_check():
+    """So that none of the checks above can pass by matching nothing."""
+    for pattern in (ADR_PATH, ADR_LINK, ADR_NUMBER):
+        assert any(True for _ in references(pattern)), pattern.pattern
