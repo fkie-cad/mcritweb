@@ -10,9 +10,9 @@ import re
 import shutil
 
 import requests
-from flask import current_app, flash, g, redirect, session, url_for
+from flask import Response, current_app, flash, g, redirect, session, url_for
 
-from mcritweb import db
+from mcritweb import backend_errors, db
 from mcritweb.db import ServerInfo, UserColumnSettings
 
 
@@ -54,9 +54,16 @@ def mcrit_server_required(view):
         probe = current_app.config.get("MCRIT_SERVER_PROBE", default_server_probe)
         try:
             if not probe():
+                # reached the backend and it refused our token: from an API caller's
+                # side that is still an upstream failure, so it gets a status rather
+                # than a redirect to a page it cannot read. See issue #43.
+                if backend_errors.wants_a_status_code():
+                    return Response(status=502)
                 flash('Connected to MCRIT server but could not authenticate - Did you configure a token in the server settings?', category='error')
                 return redirect(url_for('index'))
-        except Exception:
+        except Exception as error:
+            if backend_errors.wants_a_status_code():
+                return Response(status=backend_errors.status_for(error))
             flash('No connection to the MCRIT server', category='error')
             return redirect(url_for('index'))
         return view(**kwargs)

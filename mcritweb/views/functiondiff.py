@@ -24,6 +24,7 @@ import struct
 from rapidfuzz.distance import Levenshtein
 from smda.intel.IntelInstructionEscaper import IntelInstructionEscaper
 
+from mcritweb.backend_errors import require_result
 from mcritweb.views.client import get_client
 
 #: the base colour of a block nothing matched
@@ -118,8 +119,8 @@ def _adhoc_picblock_hashes(smda_function, sample_entry):
 
 def _adhoc_picblock_pairs(function_a, function_b, smda_function_a, smda_function_b):
     client = get_client()
-    sample_a = client.getSampleById(function_a.sample_id)
-    sample_b = client.getSampleById(function_b.sample_id)
+    sample_a = require_result(client.getSampleById(function_a.sample_id), "the sample the first function belongs to")
+    sample_b = require_result(client.getSampleById(function_b.sample_id), "the sample the second function belongs to")
     return _pair_by_hash(_adhoc_picblock_hashes(smda_function_a, sample_a), _adhoc_picblock_hashes(smda_function_b, sample_b))
 
 

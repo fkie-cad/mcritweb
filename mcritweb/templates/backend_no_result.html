@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title%}
+MCRIT server returned no data
+{% endblock %}
+{% block style %}
+{% endblock %}
+{% block content %}
+<h1>MCRIT server returned no data</h1>
+<p role="alert">The MCRIT server did not return {{ what }}.</p>
+{# The two readings really are indistinguishable from here: mcrit's handle_response
+   answers 400, 404, 410, 500, 501 and every status it does not enumerate with the
+   same empty result. Naming one of them would be a guess presented as a fact, and
+   the reader would go and look in the wrong place. See issue #43. #}
+{% if refusal_only %}
+<p>What was asked for is not there - it may have been deleted - or the server refused
+   the request as invalid. A failure on the server's side is reported separately.</p>
+{% else %}
+<p>Either what was asked for is not there - it may have been deleted - or the server
+   could not answer the request. The reply does not say which.</p>
+{% endif %}
+{% if request.method in ('POST', 'PUT', 'PATCH', 'DELETE') %}
+<p>Whether the request went through is unknown: the server may have carried it out
+   and failed only to report back. Check before submitting it again.</p>
+{% endif %}
+{% if g.user and g.user.role == 'admin' %}
+<p>The backend's log will say which it was. Its address is in
+   <a href="{{ url_for('admin.server') }}">server settings</a>.</p>
+{% else %}
+<p>Try again in a moment, or ask an administrator to check the server.</p>
+{% endif %}
+{% endblock %}

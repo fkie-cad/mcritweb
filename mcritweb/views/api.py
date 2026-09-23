@@ -1,9 +1,11 @@
 import json
 import re
 
+import requests
 from flask import Blueprint, Response, abort, current_app, g, request
 from smda.common.SmdaReport import SmdaReport
 
+from mcritweb import backend_errors
 from mcritweb.views.authentication import token_required
 from mcritweb.views.client import get_client
 from mcritweb.views.utility import get_username, mcrit_server_required
@@ -42,6 +44,20 @@ def handle_raw_response(response):
     if response.status_code in [200, 202]:
         return Response(response=json.dumps(response.json()), status=response.status_code)
     return Response(status=response.status_code)
+
+
+@bp.errorhandler(requests.RequestException)
+def backend_unreachable(error):
+    """A backend call that never completed, answered as a gateway error.
+
+    Registered here rather than in mcritweb/backend_errors.py because a blueprint
+    refuses a handler added after its first registration, and the app factory runs
+    once per app. The app-wide handler there flashes and redirects, which is right
+    for a page and wrong for an API caller that cannot read HTML. Body-less, as
+    handle_raw_response already is for every non-200 it forwards. See issue #43.
+    """
+    current_app.logger.warning("MCRIT backend call failed on the API: %r", error)
+    return Response(status=backend_errors.status_for(error))
 
 
 @bp.route('/<path:api_path>', methods=['GET','POST'])

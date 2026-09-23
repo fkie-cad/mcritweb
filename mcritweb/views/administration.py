@@ -6,6 +6,7 @@ from flask import Blueprint, current_app, flash, g, redirect, render_template, r
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from mcritweb import db
+from mcritweb.backend_errors import require_result
 from mcritweb.db import ServerInfo, UserColumnSettings, UserFilters, UserInfo, generate_apitoken
 from mcritweb.views.authentication import KNOWN_ROLES, admin_required, login_required, multi_user
 from mcritweb.views.client import get_client
@@ -308,7 +309,7 @@ def reset_server():
 @admin_required
 def schedule_rebuild_index():
     client = get_client()
-    job_id = client.rebuildIndex()
+    job_id = require_result(client.rebuildIndex(), "a job for the index rebuild")
     flash('A job for rebuilding the MinHash Index has been scheduled.', category='success')
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
@@ -317,7 +318,7 @@ def schedule_rebuild_index():
 @admin_required
 def schedule_recalc_pichashes():
     client = get_client()
-    job_id = client.recalculatePicHashes()
+    job_id = require_result(client.recalculatePicHashes(), "a job for the PicHash recalculation")
     flash('A job for recalculating all PicHashes has been scheduled.', category='success')
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
@@ -326,6 +327,6 @@ def schedule_recalc_pichashes():
 @admin_required
 def schedule_recalc_minhashes():
     client = get_client()
-    job_id = client.recalculateMinHashes()
+    job_id = require_result(client.recalculateMinHashes(), "a job for the MinHash recalculation")
     flash('A job for recalculating and indexing all MinHashes has been scheduled.', category='success')
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))

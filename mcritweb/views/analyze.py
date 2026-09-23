@@ -4,6 +4,7 @@ from flask import Blueprint, current_app, flash, g, json, redirect, render_templ
 from mcrit.storage.SampleEntry import SampleEntry
 from smda.common.SmdaReport import SmdaReport
 
+from mcritweb.backend_errors import require_result
 from mcritweb.db import remember_query_filename
 from mcritweb.views.authentication import visitor_required
 from mcritweb.views.client import get_client
@@ -50,7 +51,7 @@ def blocks_family(family_id):
     client = get_client()
     family_samples = client.getSamplesByFamilyId(family_id)
     if family_samples:
-        job_id = client.requestUniqueBlocksForFamily(family_id)
+        job_id = require_result(client.requestUniqueBlocksForFamily(family_id), "a job for the unique blocks of this family")
         return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
     else:
         flash("Can't locate unique blocks for a family without samples", category="error")
@@ -62,7 +63,7 @@ def blocks_family(family_id):
 @mcrit_server_required
 def blocks_sample(sample_id):
     client = get_client()
-    job_id = client.requestUniqueBlocksForSamples([sample_id])
+    job_id = require_result(client.requestUniqueBlocksForSamples([sample_id]), "a job for the unique blocks of this sample")
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
 
@@ -331,7 +332,7 @@ def start_cross_compare():
         else:
             flash('Please select at least one sample to cross compare.', category='error')
         return redirect(url_for('analyze.cross_compare'))
-    job_id = client.requestMatchesCross(selected_list, force_recalculation=rematch, sample_group_only=only_selected, band_matches_required=minhash_band_range)
+    job_id = require_result(client.requestMatchesCross(selected_list, force_recalculation=rematch, sample_group_only=only_selected, band_matches_required=minhash_band_range), "a job for this cross comparison")
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
 
@@ -399,7 +400,7 @@ def compare_all(sample_id_a):
     # queued a fresh job on every visit. See issue #97.
     rematch = parse_checkbox_query_param(request, 'rematch')
     minhash_band_range = parse_band_range(request)
-    job_id = client.requestMatchesForSample(sample_id_a, force_recalculation=rematch, band_matches_required=minhash_band_range)
+    job_id = require_result(client.requestMatchesForSample(sample_id_a, force_recalculation=rematch, band_matches_required=minhash_band_range), "a job for this comparison")
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
 @bp.route('/compare_function/<int:function_id>')
@@ -456,7 +457,7 @@ def compare_vs(sample_id_a, sample_id_b):
     client = get_client()
     rematch = parse_checkbox_query_param(request, 'rematch')
     minhash_band_range = parse_band_range(request)
-    job_id = client.requestMatchesForSampleVs(sample_id_a, sample_id_b, force_recalculation=rematch, band_matches_required=minhash_band_range)
+    job_id = require_result(client.requestMatchesForSampleVs(sample_id_a, sample_id_b, force_recalculation=rematch, band_matches_required=minhash_band_range), "a job for this comparison")
     return redirect(url_for('data.job_by_id', job_id=job_id, refresh=3))
 
 @bp.route('/query',methods=('GET', 'POST'))
