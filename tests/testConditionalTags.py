@@ -1,10 +1,16 @@
+#!/usr/bin/python
 """Conditional icon attributes must not decide whether the start tag closes."""
 
 import copy
+import logging
 from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
+
+LOG = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(message)s")
+logging.disable(logging.CRITICAL)
 
 TEMPLATES = Path(__file__).resolve().parent.parent / "mcritweb" / "templates"
 
@@ -22,7 +28,8 @@ def test_conditional_icon_tags_close_after_the_condition():
             if "<i {% if " not in line or "{% else %}" not in line:
                 continue
             checked.append(f"{path.relative_to(TEMPLATES)}:{number}")
-            assert line.split("{% endif %}", 1)[1].lstrip().startswith(">"), checked[-1]
+            _, endif, after = line.partition("{% endif %}")
+            assert endif and after.lstrip().startswith(">"), checked[-1]
     assert checked, "no conditional icon tags were checked"
 
 
