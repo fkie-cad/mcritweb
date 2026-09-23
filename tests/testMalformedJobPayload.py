@@ -83,6 +83,10 @@ def job_document(job_id, params, method="getMatchesForSample", number=1,
         "finished_at": {"$date": "2026-01-01T00:00:02.000Z"} if finished else None,
         "last_error": None, "terminated": False, "attempts_left": 3,
         "progress": 1 if finished else 0, "result": "r" if finished else None,
+        # mongoqueue writes these on every document, and the corpus fake's `state=`
+        # filter reads locked_by the way mongoqueue does - a job without it is a shape
+        # no backend stores, not the malformed payload under test
+        "locked_by": None, "locked_at": None,
     }
 
 
