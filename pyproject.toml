@@ -4,10 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcritweb"
-version = "1.4.8"
+version = "1.5.0"
 description = "Web frontend for the MinHash-based Code Relationship & Investigation Toolkit (MCRIT)"
 readme = "README.md"
-requires-python = ">=3.12"
+# inherited, not intrinsic: nothing in mcritweb's own source needs 3.11, but mcrit has
+# declared ">=3.11" since v1.5.0 and the dependency below is >=1.5.3, so no satisfiable
+# mcrit exists any lower. Undeclared, an install on 3.10 fails with a resolver error
+# about mcrit that names neither Python nor the version the reader needs (#166).
+requires-python = ">=3.11"
 license = "GPL-3.0-only"
 license-files = ["LICENSE"]
 authors = [
@@ -21,6 +25,7 @@ classifiers = [
     "Framework :: Flask",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
@@ -46,8 +51,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest",
-    "pytest-cov",
+    # pinned, like ruff below and for the same reason: CI and `make init` install these
+    "pytest==9.1.1",
+    "pytest-cov==7.1.0",
     # pinned: a ruff release can add rules and redden an unchanged tree on someone else's schedule
     "ruff==0.16.0",
 ]
@@ -73,7 +79,8 @@ testpaths = ["tests"]
 python_files = ["test*.py"]
 
 [tool.ruff]
-target-version = "py312"
+# the declared floor - see requires-python above and tests/testPythonFloor.py
+target-version = "py311"
 line-length = 180
 
 [tool.ruff.lint]
