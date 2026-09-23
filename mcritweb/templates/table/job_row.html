@@ -134,6 +134,15 @@
 {% elif job.method == "recalculateMinHashes" %}
   Recalculate MinHashes and Index
 
+{% elif job.method == "repairMinHashes" %}
+  Repair stale MinHashes
+
+{% elif job.method == "recomputeFamilyStats" %}
+  Recompute Family Statistics
+
+{% elif job.method == "rebuildPicBlockHashIndex" %}
+  Rebuild PicBlockHash Index
+
 {% elif job.method == "addBinarySample" %}
   Add Binary | <i class="fa-solid fa-bug " title="Family ID"></i> {{ job.family }}<br />
   {{ format_monospace(job.sha256[:8]) }} | {{ job.filename }}
