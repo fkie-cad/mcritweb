@@ -17,7 +17,7 @@ from smda.common.SmdaReport import SmdaReport
 from mcritweb.db import UserColumnSettings, UserFilters, get_query_filename, utc_now
 from mcritweb.views.analyze import query as analyze_query
 from mcritweb.views.authentication import contributor_required, visitor_required
-from mcritweb.views.client import get_client
+from mcritweb.views.client import get_client, get_sample_entries
 from mcritweb.views.cross_compare import get_sample_to_job_id, score_to_color
 from mcritweb.views.functiondiff import get_function_diff
 from mcritweb.views.MatchReportRenderer import MatchReportRenderer
@@ -813,11 +813,11 @@ def result_matches_for_sample_or_query(job_info, matching_result: MatchingResult
 
 
 def result_matches_for_cross(job_info, result_json):
-    client = get_client()
     samples = []
     sample_ids = [int(id) for id in next(iter(result_json.values()))["clustered_sequence"]]
+    sample_entries = get_sample_entries(sample_ids)
     for sample_id in sample_ids:
-        sample_entry = client.getSampleById(sample_id)
+        sample_entry = sample_entries[sample_id]
         if sample_entry:
             samples.append(sample_entry)
         else:
@@ -1187,9 +1187,7 @@ def job_by_id(job_id):
     families_by_id = {}
     if child_jobs:
         for job in child_jobs:
-            if job.sample_ids is not None:
-                for sample_id in [sid for sid in job.sample_ids if sid not in samples_by_id]:
-                    samples_by_id[sample_id] = client.getSampleById(sample_id)
+            samples_by_id.update(get_sample_entries(job.sample_ids or []))
         for job in child_jobs:
             if job.family_id is not None:
                 families_by_id[job.family_id] = client.getFamily(job.family_id)
