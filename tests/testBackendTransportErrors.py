@@ -146,7 +146,11 @@ def test_an_explore_page_says_the_backend_is_unreachable(client, as_role, fake_m
 
 #: every backend call index() makes for a signed-in, non-pending user. Each one is a
 #: way for the index page itself to be the thing that cannot reach the backend.
-INDEX_CALLS = ["getQueueData", "getSampleById", "getFamily", "search_samples"]
+#: Not getFamily, although index() has a line for it: it asks the queue for finished
+#: getMatchesForSample jobs only, and mcrit derives a family_id for family-level
+#: methods alone, so that line never runs. It used to look reachable because the
+#: corpus fake answered getQueueData with every job whatever the filter.
+INDEX_CALLS = ["getQueueData", "getSampleById", "search_samples"]
 
 
 @pytest.mark.parametrize(
