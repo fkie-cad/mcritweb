@@ -109,8 +109,11 @@ def api_router(api_path):
             return handle_raw_response(client.getFunctions(forward_start, forward_limit))
         elif request.method == 'POST':
             forward_with_label_only = request.args.get("with_label_only", "").lower() in ["1", "true"]
-            if re.match(rb"^\d+(?:[\s]*,[\s]*\d+)*$", request.data):
-                target_function_ids = [int(function_id) for function_id in request.data.split(b",")]
+            # the raw body, whatever its content type, as the backend reads it: `request.data`
+            # is empty for a form body, which is what `curl --data` sends by default
+            function_id_list = request.get_data()
+            if re.match(rb"^\d+(?:[\s]*,[\s]*\d+)*$", function_id_list):
+                target_function_ids = [int(function_id) for function_id in function_id_list.split(b",")]
                 return handle_raw_response(client.getFunctionsByIds(target_function_ids, with_label_only=forward_with_label_only))
             return handle_raw_response(client.getFunctionsByIds([], with_label_only=forward_with_label_only))
     # getMatchesForSmdaFunction

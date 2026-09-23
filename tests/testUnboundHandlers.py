@@ -1,5 +1,6 @@
 #!/usr/bin/python
-"""Fallback request paths must keep their required values in scope."""
+"""Fallback request paths must keep their required values in scope (#201), and the API's
+function-ID list has to be told from a malformed body the way the backend tells them apart."""
 
 import logging
 from types import SimpleNamespace
@@ -54,3 +55,24 @@ def test_hash_list_redirect_does_not_search_the_whole_corpus(client, as_role, fa
     assert response.status_code == 302
     assert "/analyze/cross_compare" in response.headers["Location"]
     assert "samples=7" in response.headers["Location"]
+
+
+@pytest.mark.parametrize("content_type", ["text/plain", "application/x-www-form-urlencoded"])
+def test_an_id_list_reaches_the_backend_whatever_its_content_type(client, make_user, fake_mcrit, content_type):
+    """`curl --data "1,2"` sends a form content type, and Flask parses a form body into
+    `request.form`, leaving `request.data` empty - so a valid list used to be taken for a
+    malformed one. The backend reads the raw body; the passthrough has to as well."""
+    make_user("visitor")
+
+    def get_functions_by_ids(ids, **kwargs):
+        fake_mcrit._record("getFunctionsByIds", ids, **kwargs)
+        return RawResponse(200, {})
+
+    fake_mcrit.getFunctionsByIds = get_functions_by_ids
+
+    response = client.post("/api/functions", headers={"apitoken": "apitoken-visitor"}, data=b"1,2", content_type=content_type)
+
+    assert response.status_code == 200
+    assert [call for call in fake_mcrit.calls if call[0] == "getFunctionsByIds"] == [
+        ("getFunctionsByIds", ([1, 2],), {"with_label_only": False})
+    ]
