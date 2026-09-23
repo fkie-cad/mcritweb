@@ -453,8 +453,8 @@ def result(job_id):
             "rebuildIndex()",
             "recalculatePicHashes()",
             "recalculateMinHashes()",
-            # mcrit 1.9.0. Without these three here the result of a job MCRITweb itself
-            # scheduled falls through to the final else and is reported as an invalid job id.
+            # mcrit 1.9.0. Leave one of these three out and the result of a job MCRITweb
+            # itself scheduled never reaches the maintenance report.
             "repairMinHashes()",
             "recomputeFamilyStats()",
             "rebuildPicBlockHashIndex()",

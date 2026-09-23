@@ -10,9 +10,9 @@ past the interface to the backend.
 
 Three things had to line up for that to work, and each of them is a separate way to get it
 wrong: the route has to queue the job, `data.result()` has to recognise the job type (its
-list of maintenance parameters is hand-written, and a job not in it is reported as an
-invalid job id), and the template has to render the report rather than "Unhandled
-maintenance job type".
+list of maintenance parameters is hand-written, and a job missing from it never reaches
+the maintenance report), and the template has to render the report rather than
+"Unhandled maintenance job type".
 """
 
 import logging
