@@ -109,10 +109,10 @@ CREATE TABLE server (
 );
 """
 
-
-
-# v1.4.8: the schema the theme column arrives on top of - everything the migration
-# steps above produce, and a `user` table that still has no `theme`.
+# v1.4.8: the schema both query_upload (#40) and the theme column (#70) are migrated
+# onto - the last release before either, so it has neither: no query_upload table and a
+# `user` table with no `theme`. create_table_user_column_settings.sql has had exactly one
+# commit since it was introduced in v1.4.0, so this is that file verbatim.
 SCHEMA_V1_4_8 = SCHEMA_V1_3_6 + """
 CREATE TABLE user_column_settings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -291,7 +291,8 @@ def test_the_oldest_schema_is_brought_fully_up_to_date(tmp_path):
 
     _run_migration(tmp_path, db_path)
 
-    assert {"user", "user_filters", "server", "user_column_settings"} <= _tables(db_path)
+    assert {"user", "user_filters", "server", "user_column_settings",
+            "login_attempt", "query_upload"} <= _tables(db_path)
     assert "apitoken" in _columns(db_path, "user")
     assert "server_token" in _columns(db_path, "server")
 
@@ -365,17 +366,18 @@ def test_stored_user_filters_are_not_dropped(tmp_path):
     assert _query(db_path, "SELECT user_id, filter_direct_min_score, filter_exclude_pic FROM user_filters") == [(1, 42, 1)]
 
 
-def test_a_v1_3_6_database_only_gains_column_settings(tmp_path):
-    """The last step before the current schema: user_column_settings arrives in
-    v1.4.0, and the already-migrated pieces must be left untouched."""
+def test_a_v1_3_6_database_gains_the_tables_added_since(tmp_path):
+    """The steps after it that only create a table: user_column_settings arrives in
+    v1.4.0 and query_upload with issue #40, and the already-migrated pieces must be
+    left untouched by either."""
     db_path = _legacy_database(tmp_path, SCHEMA_V1_3_6)
     _insert_legacy_user(db_path, "olduser", with_apitoken=True)
     _insert_legacy_server(db_path, with_server_token=True)
 
-    assert "user_column_settings" not in _tables(db_path)
+    assert {"user_column_settings", "query_upload"}.isdisjoint(_tables(db_path))
     _run_migration(tmp_path, db_path)
 
-    assert "user_column_settings" in _tables(db_path)
+    assert {"user_column_settings", "query_upload"} <= _tables(db_path)
     assert _query(db_path, "SELECT apitoken FROM user") == [("preexisting-token",)]
     assert _query(db_path, "SELECT server_token FROM server") == [("srvtoken",)]
 
@@ -410,6 +412,67 @@ def test_a_stored_theme_survives_a_second_run(tmp_path):
     _run_migration(tmp_path, db_path)
 
     assert _query(db_path, "SELECT theme FROM user") == [("dark",)]
+
+
+def test_a_database_from_before_the_throttle_gains_the_attempt_table(tmp_path):
+    """The migration step added for issue #101, from the schema it starts from.
+
+    Everything up to v1.4.8 predates `login_attempt`, so an upgrading deployment has to
+    grow it on first start - the login path reads it on every POST and would otherwise
+    raise `no such table` for every attempt, locking everyone out rather than metering
+    anyone.
+    """
+    db_path = _legacy_database(tmp_path, SCHEMA_V0_10_6)
+    _insert_legacy_user(db_path, "olduser")
+    assert "login_attempt" not in _tables(db_path)
+
+    _run_migration(tmp_path, db_path)
+
+    assert "login_attempt" in _tables(db_path)
+    assert {"remote_addr", "username", "attempted_at"} <= set(_columns(db_path, "login_attempt"))
+
+
+def test_recorded_attempts_survive_a_second_migration(tmp_path):
+    """The guard is a CREATE, so a second start must not drop what the first counted."""
+    db_path = _legacy_database(tmp_path, SCHEMA_V0_10_6)
+    _insert_legacy_user(db_path, "olduser")
+    _run_migration(tmp_path, db_path)
+
+    connection = sqlite3.connect(db_path)
+    try:
+        connection.execute(
+            "INSERT INTO login_attempt (remote_addr, username, attempted_at) VALUES (?, ?, ?)",
+            ("203.0.113.7", "olduser", 1)),
+        connection.commit()
+    finally:
+        connection.close()
+
+    _run_migration(tmp_path, db_path)
+
+    assert _query(db_path, "SELECT remote_addr, username FROM login_attempt") == [
+        ("203.0.113.7", "olduser")]
+
+def test_a_v1_4_8_database_only_gains_query_upload(tmp_path):
+    """The schema query_upload is actually migrated onto, rather than two steps back.
+
+    Everything else is already in place here, so this is the only step that may run -
+    and create_table_user_column_settings.sql drops its table first, so a guard that
+    misfired would take that user's whole column setup with it.
+    """
+    db_path = _legacy_database(tmp_path, SCHEMA_V1_4_8)
+    _insert_legacy_user(db_path, "olduser", with_apitoken=True)
+    _insert_legacy_server(db_path, with_server_token=True)
+    connection = sqlite3.connect(str(db_path))
+    connection.execute("INSERT INTO user_column_settings (user_id, samples_table_sample_id) VALUES (?, ?)", (1, 6))
+    connection.commit()
+    connection.close()
+
+    assert "query_upload" not in _tables(db_path)
+    _run_migration(tmp_path, db_path)
+
+    assert "query_upload" in _tables(db_path)
+    assert _columns(db_path, "query_upload") == ["job_id", "filename"]
+    assert _query(db_path, "SELECT user_id, samples_table_sample_id FROM user_column_settings") == [(1, 6)]
 
 
 def test_the_current_schema_is_a_no_op(tmp_path):
