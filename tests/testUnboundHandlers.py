@@ -1,9 +1,15 @@
+#!/usr/bin/python
 """Fallback request paths must keep their required values in scope."""
 
+import logging
 from types import SimpleNamespace
 
 import pytest
 from fixtureData import RawResponse
+
+LOG = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(message)s")
+logging.disable(logging.CRITICAL)
 
 
 @pytest.fixture
