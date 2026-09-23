@@ -43,8 +43,10 @@ bp = Blueprint('data', __name__, url_prefix='/data')
 #: A job id as the backend hands it out: a mongo ObjectId (24 hex) or, on a local
 #: queue, a uuid4. A cached report is named after its job id, and the id arrives
 #: straight from the URL - so keep it to characters that cannot leave the cache
-#: directory (no os.sep, no ".."), and to a length a filename can hold.
-JOB_ID_RE = re.compile(r"^[0-9A-Za-z_-]{1,64}$")
+#: directory (no os.sep, no ".."), and to a length a filename can hold. `\Z`, not `$`,
+#: which also matches before a trailing newline - the convention master's own
+#: JOB_ID_PATTERN states for the download route.
+JOB_ID_RE = re.compile(r"^[0-9A-Za-z_-]{1,64}\Z")
 
 
 def is_cacheable_job_id(job_id):
@@ -71,7 +73,7 @@ def is_cacheable_job_id(job_id):
 DIAGRAM_FILENAME_RE = re.compile(
     r"^(?P<job_id>[0-9A-Za-z_-]{1,64}?)"
     r"(?:-(?P<filter_kind>famid|samid|funid)_(?P<filter_id>0|-?[1-9][0-9]{0,17}))?"
-    r"\.png$"
+    r"\.png\Z"
 )
 
 
@@ -133,14 +135,18 @@ def load_cached_result(app, job_id):
 def find_cached_result_filename(app, job_id):
     """Name of the newest cached report for a job, or None if none is cached.
 
-    Matches the whole `<timestamp>-<job_id>.json` name that cache_result writes,
-    rather than a substring of it as load_cached_result does: this file is handed to
-    the caller as-is, so a short or crafted job_id must not be able to select a
-    report that merely contains it. The timestamp prefix sorts chronologically, so
-    the newest capture wins for a job that has been fetched more than once.
+    Matches the whole `<timestamp>-<job_id>.json` name that cache_result writes, as
+    load_cached_result does: this file is handed to the caller as-is, so a short or
+    crafted job_id must not be able to select a report that merely contains it. The
+    timestamp prefix sorts chronologically, so the newest capture wins for a job that
+    has been fetched more than once.
     """
     cache_path = os.sep.join([app.instance_path, "cache", "results"])
-    candidates = [filename for filename in os.listdir(cache_path) if filename.endswith(f"-{job_id}.json")]
+    suffix = f"-{job_id}.json"
+    # the length test too, as in load_cached_result: `endswith` alone lets the tail of
+    # a uuid4 job id - which has dashes of its own - select another job's report
+    expected_length = CACHE_TIMESTAMP_LENGTH + len(suffix)
+    candidates = [filename for filename in os.listdir(cache_path) if len(filename) == expected_length and filename.endswith(suffix)]
     return max(candidates) if candidates else None
 
 

@@ -73,6 +73,19 @@ def test_a_partial_uuid_job_id_does_not_match_on_a_dash_boundary(app):
         assert load_cached_result(app, "4a1e-9a1c-0c5f2f9b8e77") == {}
 
 
+def test_a_job_id_with_a_trailing_newline_is_not_looked_up(app):
+    """`$` matches before a trailing newline, so a pattern ending in it would take
+    "<id>\\n" from a URL as a cacheable id. The lookup then only missed because no
+    file carries the newline - a coincidence rather than the pattern's own answer."""
+    from mcritweb.views.data import is_cacheable_job_id
+
+    write_cached(app, f"20260806-104636-{JOB_ID}.json", {"report": "mine"})
+
+    assert not is_cacheable_job_id(JOB_ID + "\n")
+    assert load_cached_result(app, JOB_ID + "\n") == {}
+    assert is_cacheable_job_id(JOB_ID)
+
+
 def test_a_job_id_that_looks_like_a_timestamp_matches_nothing(app):
     """"2026" is in every cache filename ever written."""
     write_cached(app, f"20260806-104636-{JOB_ID}.json", {"report": "someone else's"})

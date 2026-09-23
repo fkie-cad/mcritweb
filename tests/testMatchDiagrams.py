@@ -390,6 +390,8 @@ def test_a_filter_id_that_is_not_how_the_app_spells_it_is_not_read_as_a_filter(f
         ".png",
         "6a74660af8b8d2c6f83664f1-famid_7.png.png",
         "a" * 65 + ".png",
+        # `$` would take this: it matches before a trailing newline
+        "6a74660af8b8d2c6f83664f1.png\n",
     ],
 )
 def test_a_filename_the_app_never_wrote_is_not_parsed(filename):

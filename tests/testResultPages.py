@@ -725,7 +725,7 @@ def test_cached_result_lookup_matches_whole_job_ids_only(app):
 
     Same reason as above: every route-level test is already satisfied by the "no
     such job" gate, so none of them would notice this widening back into the
-    substring match `load_cached_result` uses.
+    substring match `load_cached_result` used to make.
     """
     from mcritweb.views.data import find_cached_result_filename
 
@@ -739,6 +739,14 @@ def test_cached_result_lookup_matches_whole_job_ids_only(app):
     assert find_cached_result_filename(app, "6a7464") is None
     assert find_cached_result_filename(app, "f8b8d2c6f836649a") is None
     assert find_cached_result_filename(app, "") is None
+
+    # a local queue's uuid4 ids have dashes of their own, so the tail of one is also a
+    # "-<id>.json" suffix of the file - only the length tells them apart
+    uuid_job_id = "3f2504e0-4f89-41d3-9a0c-0305e82c3301"
+    (cache_path / f"20260808-104636-{uuid_job_id}.json").write_text("{}")
+    assert find_cached_result_filename(app, uuid_job_id) == f"20260808-104636-{uuid_job_id}.json"
+    assert find_cached_result_filename(app, "0305e82c3301") is None
+    assert find_cached_result_filename(app, "9a0c-0305e82c3301") is None
 
 #: One function from each reference sample - the only pool that keeps a control flow
 #: graph, so the only one the comparison page can build its two panels from.
