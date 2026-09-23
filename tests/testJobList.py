@@ -122,8 +122,25 @@ def test_an_invented_category_falls_back_instead_of_failing(client, as_role):
     response = client.get("/data/jobs?active=no-such-category", follow_redirects=True)
 
     assert response.status_code == 200
-    assert b"no-such-category" not in response.data
+    # the value is reported rather than rendered as a tab: the flash names it as not
+    # being a job type, and the tab shown is one the queue really has
+    assert b"is not a job type" in response.data
     assert category_shown(response) in INITIAL_STATISTICS
+
+
+def test_the_canonical_redirect_stays_on_this_page(client, as_role):
+    """The redirect carries the request's own query string, which is user input. It has
+    to stay a relative URL to this route, and the names url_for reserves for itself -
+    which master's pagination refuses to act on - must arrive as inert parameters
+    rather than steer where the redirect points."""
+    as_role("visitor")
+    response = client.get("/data/jobs?_external=1&_anchor=evil&_scheme=javascript")
+
+    assert response.status_code == 302
+    location = response.headers["Location"]
+    assert location.startswith("/data/jobs?"), location
+    assert "#" not in location, "an _anchor turned into a fragment"
+    assert "active=" in location, "the redirect exists to name the tab"
 
 
 if __name__ == "__main__":
