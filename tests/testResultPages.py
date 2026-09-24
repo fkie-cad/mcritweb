@@ -10,6 +10,7 @@ renderer that miscounts a filtered report, fails here rather than in a browser.
 The reports come from a live instance - see tests/fixtures/regenerate.py.
 """
 
+import copy
 import json
 import logging
 import pathlib
@@ -390,6 +391,23 @@ def test_a_job_id_nobody_knows_is_reported_not_crashed(client, as_role):
     response = client.get("/data/result/ffffffffffffffffffffffff")
     assert response.status_code == 200
     assert b"was not found in the system" in response.data
+
+
+def test_a_report_of_a_job_type_the_dispatch_does_not_know_is_reported_not_crashed(client, as_role, corpus_mcrit, monkeypatch):
+    """The dispatch in `data.result` had no else, so a finished job whose type it does not
+    know returned None and Flask answered 500. The three repair jobs mcrit 1.9.0 added
+    were such types on a live instance."""
+    as_role("visitor")
+    job_id = job_id_of("matches_for_sample")
+    # deep copy: the corpus client hands out the dict it keeps, and Job wraps it
+    job_data = copy.deepcopy(corpus_mcrit.getJobData(job_id)._data)
+    job_data["payload"]["method"] = "someFutureMethod"
+    monkeypatch.setattr(corpus_mcrit, "getJobData", lambda *args, **kwargs: Job(job_data, None))
+
+    response = client.get(f"/data/result/{job_id}")
+
+    assert response.status_code == 200
+    assert b"incompatible with the requested interpretation" in response.data
 
 
 @pytest.mark.parametrize(
