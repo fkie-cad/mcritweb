@@ -5,7 +5,7 @@ setup(
     version="1.5.0",
     packages=["mcritweb"],
     # inherited, not intrinsic: nothing in mcritweb's own source needs 3.11, but
-    # mcrit has declared ">=3.11" since v1.5.0 and the pin below is >=1.5.3, so
+    # mcrit has declared ">=3.11" since v1.5.0 and the pin below is >=1.9.0, so
     # no satisfiable mcrit exists any lower. Undeclared, an install on 3.10 fails
     # with a resolver error about mcrit that names neither Python nor the version
     # the reader needs.
@@ -20,7 +20,7 @@ setup(
         "scipy", 
         "fastcluster",
         "networkx",
-        "mcrit>=1.5.3",
+        "mcrit>=1.9.0",
         "levenshtein",
         "markdown"
     ],
