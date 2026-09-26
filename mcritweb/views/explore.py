@@ -216,6 +216,10 @@ def sample_row_job_collection(client, samples):
     counter carries no number, which `Job.number` reports as -1; those sort last, as
     the oldest, and python's stable sort leaves them in the order the backend listed
     them.
+
+    Neither read takes a `limit`: the badge counts all of a sample's matching jobs, so
+    the newest N would undercount it. mcrit's `/jobs` has no selector by sample id to
+    bound them with instead - see #192.
     """
     if not samples:
         return JobCollection([])
@@ -287,7 +291,8 @@ def modifyFamily():
 @visitor_required
 @mcrit_server_required
 def family_names():
-    """Names for the family type-ahead in the edit modals, as JSON.
+    """Names for the family type-ahead, as JSON: the edit modals and, since #192, the
+    family field of the submit form and of the drop overlay.
 
     Every page carrying one of those modals used to embed the complete list of family
     names in its source. mcrit answers `getFamilies()` with one storage lookup per
@@ -301,11 +306,10 @@ def family_names():
     free-text input and stays usable without them.
 
     Answers `{label, value}` pairs rather than bare names, escaped by
-    `mcritweb.autocomplete.autocomplete_items` - the same function behind the
-    `|autocomplete_items` filter that the shipped-with-the-page type-aheads use. The
-    consumer is the vendored autocomplete.js either way, and it renders every
-    suggestion through innerHTML, so escaping here is what keeps a family name from
-    executing (#168). `jsonify` protects the transport, not the sink.
+    `mcritweb.autocomplete.autocomplete_items`. This is the only way family names reach
+    the type-ahead, and the vendored autocomplete.js renders every suggestion through
+    innerHTML, so escaping here is what keeps a family name from executing (#168).
+    `jsonify` protects the transport, not the sink.
     """
     query = request.args.get('q', "")
     client = get_client()
