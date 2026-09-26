@@ -8,7 +8,9 @@ table beside them had just delivered, and the index fetched samples its "latest 
 list had just delivered. `client.get_sample_entries` and `get_family_entries` keep what a
 request has fetched, so each id costs at most one lookup, and `remember_samples` hands
 them what the page already holds. What is still missing goes to the backend in one
-`getSamplesByIds` / `getFamiliesByIds` request per call, however many ids it names.
+`getSamplesByIds` / `getFamiliesByIds` request per call, however many ids it names. A
+backend without those routes answers the batch with nothing, and then each id is asked
+for on its own, as before.
 
 The call counts here are paired with assertions on what the pages still show: a lookup
 that stops happening is only a fix while the entry it fed is still rendered.
@@ -70,12 +72,24 @@ def test_each_id_is_asked_for_once_per_request(app, fake_mcrit):
     assert second[5] is first[5]
 
 
-def test_an_id_the_backend_does_not_have_is_answered_none_and_asked_for_once(app, fake_mcrit):
+def test_an_id_the_backend_does_not_have_is_answered_none_and_not_asked_for_again(app, fake_mcrit):
+    """An empty answer can't be told apart from a backend without the batch route, so
+    the id is asked for once more on its own - and then not again in this request."""
     with app.test_request_context():
         assert get_sample_entries([99, 99]) == {99: None}
         assert get_sample_entries([99]) == {99: None}
 
-    assert lookups(fake_mcrit) == {99: 1}
+    assert batches(fake_mcrit) == [[99]]
+    assert lookups(fake_mcrit) == {99: 2}
+
+
+def test_a_partial_answer_is_not_asked_for_again(app, fake_mcrit):
+    """Some of the ids answered means the backend has the route: the rest are gone."""
+    with app.test_request_context():
+        assert get_sample_entries([3, 99]) == {3: fake_mcrit._samples[3], 99: None}
+
+    assert lookups(fake_mcrit) == {3: 1, 99: 1}
+    assert "getSampleById" not in [called for called, *_ in fake_mcrit.calls]
 
 
 def test_a_remembered_sample_is_not_asked_for(app, fake_mcrit):
@@ -96,10 +110,43 @@ def test_families_are_asked_for_once_per_request(app, fake_mcrit):
     assert families[1].family_id == 1
 
 
-def test_a_failed_batch_answers_none_for_each_id(app, fake_mcrit, monkeypatch):
-    """The client answers {} when the request fails, which reads as "none of these" -
-    the same None a failed single lookup answered."""
-    monkeypatch.setattr(fake_mcrit, "getSamplesByIds", lambda sample_ids, *args, **kwargs: {}, raising=False)
+def without_batch_route(fake_mcrit, monkeypatch, name):
+    """What the client answers a backend older than mcrit 1.12: its 404 becomes {}."""
+    def not_found(entry_ids, *args, **kwargs):
+        fake_mcrit._record(name, list(entry_ids), *args, **kwargs)
+        return {}
+    monkeypatch.setattr(fake_mcrit, name, not_found, raising=False)
+
+
+def test_a_backend_without_the_sample_batch_is_asked_per_id(app, fake_mcrit, monkeypatch):
+    """mcrit 1.9.0 answers `POST /samples/ids` with a 404. Every entry used to map to
+    None then, and pages showed their samples as missing."""
+    without_batch_route(fake_mcrit, monkeypatch, "getSamplesByIds")
+    with app.test_request_context():
+        entries = get_sample_entries([3, 5, 99])
+        again = get_sample_entries([3, 5])
+
+    assert entries == {3: fake_mcrit._samples[3], 5: fake_mcrit._samples[5], 99: None}
+    assert again == {3: fake_mcrit._samples[3], 5: fake_mcrit._samples[5]}
+    singles = [args[0] for called, args, kwargs in fake_mcrit.calls if called == "getSampleById"]
+    assert singles == [3, 5, 99], "each id on its own, once"
+
+
+def test_a_backend_without_the_family_batch_is_asked_per_id_without_sample_lists(app, fake_mcrit, monkeypatch):
+    without_batch_route(fake_mcrit, monkeypatch, "getFamiliesByIds")
+    with app.test_request_context():
+        families = get_family_entries([1, 2])
+
+    assert families == {1: fake_mcrit._families[1], 2: fake_mcrit._families[2]}
+    singles = [(args[0], kwargs) for called, args, kwargs in fake_mcrit.calls if called == "getFamily"]
+    assert singles == [(1, {"with_samples": False}), (2, {"with_samples": False})]
+
+
+def test_a_failed_batch_and_failed_single_lookups_answer_none_for_each_id(app, fake_mcrit, monkeypatch):
+    """The client answers {} and None when requests fail, which read as "none of
+    these" - the same None a failed single lookup always answered."""
+    without_batch_route(fake_mcrit, monkeypatch, "getSamplesByIds")
+    monkeypatch.setattr(fake_mcrit, "getSampleById", lambda sample_id, *args, **kwargs: None, raising=False)
     with app.test_request_context():
         assert get_sample_entries([3, 5]) == {3: None, 5: None}
 
@@ -158,7 +205,7 @@ def test_an_unknown_selection_is_dropped_from_a_cross_compare_after_one_lookup(c
 
     assert response.status_code == 302
     assert "samples=0&" in response.headers["Location"]
-    assert lookups(fake_mcrit) == {99: 1}
+    assert lookups(fake_mcrit) == {99: 2}, "the batch, then the one lookup an empty answer costs"
 
 
 def flashes(client):
@@ -298,6 +345,67 @@ def test_a_failed_dependency_read_counts_every_dependency_as_missing(client, as_
 
     assert response.status_code == 200
     assert re.search(r"2 of this job(&#39;|')s 2 sub-jobs\s+are no longer in the system", response.get_data(as_text=True))
+
+
+def test_many_dependencies_are_read_in_requests_of_a_hundred(client, as_role, fake_mcrit, monkeypatch):
+    """A cross compare of MAX_SELECTED_SAMPLES samples has 250 sub-jobs. Their ids in one
+    query string make a request line of about 6,250 bytes, which gunicorn's default
+    limit_request_line of 4,094 refuses; every dependency then read as missing."""
+    children = {job.job_id: job for job in (matching_job(3, number) for number in range(1000, 1250))}
+    parent_with_dependencies(fake_mcrit, monkeypatch, list(children))
+    monkeypatch.setattr(fake_mcrit, "getQueueData", dependency_reader(fake_mcrit, children), raising=False)
+    as_role("visitor")
+    response = client.get("/data/jobs/parent")
+
+    assert response.status_code == 200
+    reads = dependency_reads(fake_mcrit)
+    assert [len(read) for read in reads] == [100, 100, 50]
+    assert [job_id for read in reads for job_id in read] == list(children)
+    for read in reads:
+        request_line = f"GET /jobs/?job_ids={','.join(read)} HTTP/1.1"
+        assert len(request_line) < 4094
+    body = response.get_data(as_text=True)
+    assert "are no longer in the system" not in body
+    assert lookups(fake_mcrit) == {3: 1}
+
+
+def test_a_failed_read_loses_only_its_own_dependencies(client, as_role, fake_mcrit, monkeypatch):
+    children = {job.job_id: job for job in (matching_job(3, number) for number in range(1000, 1150))}
+    parent_with_dependencies(fake_mcrit, monkeypatch, list(children))
+    read = dependency_reader(fake_mcrit, children)
+
+    def second_read_fails(*args, job_ids=None, **kwargs):
+        answer = read(*args, job_ids=job_ids, **kwargs)
+        return None if len(dependency_reads(fake_mcrit)) == 2 else answer
+
+    monkeypatch.setattr(fake_mcrit, "getQueueData", second_read_fails, raising=False)
+    as_role("visitor")
+    response = client.get("/data/jobs/parent")
+
+    assert response.status_code == 200
+    assert re.search(r"50 of this job(&#39;|')s 150 sub-jobs\s+are no longer in the system", response.get_data(as_text=True))
+
+
+def test_a_backend_that_ignores_the_selector_is_read_once(client, as_role, fake_mcrit, monkeypatch):
+    """An older mcrit answers each `job_ids=` read with the whole queue. The first such
+    answer already holds every dependency there is, so there is no second read of it."""
+    children = {job.job_id: job for job in (matching_job(3, number) for number in range(1000, 1250))}
+    parent_with_dependencies(fake_mcrit, monkeypatch, list(children))
+    stranger = matching_job(12, 99)
+
+    def whole_queue(*args, job_ids=None, **kwargs):
+        fake_mcrit._record("getQueueData", *args, job_ids=job_ids, **kwargs)
+        return list(children.values()) + [stranger]
+
+    monkeypatch.setattr(fake_mcrit, "getQueueData", whole_queue, raising=False)
+    as_role("visitor")
+    response = client.get("/data/jobs/parent")
+
+    assert response.status_code == 200
+    assert len(dependency_reads(fake_mcrit)) == 1
+    body = response.get_data(as_text=True)
+    assert "are no longer in the system" not in body
+    assert stranger.job_id not in body
 
 
 def unique_blocks_job(family_id, number):

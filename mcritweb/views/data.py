@@ -1176,16 +1176,13 @@ def job_by_id(job_id):
             return redirect(url_for('data.result', job_id=job_id))
     if 'addBinarySample' in job_info.parameters and not suppress_processing_message and auto_refresh:
         flash('We received your sample, currently processing!', category='info')
-    # all dependencies in one request. One can be gone by the time this page is opened
-    # - deleted through this app's own job delete, which also has a "delete every job of
-    # this method" form, or cleaned up in the backend - and is then simply not in the
-    # answer. A failed read counts every dependency as missing rather than failing the
-    # overview, as a None per dependency used to. The answer is kept to the ids asked
-    # for: a backend that doesn't know `job_ids` ignores it and answers the whole queue.
+    # the dependencies in a few requests, see `dependency_jobs`. One can be gone by the
+    # time this page is opened - deleted through this app's own job delete, which also
+    # has a "delete every job of this method" form, or cleaned up in the backend - and
+    # is then simply not in the answer. A failed read counts its dependencies as
+    # missing rather than failing the overview, as a None per dependency used to.
     dependencies = list(dict.fromkeys(job_info.all_dependencies))
-    answered = (client.getQueueData(job_ids=dependencies) or []) if dependencies else []
-    asked = set(dependencies)
-    resolved_children = list({job.job_id: job for job in answered if job.job_id in asked}.values())
+    resolved_children = dependency_jobs(client, dependencies)
     missing_children = len(dependencies) - len(resolved_children)
     child_jobs = sorted(resolved_children, key=lambda x: x.number)
     samples_by_id = {}
@@ -1194,6 +1191,33 @@ def job_by_id(job_id):
         samples_by_id.update(get_sample_entries(sample_id for job in child_jobs for sample_id in job.sample_ids or []))
         families_by_id.update(get_family_entries(job.family_id for job in child_jobs if job.family_id is not None))
     return render_template('job_overview.html', families=families_by_id, samples=samples_by_id, job_info=job_info, auto_refresh=auto_refresh, child_jobs=child_jobs, missing_children=missing_children)
+
+
+#: job ids per `getQueueData(job_ids=...)` request. The ids travel in the query string,
+#: 25 characters each: 250 of them, a cross compare of MAX_SELECTED_SAMPLES samples, make
+#: a request line of about 6,250 bytes, over gunicorn's default limit_request_line of
+#: 4,094 (mcrit's USE_GUNICORN). 100 keep it at about 2,530.
+JOB_IDS_PER_REQUEST = 100
+
+
+def dependency_jobs(client, job_ids):
+    """The jobs of `job_ids` the backend still has, read `JOB_IDS_PER_REQUEST` at a time.
+
+    A failed read loses only its own ids, which the caller counts as missing. A backend
+    older than mcrit 1.12 ignores `job_ids` and answers the whole queue: such an answer
+    already holds every job there is, so the reads stop there, and the answer is kept
+    to the ids asked for.
+    """
+    asked = set(job_ids)
+    answered = []
+    for start in range(0, len(job_ids), JOB_IDS_PER_REQUEST):
+        chunk = job_ids[start:start + JOB_IDS_PER_REQUEST]
+        jobs = client.getQueueData(job_ids=chunk) or []
+        answered.extend(jobs)
+        chunk_ids = set(chunk)
+        if any(job.job_id not in chunk_ids for job in jobs):
+            break
+    return list({job.job_id: job for job in answered if job.job_id in asked}.values())
 
 
 @bp.route('/jobs/<job_id>/delete', methods=('POST',))

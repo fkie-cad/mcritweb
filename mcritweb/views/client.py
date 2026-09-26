@@ -49,14 +49,22 @@ def get_sample_entries(sample_ids):
     their number. What is known already costs nothing: one sample named by several jobs
     on a page, or one the page holds for another reason, which it hands over with
     `remember_samples`. See issue #191.
+
+    A backend older than mcrit 1.12 has no `/samples/ids` and answers the batch with a
+    404, which the client turns into `{}`. That empty answer to a non-empty request
+    falls back to one `getSampleById` per id, so MCRITweb keeps working against an
+    older backend and pays the N requests only there.
     """
-    return _entries_by_id("samples", sample_ids, get_client().getSamplesByIds)
+    client = get_client()
+    return _entries_by_id("samples", sample_ids, client.getSamplesByIds, client.getSampleById)
 
 
 def get_family_entries(family_ids):
     """`get_sample_entries` for families, through one `getFamiliesByIds` request. Those
-    entries carry no sample lists; nothing that asks for them here reads one."""
-    return _entries_by_id("families", family_ids, get_client().getFamiliesByIds)
+    entries carry no sample lists; nothing that asks for them here reads one, and the
+    fallback to one `getFamily` per id asks for none either."""
+    client = get_client()
+    return _entries_by_id("families", family_ids, client.getFamiliesByIds, lambda family_id: client.getFamily(family_id, with_samples=False))
 
 
 def remember_samples(sample_entries):
@@ -74,7 +82,7 @@ def _known_entries(kind):
     return g.known_entries[kind]
 
 
-def _entries_by_id(kind, entry_ids, fetch_many):
+def _entries_by_id(kind, entry_ids, fetch_many, fetch_one):
     known = _known_entries(kind)
     entry_ids = list(dict.fromkeys(entry_ids))
     missing = [entry_id for entry_id in entry_ids if entry_id not in known]
@@ -82,6 +90,11 @@ def _entries_by_id(kind, entry_ids, fetch_many):
         # an id the backend has no entry for is absent from its answer, and a failed
         # request answers {} - either way the id maps to None, as a single lookup did
         found = fetch_many(missing) or {}
+        if not found:
+            # nothing at all for a non-empty request is what a backend without the batch
+            # route answers, so ask the way that backend understands. A current backend
+            # answers {} only when none of the ids exists, and then this costs N misses.
+            found = {entry_id: fetch_one(entry_id) for entry_id in missing}
         for entry_id in missing:
             known[entry_id] = found.get(entry_id)
     return {entry_id: known[entry_id] for entry_id in entry_ids}
