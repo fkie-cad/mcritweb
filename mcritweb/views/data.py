@@ -451,6 +451,10 @@ def result(job_id):
             return redirect(url_for('explore.families'))
         elif job_info.parameters in ["rebuildIndex()", "recalculatePicHashes()", "recalculateMinHashes()"]:
             return render_template("result_maintenance.html", result=result_json, job_info=job_info)
+        else:
+            # a job type this dispatch does not know, e.g. one a newer backend added. Falling
+            # off the end of the chain returned None, which Flask answers with a 500.
+            return render_template("result_incompatible.html", job_id=job_id)
     elif job_info and not (job_info.is_finished or job_info.is_failed or job_info.is_terminated):
         # if we are not done processing, list job data
         return render_template("job_in_progress.html", job_info=job_info)
