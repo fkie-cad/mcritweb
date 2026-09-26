@@ -10,7 +10,7 @@ from mcritweb.db import ServerInfo, UserColumnSettings, UserFilters, UserInfo, g
 from mcritweb.views.authentication import KNOWN_ROLES, admin_required, login_required, multi_user
 from mcritweb.views.client import get_client
 from mcritweb.views.params import parse_checkbox_post_param, parse_integer_post_param
-from mcritweb.views.utility import get_mcritweb_version_from_setup, get_session_user_id
+from mcritweb.views.utility import get_mcritweb_version, get_session_user_id
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -262,7 +262,7 @@ def backend_version(client):
 def server():
     server_info = ServerInfo.fromDb()
     operation_mode_str = "Multi-User" if server_info.operation_mode == "multi" else "Single-User"
-    running_server_version = get_mcritweb_version_from_setup()
+    running_server_version = get_mcritweb_version()
     client = get_client()
     mcrit_version = backend_version(client)
     return render_template('admin_server.html', operation_mode=operation_mode_str, server_info=server_info, running_version=running_server_version, mcrit_version=mcrit_version)
@@ -282,7 +282,7 @@ def change_server():
     else:
         flash('No information needed change', category='success')
     operation_mode_str = "Multi-User" if server_info.operation_mode == "multi" else "Single-User"
-    running_server_version = get_mcritweb_version_from_setup()
+    running_server_version = get_mcritweb_version()
     client = get_client()
     mcrit_version = backend_version(client)
     return render_template('admin_server.html', operation_mode=operation_mode_str, server_info=server_info, running_version=running_server_version, mcrit_version=mcrit_version)
